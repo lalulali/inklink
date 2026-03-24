@@ -15,6 +15,22 @@ Tasks are organized into phases:
 
 ## Phase 1: Core Foundation (Platform-Agnostic)
 
+### Task 0: Markmap Study and Analysis
+
+**Requirements**: Foundation for understanding reference implementation
+**Design References**: Markmap Fork Strategy
+
+- [x] 0.1 Clone Markmap repository (https://github.com/markmap/markmap)
+- [x] 0.2 Study markmap-lib package structure and architecture
+- [x] 0.3 Study markmap-view D3.js rendering implementation
+- [x] 0.4 Analyze flextree layout algorithm approach
+- [x] 0.5 Document D3.js patterns used for SVG rendering
+- [x] 0.6 Document tree data structure patterns
+- [x] 0.7 Document pan/zoom interaction patterns
+- [x] 0.8 Document color application to branches
+- [x] 0.9 Identify code patterns to adopt vs replace
+- [x] 0.10 Create reference documentation for team
+
 ### Task 1: Project Setup and Build Configuration
 
 **Requirements**: Foundation for all other tasks
@@ -23,13 +39,15 @@ Tasks are organized into phases:
 - [x] 1.1 Initialize Next.js 16+ project with TypeScript and strict configuration
 - [x] 1.2 Configure Next.js for web build target with App Router
 - [x] 1.3 Set up Tailwind CSS with Next.js integration
-- [-] 1.4 Install and configure shadcn/ui component library
-- [ ] 1.5 Set up ESLint and Prettier with TypeScript rules
-- [ ] 1.6 Create project directory structure (core/, platform/, ui/, app/)
-- [ ] 1.7 Configure Jest for unit testing with Next.js
-- [ ] 1.8 Install and configure fast-check for property-based testing
-- [ ] 1.9 Set up Git repository with .gitignore
-- [ ] 1.10 Create package.json with all dependencies (Next.js, shadcn, Tailwind, D3.js)
+- [x] 1.4 Install and configure shadcn/ui component library
+- [x] 1.5 Set up ESLint and Prettier with TypeScript rules
+- [x] 1.6 Create project directory structure (core/, platform/, ui/, app/)
+- [x] 1.7 Configure Jest for unit testing with Next.js
+- [x] 1.8 Install and configure fast-check for property-based testing
+- [x] 1.9 Set up Git repository with .gitignore
+- [x] 1.10 Create package.json with all dependencies (Next.js, shadcn, Tailwind, D3.js)
+- [x] 1.11 Add Markmap attribution to README and LICENSE files
+- [x] 1.12 Document that Markmap is used as reference, not dependency
 
 ### Task 2: Core Data Structures and Types
 
@@ -227,18 +245,19 @@ Tasks are organized into phases:
 ### Task 13: D3.js Renderer Implementation
 
 **Requirements**: Req 2, 3, 10
-**Design References**: D3Renderer class, Renderer interface
+**Design References**: D3Renderer class, Renderer interface, Markmap rendering patterns
 
-- [ ] 13.1 Initialize D3.js SVG container
-- [ ] 13.2 Implement renderLinks() with curved connections
-- [ ] 13.3 Implement renderNodes() with rectangles and text
-- [ ] 13.4 Apply branch colors to nodes and links
+- [ ] 13.1 Initialize D3.js SVG container (reference: markmap-view patterns)
+- [ ] 13.2 Implement renderLinks() with curved connections (inspired by Markmap)
+- [ ] 13.3 Implement renderNodes() with rectangles and text (custom implementation)
+- [ ] 13.4 Apply branch colors to nodes and links (pattern from Markmap)
 - [ ] 13.5 Implement node click handlers for expand/collapse
 - [ ] 13.6 Implement collapsible indicator icons
-- [ ] 13.7 Implement update() with D3 data join (enter/update/exit)
-- [ ] 13.8 Implement smooth transitions for animations
+- [ ] 13.7 Implement update() with D3 data join (enter/update/exit pattern from Markmap)
+- [ ] 13.8 Implement smooth transitions for animations (D3 transition patterns)
 - [ ] 13.9 Implement clear() to remove all rendered elements
 - [ ] 13.10 Optimize rendering performance with batching
+- [ ] 13.11 Document which patterns came from Markmap study
 
 ### Task 14: Lazy Rendering System
 
@@ -904,23 +923,25 @@ Tasks are organized into phases:
 
 ## Task Summary
 
-**Total Tasks**: 52 major tasks with 520 sub-tasks
+**Total Tasks**: 53 major tasks with 532 sub-tasks
 
 **Phase Breakdown**:
-- Phase 1 (Core Foundation): 9 tasks, 90 sub-tasks
-- Phase 2 (Web Platform): 17 tasks, 170 sub-tasks
+- Phase 0 (Markmap Study): 1 task, 10 sub-tasks
+- Phase 1 (Core Foundation): 9 tasks, 92 sub-tasks
+- Phase 2 (Web Platform): 17 tasks, 171 sub-tasks
 - Phase 3 (Testing): 15 tasks, 150 sub-tasks
 - Phase 4 (Polish): 5 tasks, 50 sub-tasks
 - Phase 5 (VS Code Extension): 6 tasks, 60 sub-tasks
 
 **Estimated Timeline**:
+- Phase 0: 3-5 days (Markmap study)
 - Phase 1: 3-4 weeks
 - Phase 2: 4-5 weeks
 - Phase 3: 3-4 weeks
 - Phase 4: 2-3 weeks
 - Phase 5: 2-3 weeks (optional)
 
-**Total Estimated Time**: 14-19 weeks for web application, +2-3 weeks for VS Code extension
+**Total Estimated Time**: 1 week + 14-19 weeks for web application, +2-3 weeks for VS Code extension
 
 
 ## Dependencies and Prerequisites
@@ -991,7 +1012,7 @@ Tasks are organized into phases:
 All property tests must:
 - Use fast-check 3.x library
 - Run minimum 100 iterations per test
-- Include comment tag: `// Feature: markdown-to-mindmap-generator, Property {number}: {description}`
+- Include comment tag: `// Feature: inklink, Property {number}: {description}`
 - Reference specific design properties (1-48)
 - Test universal behaviors across all valid inputs
 

@@ -16,7 +16,11 @@ The Markdown to Mind Map Generator is a web-based visualization tool that transf
 ### Technology Stack
 
 **Core Framework (Platform Agnostic)**
-- Fork of Markmap (TypeScript + D3.js)
+- Fork of Markmap (TypeScript + D3.js) - https://github.com/markmap/markmap
+  - Reference implementation for D3.js patterns and SVG rendering
+  - Custom parser replaces Markmap's markdown-it based parser
+  - Custom layout algorithms replace Markmap's flextree layout
+  - Not used as npm dependency - code extracted and customized
 - Pure TypeScript for business logic
 - No platform-specific dependencies in core modules
 
@@ -50,6 +54,11 @@ The Markdown to Mind Map Generator is a web-based visualization tool that transf
 ### Key Architectural Decisions
 
 1. **Fork vs Wrapper**: Forking Markmap allows deep customization of layout algorithms and rendering pipeline
+   - **Fork Source**: https://github.com/markmap/markmap
+   - **Fork Strategy**: Extract core parsing and rendering logic, replace with custom implementations
+   - **What We Keep**: D3.js integration patterns, SVG rendering approach, basic tree structure
+   - **What We Replace**: Parser (custom indentation-based), layout algorithms (5 directions), state management (command pattern), file operations (platform adapters)
+   - **Integration Approach**: Use Markmap as reference implementation, not as dependency
 2. **Command Pattern**: All state-changing operations implemented as commands for undo/redo support
 3. **Lazy Rendering**: Only render nodes visible in viewport for performance with large documents
 4. **Local Storage**: Use IndexedDB for auto-save and recovery, File System Access API for explicit saves
@@ -57,6 +66,87 @@ The Markdown to Mind Map Generator is a web-based visualization tool that transf
 6. **Platform Abstraction**: Core logic separated from platform-specific APIs through adapter pattern, enabling deployment as both web app and VS Code extension
 
 ## Architecture
+
+### Markmap Fork Strategy
+
+This project is built as a conceptual fork of Markmap, meaning we use it as a reference implementation rather than a direct code fork or npm dependency.
+
+**Markmap Repository**: https://github.com/markmap/markmap
+
+**What We Learn From Markmap**:
+- D3.js integration patterns for SVG mind map rendering
+- Tree data structure approaches for hierarchical visualization
+- Pan/zoom interaction patterns with D3
+- SVG export techniques
+- Color scheme application to branches
+
+**What We Replace/Customize**:
+
+1. **Parser** (Complete Replacement)
+   - Markmap uses: markdown-it parser with plugins
+   - We implement: Custom indentation-based parser (simpler, more predictable)
+   - Reason: Direct control over parsing logic, no markdown-it dependency
+
+2. **Layout Engine** (Complete Replacement)
+   - Markmap uses: flextree algorithm (single layout)
+   - We implement: 5 custom layout algorithms (two-sided, L-R, R-L, T-B, B-T)
+   - Reason: Multiple layout directions, balanced distribution, custom spacing
+
+3. **State Management** (New Addition)
+   - Markmap: Minimal state, no undo/redo
+   - We implement: Command pattern with full undo/redo support
+   - Reason: Professional UX with state history
+
+4. **File Operations** (New Addition)
+   - Markmap: Browser-only, no file persistence
+   - We implement: Platform adapters for web and VS Code
+   - Reason: Multi-platform support, file save/load, auto-save
+
+5. **Search Functionality** (New Addition)
+   - Markmap: No search
+   - We implement: Full-text search with navigation
+   - Reason: Essential for large mind maps
+
+6. **Keyboard Shortcuts** (New Addition)
+   - Markmap: Basic interactions only
+   - We implement: Comprehensive keyboard shortcuts
+   - Reason: Power user productivity
+
+**Integration Approach**:
+
+```typescript
+// We DO NOT install Markmap as dependency
+// package.json will NOT include:
+// "markmap-lib": "^x.x.x"  ❌
+
+// Instead, we reference Markmap code patterns:
+// 1. Study markmap-view for D3.js rendering patterns
+// 2. Study markmap-lib for tree structure ideas
+// 3. Implement our own versions with customizations
+
+// Example: D3 rendering inspired by Markmap
+class D3Renderer implements Renderer {
+  // Pattern learned from markmap-view/src/view.ts
+  // But implemented with our custom requirements
+  render(root: TreeNode, positions: Map<string, Position>): void {
+    // Our custom implementation
+  }
+}
+```
+
+**License Compliance**:
+- Markmap is MIT licensed (permissive)
+- We can study and learn from the code
+- We implement our own versions (not copy-paste)
+- We credit Markmap in documentation as inspiration
+- No license conflicts with our implementation
+
+**Development Workflow**:
+1. Phase 1: Study Markmap source code for D3.js patterns
+2. Phase 2: Implement our custom parser (no Markmap code)
+3. Phase 3: Implement our custom layouts (inspired by Markmap's approach)
+4. Phase 4: Implement our D3 renderer (using patterns from Markmap)
+5. Phase 5: Add our custom features (state, file ops, search, etc.)
 
 ### High-Level Architecture
 
@@ -2191,13 +2281,13 @@ Together, these approaches provide both concrete validation (unit tests catch sp
 **Configuration**:
 - Minimum 100 iterations per property test (due to randomization)
 - Each test tagged with comment referencing design property
-- Tag format: `// Feature: markdown-to-mindmap-generator, Property {number}: {property_text}`
+- Tag format: `// Feature: inklink, Property {number}: {property_text}`
 
 **Example Test Structure**:
 ```typescript
 import fc from 'fast-check';
 
-// Feature: markdown-to-mindmap-generator, Property 1: Parse-serialize round-trip
+// Feature: inklink, Property 1: Parse-serialize round-trip
 test('parsing then serializing preserves structure', () => {
   fc.assert(
     fc.property(

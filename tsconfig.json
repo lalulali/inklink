@@ -1,91 +1,27 @@
 {
   "compilerOptions": {
-    /**
-     * Strict Type Checking
-     * Enable all strict type checking options for maximum type safety
-     */
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "strictBindCallApply": true,
-    "strictPropertyInitialization": true,
-    "noImplicitThis": true,
-    "alwaysStrict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
-
-    /**
-     * Module Resolution
-     * Configure module system and path resolution
-     */
     "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "allowJs": true,
-    "checkJs": false,
-
-    /**
-     * Path Mapping
-     * Enable absolute imports for cleaner code organization
-     */
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"],
-      "@core/*": ["./src/core/*"],
-      "@platform/*": ["./src/platform/*"],
-      "@components/*": ["./src/components/*"],
-      "@lib/*": ["./src/lib/*"],
-      "@types/*": ["./src/types/*"]
-    },
-
-    /**
-     * Output Configuration
-     * Configure how TypeScript generates JavaScript
-     */
-    "outDir": "./.next",
-    "rootDir": ".",
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "removeComments": false,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
-
-    /**
-     * JSX Configuration
-     * Configure JSX handling for React
-     */
     "jsx": "preserve",
-
-    /**
-     * Incremental Compilation
-     * Speed up builds with incremental compilation
-     */
     "incremental": true,
-    "tsBuildInfoFile": "./.next/tsbuildinfo",
-
-    /**
-     * Experimental Features
-     * Enable experimental TypeScript features
-     */
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", ".next", "dist", "build"],
-  "ts-node": {
-    "compilerOptions": {
-      "module": "commonjs"
-    }
-  }
+  "exclude": ["node_modules", "markmap-reference"]
 }

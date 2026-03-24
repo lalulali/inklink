@@ -1,19 +1,17 @@
-/**
- * Jest Setup File
- * 
- * Purpose: Configure Jest environment before running tests
- * Key Setup:
- * - Import testing library matchers
- * - Configure global test utilities
- * - Mock browser APIs if needed
- */
-
+// Jest setup file for test utilities
 import '@testing-library/jest-dom';
 
-/**
- * Mock window.matchMedia
- * Required for components that use media queries
- */
+// Mock next/navigation for tests
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+  }),
+  usePathname: () => '/',
+}));
+
+// Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: jest.fn().mockImplementation((query) => ({
@@ -28,48 +26,12 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
-/**
- * Mock IntersectionObserver
- * Required for lazy rendering and viewport detection
- */
-global.IntersectionObserver = class IntersectionObserver {
-  constructor() {}
-  disconnect() {}
-  observe() {}
-  takeRecords() {
-    return [];
-  }
-  unobserve() {}
-};
-
-/**
- * Mock ResizeObserver
- * Required for responsive components
- */
+// Mock ResizeObserver
 global.ResizeObserver = class ResizeObserver {
-  constructor() {}
-  disconnect() {}
   observe() {}
   unobserve() {}
+  disconnect() {}
 };
 
-/**
- * Suppress console errors in tests (optional)
- * Uncomment to reduce noise in test output
- */
-// const originalError = console.error;
-// beforeAll(() => {
-//   console.error = (...args) => {
-//     if (
-//       typeof args[0] === 'string' &&
-//       args[0].includes('Warning: ReactDOM.render')
-//     ) {
-//       return;
-//     }
-//     originalError.call(console, ...args);
-//   };
-// });
-
-// afterAll(() => {
-//   console.error = originalError;
-// });
+// Suppress console errors in tests (optional)
+// global.console.error = jest.fn();

@@ -1,0 +1,66 @@
+/**
+ * Feature: TreeNode Type Definition
+ * Purpose: Defines the tree node structure for mind map representation
+ * Dependencies: None (core type)
+ */
+
+/**
+ * Represents a single node in the mind map tree structure
+ * Corresponds to one line in the markdown document
+ */
+export interface TreeNode {
+  id: string;
+  content: string;
+  depth: number;
+  children: TreeNode[];
+  parent: TreeNode | null;
+  collapsed: boolean;
+  color: string;
+  metadata: NodeMetadata;
+}
+
+/**
+ * Additional metadata for rendering and interaction
+ */
+export interface NodeMetadata {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  visible: boolean;
+  highlighted: boolean;
+}
+
+/**
+ * Creates a new TreeNode with default values
+ * @param content - Text content from markdown
+ * @param depth - Indentation level (0 = root)
+ * @returns New TreeNode instance
+ */
+export function createTreeNode(content: string, depth: number): TreeNode {
+  return {
+    id: generateId(),
+    content,
+    depth,
+    children: [],
+    parent: null,
+    collapsed: false,
+    color: '',
+    metadata: {
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+      visible: true,
+      highlighted: false,
+    },
+  };
+}
+
+/**
+ * Generates a unique ID for tree nodes
+ * @returns Unique string identifier
+ */
+function generateId(): string {
+  return `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
