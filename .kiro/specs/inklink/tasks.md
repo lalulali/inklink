@@ -54,16 +54,16 @@ Tasks are organized into phases:
 **Requirements**: Req 1, 6
 **Design References**: TreeNode, ApplicationState, Command interfaces
 
-- [ ] 2.1 Define TreeNode interface with all properties
-- [ ] 2.2 Define NodeMetadata interface
-- [ ] 2.3 Define ApplicationState interface
-- [ ] 2.4 Define Transform interface
-- [ ] 2.5 Define LayoutDirection type
-- [ ] 2.6 Define Command interface for undo/redo
-- [ ] 2.7 Define ValidationResult interface
-- [ ] 2.8 Define Position, BoundingBox, Viewport interfaces
-- [ ] 2.9 Create type guards for runtime type checking
-- [ ] 2.10 Export all types from core/types/index.ts
+- [x] 2.1 Define TreeNode interface with all properties
+- [x] 2.2 Define NodeMetadata interface
+- [x] 2.3 Define ApplicationState interface
+- [x] 2.4 Define Transform interface
+- [x] 2.5 Define LayoutDirection type
+- [x] 2.6 Define Command interface for undo/redo
+- [x] 2.7 Define ValidationResult interface
+- [x] 2.8 Define Position, BoundingBox, Viewport interfaces
+- [x] 2.9 Create type guards for runtime type checking
+- [x] 2.10 Export all types from core/types/index.ts
 
 
 ### Task 3: Markdown Parser Implementation
@@ -72,9 +72,9 @@ Tasks are organized into phases:
 **Design References**: MarkdownParser interface, IndentationParser class
 **Properties**: 1, 3, 5, 7, 8
 
-- [ ] 3.1 Implement indentation detection (spaces vs tabs)
-- [ ] 3.2 Implement tree builder with stack-based construction
-- [ ] 3.3 Implement parse() method with error handling
+- [x] 3.1 Implement indentation detection (spaces vs tabs) - src/core/parser/indentation.ts
+- [x] 3.2 Implement tree builder with stack-based construction
+- [x] 3.3 Implement parse() method with error handling
 - [ ] 3.4 Implement serialize() method for tree-to-markdown conversion
 - [ ] 3.5 Implement validate() method for input validation
 - [ ] 3.6 Handle empty input and whitespace-only input

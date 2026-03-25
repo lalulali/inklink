@@ -1,6 +1,6 @@
 ---
 title: AI Memory System and Protected Directories
-inclusion: always
+inclusion: manual
 ---
 
 # AI Memory System

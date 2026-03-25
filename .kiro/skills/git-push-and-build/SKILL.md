@@ -1,5 +1,5 @@
 ---
-name: Git Push and Build
+name: git-push-and-build
 description: Runs build, updates README, commits and pushes changes to git
 ---
 

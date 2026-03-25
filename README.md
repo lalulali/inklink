@@ -1,16 +1,21 @@
-# Markdown to Mind Map Generator
+# Inklink
 
 A web-based visualization tool that transforms markdown documents into interactive mind maps.
 
 ## Features
 
 - **Markdown Parsing**: Convert markdown text into hierarchical mind map structures based on indentation
+  - Indentation detection (spaces vs tabs)
+  - Mixed indentation normalization
+  - Parse-serialize round-trip support
+  - Comprehensive error reporting with line/column information
 - **Multiple Layouts**: Choose from five layout directions (two-sided, left-to-right, right-to-left, top-to-bottom, bottom-to-top)
 - **Interactive Visualization**: Pan, zoom, and navigate through your mind maps with ease
 - **Export Options**: Export to HTML, SVG, and PNG formats
 - **File Operations**: Open, save, and auto-save markdown files
 - **Search**: Find nodes within your mind map quickly
 - **Undo/Redo**: Full undo/redo support with 50-operation history
+- **Type Safety**: Comprehensive runtime type validation with type guards for all core data structures
 
 ## Technology Stack
 
@@ -20,6 +25,23 @@ A web-based visualization tool that transforms markdown documents into interacti
 - **Rendering**: D3.js for SVG-based visualization
 - **Testing**: Jest + fast-check for property-based testing
 - **Utilities**: clsx + tailwind-merge for className composition
+
+## Project Status
+
+The project is being implemented in phases. Current status:
+
+- [x] **Phase 0**: Markmap Study and Analysis
+- [x] **Phase 1**: Core Foundation
+  - [x] Project Setup and Build Configuration
+  - [x] Core Data Structures and Types
+  - [x] Markdown Parser Implementation (Indentation-based)
+- [ ] **Phase 2**: Web Platform Implementation (In Progress)
+  - [ ] Platform Abstraction Layer
+  - [ ] Web Storage and File System Adapters
+  - [ ] D3.js Renderer Implementation
+- [ ] **Phase 3**: Testing Infrastructure (In Progress)
+- [ ] **Phase 4**: Advanced Features and Polish
+
 
 ## Getting Started
 

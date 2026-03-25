@@ -139,6 +139,82 @@ interface NodeMetadata {
 }
 ```
 
+### Type Guards for Runtime Validation
+
+The application includes comprehensive type guards for runtime validation of all core data structures. These guards ensure data integrity and prevent type-related runtime errors.
+
+```typescript
+// Type guard imports
+import type {
+  TreeNode,
+  NodeMetadata,
+  ApplicationState,
+  Transform,
+  Viewport,
+  Position,
+  BoundingBox,
+  FileHandle,
+  Notification,
+  ValidationResult,
+  ValidationError,
+  Command,
+  LayoutDirection,
+  ExportFormat,
+  AutoSaveRecord,
+  UserPreferences,
+  NodeChange,
+  SearchResult,
+} from './index';
+
+// Core type guards
+export function isTreeNode(value: unknown): value is TreeNode
+export function isNodeMetadata(value: unknown): value is NodeMetadata
+export function isApplicationState(value: unknown): value is ApplicationState
+export function isTransform(value: unknown): value is Transform
+export function isViewport(value: unknown): value is Viewport
+export function isPosition(value: unknown): value is Position
+export function isBoundingBox(value: unknown): value is BoundingBox
+export function isFileHandle(value: unknown): value is FileHandle
+export function isNotification(value: unknown): value is Notification
+export function isValidationResult(value: unknown): value is ValidationResult
+export function isValidationError(value: unknown): value is ValidationError
+export function isCommand<T>(value: unknown): value is Command<T>
+export function isLayoutDirection(value: unknown): value is LayoutDirection
+export function isExportFormat(value: unknown): value is ExportFormat
+export function isAutoSaveRecord(value: unknown): value is AutoSaveRecord
+export function isUserPreferences(value: unknown): value is UserPreferences
+export function isNodeChange(value: unknown): value is NodeChange
+export function isSearchResult(value: unknown): value is SearchResult
+
+// Utility type guards
+export function isObject(value: unknown): value is Record<string, unknown>
+export function isStringArray(value: unknown): value is string[]
+export function isNumberArray(value: unknown): value is number[]
+
+// Tree validation
+export function validateTree(root: unknown): ValidationResult
+```
+
+### Tree Validation
+
+The `validateTree` function performs comprehensive validation of tree structures:
+
+```typescript
+interface ValidationResult {
+  valid: boolean;
+  errors: ValidationError[];
+  warnings: ValidationError[];
+}
+
+function validateTree(root: unknown): ValidationResult {
+  // Validates:
+  // 1. Root is a valid TreeNode
+  // 2. No circular references (using visited set)
+  // 3. Maximum nesting depth (100 levels)
+  return { valid, errors, warnings };
+}
+```
+
 ### ApplicationState Interface
 
 ```typescript
@@ -229,6 +305,155 @@ class IndentationParser implements MarkdownParser {
     return root;
   }
 }
+```
+
+### Indentation Detection Module
+
+The `src/core/parser/indentation.ts` module provides utilities for detecting, validating, and normalizing indentation in markdown content.
+
+#### Type Definitions
+
+```typescript
+/**
+ * Supported indentation types
+ */
+export type IndentationType = 'spaces' | 'tabs';
+
+/**
+ * Result of indentation detection
+ */
+export interface IndentationResult {
+  type: IndentationType;
+  indentSize: number;
+  firstIndentedLine: number;
+}
+```
+
+#### Core Functions
+
+**detectIndentation()** - Detects the indentation type used in markdown content
+
+```typescript
+/**
+ * Detects the indentation type used in markdown content
+ * @param markdown - Raw markdown text
+ * @returns IndentationResult with type, size, and line info
+ * @throws IndentationError if no indented lines are found
+ */
+export function detectIndentation(markdown: string): IndentationResult
+```
+
+**validateIndentation()** - Validates that all indentation in the document is consistent
+
+```typescript
+/**
+ * Validates that all indentation in the document is consistent
+ * @param markdown - Raw markdown text
+ * @param expectedType - Expected indentation type
+ * @returns IndentationValidationResult with any inconsistencies found
+ */
+export function validateIndentation(
+  markdown: string,
+  expectedType: IndentationType
+): IndentationValidationResult
+```
+
+**normalizeIndentation()** - Normalizes indentation to the expected type
+
+```typescript
+/**
+ * Normalizes indentation to the target type
+ * @param markdown - Raw markdown text
+ * @param targetType - Target indentation type
+ * @param indentSize - Number of spaces or tabs per level (default: 2)
+ * @returns Markdown with normalized indentation
+ */
+export function normalizeIndentation(
+  markdown: string,
+  targetType: IndentationType,
+  indentSize: number = 2
+): string
+```
+
+**calculateIndentLevel()** - Calculates the indentation level of a line
+
+```typescript
+/**
+ * Calculates the indentation level of a line
+ * @param line - A single line of markdown
+ * @param indentType - The detected indentation type
+ * @param indentSize - The indent size for spaces
+ * @returns Number of indentation levels (0 for root)
+ */
+export function calculateIndentLevel(
+  line: string,
+  indentType: IndentationType,
+  indentSize: number
+): number
+```
+
+#### Error Handling
+
+```typescript
+/**
+ * Error class for indentation-related errors
+ */
+export class IndentationError extends Error {
+  line: number;
+  constructor(message: string, line: number);
+}
+
+/**
+ * Represents an indentation inconsistency
+ */
+export interface IndentationInconsistency {
+  line: number;
+  found: 'spaces' | 'tabs';
+  expected: 'spaces' | 'tabs';
+  message: string;
+}
+
+/**
+ * Result of indentation validation
+ */
+export interface IndentationValidationResult {
+  valid: boolean;
+  inconsistencies: IndentationInconsistency[];
+}
+```
+
+#### Usage Example
+
+```typescript
+import {
+  detectIndentation,
+  validateIndentation,
+  normalizeIndentation,
+  calculateIndentLevel,
+} from './indentation';
+
+// Detect indentation in markdown
+const markdown = `
+# Root
+  ## Child 1
+    ### Grandchild
+  ## Child 2
+`;
+
+const result = detectIndentation(markdown);
+// { type: 'spaces', indentSize: 2, firstIndentedLine: 1 }
+
+// Validate consistency
+const validation = validateIndentation(markdown, 'spaces');
+// { valid: true, inconsistencies: [] }
+
+// Normalize to tabs
+const normalized = normalizeIndentation(markdown, 'tabs');
+// Converts 2-space indentation to tabs
+
+// Calculate indent level for a line
+const level = calculateIndentLevel('    text', 'spaces', 2);
+// Returns: 2
 ```
 
 ## Command Pattern for Undo/Redo
@@ -911,7 +1136,7 @@ src/
 
 | Module | Exports | Purpose |
 |--------|---------|---------|
-| `core/parser` | `IndentationParser`, `ParseError` | Markdown → Tree |
+| `core/parser` | `IndentationParser`, `ParseError`, `detectIndentation`, `validateIndentation`, `normalizeIndentation`, `calculateIndentLevel`, `IndentationError`, `IndentationType`, `IndentationResult`, `IndentationValidationResult` | Markdown → Tree |
 | `core/layout` | `TwoSidedLayout`, `DirectionalLayouts` | Tree → Positions |
 | `core/state` | `StateManager`, `CommandManager` | State & undo/redo |
 | `core/transform` | `TransformManager` | Pan/zoom calculations |
@@ -939,5 +1164,5 @@ src/
 
 ---
 
-*Last Updated: 2026-03-24*
+*Last Updated: 2026-03-25*
 *Part of: Markdown to Mind Map Generator Specification*
