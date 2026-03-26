@@ -105,7 +105,8 @@ export class ParseError extends Error {
  * Converts markdown text into a tree structure based on indentation levels
  */
 export class IndentationParser implements MarkdownParser {
-  private defaultIndentSize: number = 2;
+  private indentSize: number = 2;
+  private indentType: IndentationType = 'spaces';
 
   /**
    * Parses markdown text into a tree structure
@@ -131,8 +132,18 @@ export class IndentationParser implements MarkdownParser {
       );
     }
 
-    // Split into lines and filter out empty lines
-    const lines = markdown.split('\n').filter(line => line.trim().length > 0);
+    const rawLines = markdown.split('\n');
+    if (rawLines.length > 10000) {
+      throw new ParseError(
+        `Markdown input exceeds 10,000 line limit (found ${rawLines.length} lines)`,
+        10000,
+        undefined,
+        'structure'
+      );
+    }
+
+    // Filter out empty lines for processing
+    const lines = rawLines.filter(line => line.trim().length > 0);
 
     // Check if we have any valid content after filtering
     if (lines.length === 0) {
@@ -144,26 +155,25 @@ export class IndentationParser implements MarkdownParser {
       );
     }
 
-    // Detect indentation type and size
-    let indentType: IndentationType;
-    let indentSize: number;
-
     try {
       const indentResult = detectIndentation(markdown);
-      indentType = indentResult.type;
-      indentSize = indentResult.indentSize;
+      this.indentType = indentResult.type;
+      this.indentSize = indentResult.indentSize;
     } catch (error) {
       // No indented lines found - treat as single-level document
       if (error instanceof IndentationError) {
-        indentType = 'spaces';
-        indentSize = this.defaultIndentSize;
+        this.indentType = 'spaces';
+        // Keep existing indentSize
       } else {
         throw error;
       }
     }
 
+    const currentIndentType = this.indentType;
+    const currentIndentSize = this.indentSize;
+
     // Validate indentation consistency
-    const indentationValidation = validateIndentation(markdown, indentType);
+    const indentationValidation = validateIndentation(markdown, currentIndentType);
     const hasMixedIndentation = indentationValidation.inconsistencies.length > 0;
 
     // If mixed indentation detected, normalize and warn
@@ -172,19 +182,19 @@ export class IndentationParser implements MarkdownParser {
 
     if (hasMixedIndentation) {
       // Attempt to normalize indentation
-      processedMarkdown = normalizeIndentation(markdown, indentType, indentSize);
-      warning = {
-        message: `Mixed indentation detected. Normalized to ${indentType} with ${indentSize} spaces per level.`,
-        line: indentationValidation.inconsistencies[0]?.line ?? 0,
-        type: 'mixed-indentation',
-      };
+      processedMarkdown = normalizeIndentation(markdown, currentIndentType, currentIndentSize);
+      // We store the warning but don't throw, as normalization was requested/possible
+      const firstInconsistency = indentationValidation.inconsistencies[0];
+      if (firstInconsistency) {
+        console.warn(`Mixed indentation detected at line ${firstInconsistency.line + 1}: ${firstInconsistency.message}`);
+      }
     }
 
     // Re-split lines after potential normalization
     const processedLines = processedMarkdown.split('\n').filter(line => line.trim().length > 0);
 
     // Validate tree structure
-    const structureValidation = validateTreeStructure(processedLines, indentType, indentSize);
+    const structureValidation = validateTreeStructure(processedLines, currentIndentType, currentIndentSize);
 
     if (!structureValidation.valid && structureValidation.errors.length > 0) {
       const firstError = structureValidation.errors[0];
@@ -198,7 +208,7 @@ export class IndentationParser implements MarkdownParser {
 
     // Build the tree
     try {
-      const result = buildTree(processedLines, indentType, indentSize);
+      const result = buildTree(processedLines, currentIndentType, currentIndentSize);
       return result.root;
     } catch (error) {
       // Convert tree build errors to ParseError
@@ -226,25 +236,35 @@ export class IndentationParser implements MarkdownParser {
    * 3. Join lines with newlines
    */
   serialize(root: TreeNode): string {
+    if (!root) {
+      return '';
+    }
+
     const lines: string[] = [];
+    const indentString = this.indentType === 'tabs' ? '\t' : ' '.repeat(this.indentSize);
 
     /**
      * Recursively serializes a node and its children
+     * 
      * @param node - Current node to serialize
      * @param depth - Current indentation depth
      */
-    function serializeNode(node: TreeNode, depth: number): void {
-      // Add indentation
-      const indent = '  '.repeat(depth);
+    const serializeNode = (node: TreeNode, depth: number): void => {
+      // Add indentation based on depth
+      const indent = indentString.repeat(depth);
       lines.push(`${indent}${node.content}`);
 
       // Recursively serialize children
-      for (const child of node.children) {
-        serializeNode(child, depth + 1);
+      if (node.children && node.children.length > 0) {
+        for (const child of node.children) {
+          serializeNode(child, depth + 1);
+        }
       }
-    }
+    };
 
+    // Serialize starting from root
     serializeNode(root, 0);
+
     return lines.join('\n');
   }
 
@@ -258,37 +278,29 @@ export class IndentationParser implements MarkdownParser {
     const errors: MarkdownParseError[] = [];
     const warnings: MarkdownParseWarning[] = [];
 
-    // Check for empty input
+    // Check for empty or whitespace-only input
     if (!markdown || markdown.trim().length === 0) {
-      return {
-        valid: false,
-        errors: [{
-          message: 'No content to parse: markdown input is empty',
-          line: 0,
-          type: 'empty',
-        }],
-        warnings: [],
-      };
+      errors.push({
+        message: !markdown || markdown.length === 0 ? 'Markdown input is empty' : 'Markdown input contains only whitespace',
+        line: 0,
+        type: 'empty',
+      });
+      return { valid: false, errors, warnings };
     }
 
-    // Split into lines
     const lines = markdown.split('\n');
+    if (lines.length > 10000) {
+      errors.push({
+        message: `Markdown input exceeds 10,000 line limit (found ${lines.length} lines)`,
+        line: 10000,
+        type: 'structure',
+      });
+      return { valid: false, errors, warnings };
+    }
+
     const nonEmptyLines = lines.filter(line => line.trim().length > 0);
 
-    // Check for whitespace-only input
-    if (nonEmptyLines.length === 0) {
-      return {
-        valid: false,
-        errors: [{
-          message: 'No valid content found: markdown contains only whitespace',
-          line: 0,
-          type: 'empty',
-        }],
-        warnings: [],
-      };
-    }
-
-    // Detect indentation
+    // Initial indentation detection
     let indentType: IndentationType;
     let indentSize: number;
 
@@ -297,28 +309,33 @@ export class IndentationParser implements MarkdownParser {
       indentType = indentResult.type;
       indentSize = indentResult.indentSize;
     } catch {
-      // No indented lines - single level document is valid
-      indentType = 'spaces';
-      indentSize = this.defaultIndentSize;
+      // Single level document or ambiguity
+      indentType = this.indentType;
+      indentSize = this.indentSize;
     }
 
-    // Check for mixed indentation
+    // Indentation consistency validation
     const indentationValidation = validateIndentation(markdown, indentType);
-    if (indentationValidation.inconsistencies.length > 0) {
+    for (const inconsistency of indentationValidation.inconsistencies) {
       warnings.push({
-        message: `Mixed indentation detected. Found ${indentationValidation.inconsistencies[0]?.found} but expected ${indentationValidation.inconsistencies[0]?.expected}.`,
-        line: indentationValidation.inconsistencies[0]?.line ?? 0,
+        message: inconsistency.message,
+        line: inconsistency.line,
         type: 'mixed-indentation',
       });
     }
 
-    // Validate tree structure
+    // Structure validation
     const structureValidation = validateTreeStructure(nonEmptyLines, indentType, indentSize);
-
     for (const error of structureValidation.errors) {
+      // Calculate column roughly based on indentation
+      const lineIndex = lines.findIndex(l => l.trim() === lines.filter(line => line.trim().length > 0)[error.line]?.trim());
+      const actualLine = lines[lineIndex === -1 ? error.line : lineIndex];
+      const column = actualLine ? actualLine.length - actualLine.trimStart().length : 0;
+
       errors.push({
         message: error.message,
         line: error.line,
+        column,
         type: 'structure',
       });
     }
@@ -340,7 +357,15 @@ export class IndentationParser implements MarkdownParser {
     if (size < 1 || size > 8) {
       throw new Error('Indent size must be between 1 and 8');
     }
-    this.defaultIndentSize = size;
+    this.indentSize = size;
+  }
+
+  /**
+   * Sets the default indentation type
+   * @param type - 'spaces' or 'tabs'
+   */
+  setIndentationType(type: IndentationType): void {
+    this.indentType = type;
   }
 }
 

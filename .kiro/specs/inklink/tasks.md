@@ -75,13 +75,13 @@ Tasks are organized into phases:
 - [x] 3.1 Implement indentation detection (spaces vs tabs) - src/core/parser/indentation.ts
 - [x] 3.2 Implement tree builder with stack-based construction
 - [x] 3.3 Implement parse() method with error handling
-- [ ] 3.4 Implement serialize() method for tree-to-markdown conversion
-- [ ] 3.5 Implement validate() method for input validation
-- [ ] 3.6 Handle empty input and whitespace-only input
-- [ ] 3.7 Handle special characters preservation
-- [ ] 3.8 Handle mixed indentation with normalization
-- [ ] 3.9 Support unlimited nesting depth
-- [ ] 3.10 Create custom ParseError class with line/column info
+- [x] 3.4 Implement serialize() method for tree-to-markdown conversion
+- [x] 3.5 Implement validate() method for input validation
+- [x] 3.6 Handle empty input and whitespace-only input
+- [x] 3.7 Handle special characters preservation
+- [x] 3.8 Handle mixed indentation with normalization
+- [x] 3.9 Support unlimited nesting depth
+- [x] 3.10 Create custom ParseError class with line/column info
 
 ### Task 4: Layout Engine - Two-Sided Algorithm
 
@@ -89,16 +89,16 @@ Tasks are organized into phases:
 **Design References**: LayoutAlgorithm interface, TwoSidedLayout class
 **Properties**: 10, 11, 12, 13, 14, 15
 
-- [ ] 4.1 Implement LayoutAlgorithm interface
-- [ ] 4.2 Implement calculateSubtreeSizes() for node counting
-- [ ] 4.3 Implement partitionChildren() for balanced distribution
-- [ ] 4.4 Implement layoutSubtree() for recursive positioning
-- [ ] 4.5 Implement collision detection algorithm
-- [ ] 4.6 Implement consistent spacing calculations
-- [ ] 4.7 Implement getBounds() for bounding box calculation
-- [ ] 4.8 Handle edge cases (single node, no children)
-- [ ] 4.9 Optimize for performance with memoization
-- [ ] 4.10 Add configuration for node spacing and level spacing
+- [x] 4.1 Implement LayoutAlgorithm interface
+- [x] 4.2 Implement calculateSubtreeSizes() for node counting
+- [x] 4.3 Implement partitionChildren() for balanced distribution
+- [x] 4.4 Implement layoutSubtree() for recursive positioning
+- [x] 4.5 Implement collision detection algorithm
+- [x] 4.6 Implement consistent spacing calculations
+- [x] 4.7 Implement getBounds() for bounding box calculation
+- [x] 4.8 Handle edge cases (single node, no children)
+- [x] 4.9 Optimize for performance with memoization
+- [x] 4.10 Add configuration for node spacing and level spacing
 
 ### Task 5: Layout Engine - Directional Algorithms
 
@@ -106,16 +106,16 @@ Tasks are organized into phases:
 **Design References**: Directional layout implementations
 **Properties**: 33
 
-- [ ] 5.1 Implement LeftToRightLayout class
-- [ ] 5.2 Implement RightToLeftLayout class
-- [ ] 5.3 Implement TopToBottomLayout class
-- [ ] 5.4 Implement BottomToTopLayout class
-- [ ] 5.5 Ensure all layouts maintain no-overlap property
-- [ ] 5.6 Ensure all layouts maintain consistent spacing
-- [ ] 5.7 Create layout factory for dynamic switching
-- [ ] 5.8 Implement smooth transition between layouts
-- [ ] 5.9 Test layout switching with various tree structures
-- [ ] 5.10 Document layout algorithm differences
+- [x] 5.1 Implement LeftToRightLayout class
+- [x] 5.2 Implement RightToLeftLayout class
+- [x] 5.3 Implement TopToBottomLayout class
+- [x] 5.4 Implement BottomToTopLayout class
+- [x] 5.5 Ensure all layouts maintain no-overlap property
+- [x] 5.6 Ensure all layouts maintain consistent spacing
+- [x] 5.7 Create layout factory for dynamic switching
+- [x] 5.8 Implement smooth transition between layouts
+- [x] 5.9 Test layout switching with various tree structures
+- [x] 5.10 Document layout algorithm differences
 
 
 ### Task 6: State Management System
@@ -124,18 +124,18 @@ Tasks are organized into phases:
 **Design References**: StateManager, CommandManager classes
 **Properties**: 38, 39
 
-- [ ] 6.1 Implement StateManager with observer pattern
-- [ ] 6.2 Implement state immutability with object spreading
-- [ ] 6.3 Implement state snapshot creation for undo/redo
-- [ ] 6.4 Implement CommandManager with undo/redo stacks
-- [ ] 6.5 Implement Command interface execute() and undo() methods
-- [ ] 6.6 Create LoadFileCommand implementation
-- [ ] 6.7 Create ChangeLayoutCommand implementation
-- [ ] 6.8 Create CollapseExpandCommand implementation
-- [ ] 6.9 Create TransformCommand for pan/zoom
-- [ ] 6.10 Implement undo stack size limit (50 operations)
-- [ ] 6.11 Implement redo stack clearing on new command
-- [ ] 6.12 Add command history debugging support
+- [x] 6.1 Implement StateManager with observer pattern
+- [x] 6.2 Implement state immutability with object spreading
+- [x] 6.3 Implement state snapshot creation for undo/redo
+- [x] 6.4 Implement CommandManager with undo/redo stacks
+- [x] 6.5 Implement Command interface execute() and undo() methods
+- [x] 6.6 Create LoadFileCommand implementation
+- [x] 6.7 Create ChangeLayoutCommand implementation
+- [x] 6.8 Create CollapseExpandCommand implementation
+- [x] 6.9 Create TransformCommand for pan/zoom
+- [x] 6.10 Implement undo stack size limit (50 operations)
+- [x] 6.11 Implement redo stack clearing on new command
+- [x] 6.12 Add command history debugging support
 
 ### Task 7: Transform Manager
 

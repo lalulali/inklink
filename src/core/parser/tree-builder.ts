@@ -55,15 +55,19 @@ export function buildTree(
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const trimmedLine = line.trim();
-
-    // Skip empty lines (shouldn't happen with pre-filtered input)
-    if (trimmedLine.length === 0) {
-      continue;
-    }
 
     // Calculate indentation level for this line
     const currentDepth = calculateIndentLevel(line, indentType, indentSize);
+
+    // Precise content extraction for verbatim preservation
+    // We only remove the characters that constitute the indentation level
+    const indentCharCount = indentType === 'tabs' ? currentDepth : currentDepth * indentSize;
+    const content = line.substring(indentCharCount);
+
+    // Skip effectively empty lines (after removing indentation)
+    if (content.trim().length === 0) {
+      continue;
+    }
 
     // Validate indentation level
     if (currentDepth < 0) {
@@ -83,7 +87,7 @@ export function buildTree(
       }
 
       // Create root node
-      root = createTreeNode(trimmedLine, 0);
+      root = createTreeNode(content, 0);
       stack.length = 0; // Clear stack
       stack.push(root);
       maxDepth = 0;
@@ -110,7 +114,7 @@ export function buildTree(
     }
 
     // Create new node
-    const node = createTreeNode(trimmedLine, currentDepth);
+    const node = createTreeNode(content, currentDepth);
     node.parent = parent;
 
     // Add to parent's children
