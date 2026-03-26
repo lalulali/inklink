@@ -204,34 +204,44 @@ export function normalizeIndentation(
  * @param line - A single line of markdown
  * @param indentType - The detected indentation type
  * @param indentSize - The indent size for spaces
- * @returns Number of indentation levels (0 for root)
+ * @returns Number of indentation levels
  */
 export function calculateIndentLevel(
   line: string,
   indentType: IndentationType,
   indentSize: number
 ): number {
-  let whitespaceLength = 0;
+  const trimmed = line.trimStart();
+  if (trimmed.length === 0) return 0;
 
-  if (indentType === 'tabs') {
-    for (const char of line) {
-      if (char === '\t') {
-        whitespaceLength++;
-      } else {
-        break;
-      }
+  // 1. Check for Markdown headers (e.g., # Level 0, ## Level 1)
+  if (trimmed.startsWith('#')) {
+    let hashCount = 0;
+    while (hashCount < trimmed.length && trimmed[hashCount] === '#') {
+      hashCount++;
     }
-    return whitespaceLength;
-  } else {
-    for (const char of line) {
-      if (char === ' ') {
-        whitespaceLength++;
-      } else {
-        break;
-      }
-    }
-    return Math.floor(whitespaceLength / indentSize);
+    return Math.max(0, hashCount - 1);
   }
+
+  // 2. Check for indentation
+  let whitespaceLength = 0;
+  for (const char of line) {
+    if (char === ' ' || char === '\t') {
+      whitespaceLength += (char === '\t' ? indentSize : 1);
+    } else {
+      break;
+    }
+  }
+  const indentLevel = Math.floor(whitespaceLength / indentSize);
+
+  // 3. Check for list markers (- , * , + , 1. )
+  // List markers implicitly add a level if they are at the same indentation as text
+  const isList = /^(\*|-|\+|\d+\.)\s/.test(trimmed);
+  
+  // If it's a list item, we treat it as its indentation level
+  // But we might want headers to be top-level always.
+  // Standard mindmap behavior: headers and lists are both hierarchy indicators.
+  return isList ? indentLevel + 1 : indentLevel;
 }
 
 /**

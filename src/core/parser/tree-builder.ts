@@ -46,102 +46,87 @@ export function buildTree(
     throw new TreeBuildError('Cannot build tree from empty input', -1);
   }
 
-  // Stack to track parent nodes at each depth level
-  // stack[depth] = node at that depth level
-  // stack[0] is always the root node
+  // Pre-process to find the baseline depth (first non-empty line)
+  let firstLineDepth = -1;
+  for (const line of lines) {
+    if (line.trim().length > 0) {
+      firstLineDepth = calculateIndentLevel(line, indentType, indentSize);
+      break;
+    }
+  }
+
   const stack: TreeNode[] = [];
-  let maxDepth = 0;
   let root: TreeNode | null = null;
+  let maxDepth = 0;
+  let lastHeaderDepth = -1;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    const trimmed = line.trimStart();
+    let rawDepth = calculateIndentLevel(line, indentType, indentSize);
+    
+    // Check if it's a header to update lastHeaderDepth
+    const isHeader = trimmed.startsWith('#');
+    const isList = /^(\*|-|\+|\d+\.)\s+/.test(trimmed);
 
-    // Calculate indentation level for this line
-    const currentDepth = calculateIndentLevel(line, indentType, indentSize);
-
-    // Precise content extraction for verbatim preservation
-    // We only remove the characters that constitute the indentation level
-    const indentCharCount = indentType === 'tabs' ? currentDepth : currentDepth * indentSize;
-    const content = line.substring(indentCharCount);
-
-    // Skip effectively empty lines (after removing indentation)
-    if (content.trim().length === 0) {
-      continue;
+    if (isHeader) {
+      lastHeaderDepth = rawDepth;
+    } else if (lastHeaderDepth !== -1) {
+      // Sub-items of a header must be shifted by the header's depth
+      // so they properly descend from it without losing their relative hierarchy.
+      rawDepth += lastHeaderDepth;
     }
+    
+    // Depth is relative to the first line
+    const currentDepth = Math.max(0, rawDepth - firstLineDepth);
 
-    // Validate indentation level
-    if (currentDepth < 0) {
-      throw new TreeBuildError(
-        `Invalid indentation level at line ${i + 1}`,
-        i
-      );
-    }
-
-    // First line must be at depth 0 (root)
-    if (i === 0) {
-      if (currentDepth !== 0) {
-        throw new TreeBuildError(
-          `First line must be at indentation level 0, found level ${currentDepth}`,
-          i
-        );
+    // Precise content extraction
+    let content = '';
+    if (isHeader) {
+      content = trimmed.replace(/^#+\s*/, '');
+    } else {
+      // Strip list markers (- , * , + , 1. )
+      content = trimmed.replace(/^(\*|-|\+|\d+\.)\s+/, '');
+      
+      // If no marker found but still has indent, use manual slice
+      if (content === trimmed) {
+        const indentCharCount = indentType === 'tabs' ? rawDepth : rawDepth * indentSize;
+        content = line.substring(indentCharCount);
       }
+    }
 
-      // Create root node
-      root = createTreeNode(content, 0);
-      stack.length = 0; // Clear stack
-      stack.push(root);
-      maxDepth = 0;
+    if (content.trim().length === 0) continue;
+
+    // Create new node with stable ID based on line index
+    const node = createTreeNode(content, currentDepth, `line_${i}`);
+
+    if (!root) {
+      root = node;
+      stack.push(node);
       continue;
     }
 
-    // Handle indentation changes
-    // Pop stack until we find the parent at depth = currentDepth - 1
-    while (stack.length > currentDepth + 1) {
-      stack.pop();
+    // Adjust stack based on depth
+    // Find parent: the deepest node whose depth is strictly less than currentDepth
+    while (stack.length > 0 && stack[stack.length - 1].depth >= currentDepth) {
+        stack.pop();
     }
-
-    // Get parent node (should be at stack[currentDepth])
-    const parent = stack[currentDepth];
-
-    if (!parent) {
-      // Indentation jumped more than one level
-      throw new TreeBuildError(
-        `Invalid indentation: line ${i + 1} has depth ${currentDepth}, ` +
-        `but no parent node exists at depth ${currentDepth - 1}. ` +
-        `Indentation can only increase by one level at a time.`,
-        i
-      );
+    
+    const parent = stack.length > 0 ? stack[stack.length - 1] : root;
+    if (parent) {
+      node.parent = parent;
+      parent.children.push(node);
+    } else {
+      // Fallback for sibling roots
+      node.parent = root;
+      root.children.push(node);
     }
-
-    // Create new node
-    const node = createTreeNode(content, currentDepth);
-    node.parent = parent;
-
-    // Add to parent's children
-    parent.children.push(node);
-
-    // Push to stack for potential children
-    // Ensure stack is long enough
-    while (stack.length <= currentDepth) {
-      stack.push(node);
-    }
-    stack[currentDepth + 1] = node;
-
-    // Update max depth
-    if (currentDepth > maxDepth) {
-      maxDepth = currentDepth;
-    }
+    
+    stack.push(node);
+    maxDepth = Math.max(maxDepth, currentDepth);
   }
 
-  if (!root) {
-    throw new TreeBuildError('Failed to create root node', -1);
-  }
-
-  return {
-    root,
-    lineCount: lines.length,
-    maxDepth,
-  };
+  return { root: root!, lineCount: lines.length, maxDepth };
 }
 
 /**

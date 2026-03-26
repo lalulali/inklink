@@ -62,3 +62,6 @@ export { Toaster } from './toaster';
 
 // Tooltip
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './tooltip';
+
+// Input
+export { Input } from './input';

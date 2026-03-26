@@ -5,7 +5,7 @@
  */
 
 import type { TreeNode } from './tree-node';
-import type { LayoutDirection, Transform, Notification, FileHandle } from './interfaces';
+import type { LayoutDirection, Transform, Notification, FileHandle, Position } from './interfaces';
 
 /**
  * Complete application state
@@ -15,6 +15,7 @@ export interface ApplicationState {
   // Document state
   tree: TreeNode | null;
   markdown: string;
+  layoutPositions: Map<string, Position>;
 
   // File state
   currentFile: FileHandle | null;
@@ -47,6 +48,7 @@ export function createInitialState(): ApplicationState {
   return {
     tree: null,
     markdown: '',
+    layoutPositions: new Map(),
     currentFile: null,
     filePath: null,
     isDirty: false,

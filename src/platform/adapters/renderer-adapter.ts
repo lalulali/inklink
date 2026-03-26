@@ -4,7 +4,7 @@
  * Dependencies: None (core interface)
  */
 
-import type { TreeNode, Position, NodeChange } from '@/core/types';
+import type { TreeNode, Position, NodeChange, Transform } from '@/core/types';
 
 /**
  * Renderer adapter interface for platform-agnostic rendering
@@ -49,8 +49,30 @@ export interface RendererAdapter {
   exportToPNG(background: 'transparent' | 'white'): Promise<Blob>;
 
   /**
+   * Register callback for node click events
+   * @param callback - Function called with clicked node ID
+   */
+  onNodeClick(callback: (nodeId: string) => void): void;
+
+  /**
    * Get the current viewport bounds
    * @returns Bounding box of visible area
    */
   getViewportBounds(): { width: number; height: number };
+
+  /**
+   * Highlight specified nodes (e.g., for search)
+   * @param nodeIds - IDs of nodes to highlight
+   */
+  highlightNodes(nodeIds: string[]): void;
+
+  /**
+   * Set the current pan/zoom transform
+   */
+  setTransform(transform: Transform): void;
+
+  /**
+   * Register callback for viewport transform changes
+   */
+  onTransform?: (transform: Transform) => void;
 }

@@ -143,16 +143,16 @@ Tasks are organized into phases:
 **Design References**: TransformManager class
 **Properties**: 26, 27, 28, 29, 30
 
-- [ ] 7.1 Implement pan transformation calculations
-- [ ] 7.2 Implement zoom transformation calculations
-- [ ] 7.3 Implement zoom center preservation logic
-- [ ] 7.4 Implement zoom bounds constraints (10%-400%)
-- [ ] 7.5 Implement zoom-to-fit calculation
-- [ ] 7.6 Implement smooth animation with requestAnimationFrame
-- [ ] 7.7 Implement viewport bounds calculation
-- [ ] 7.8 Handle edge detection for pan boundaries
-- [ ] 7.9 Optimize transform calculations for performance
-- [ ] 7.10 Add transform state validation
+- [x] 7.1 Implement pan transformation calculations
+- [x] 7.2 Implement zoom transformation calculations
+- [x] 7.3 Implement zoom center preservation logic
+- [x] 7.4 Implement zoom bounds constraints (10%-400%)
+- [x] 7.5 Implement zoom-to-fit calculation
+- [x] 7.6 Implement smooth animation with requestAnimationFrame
+- [x] 7.7 Implement viewport bounds calculation
+- [x] 7.8 Handle edge detection for pan boundaries
+- [x] 7.9 Optimize transform calculations for performance
+- [x] 7.10 Add transform state validation
 
 ### Task 8: Search Engine
 
@@ -160,16 +160,16 @@ Tasks are organized into phases:
 **Design References**: Search algorithm
 **Properties**: 40, 41, 42
 
-- [ ] 8.1 Implement searchNodes() with case-sensitive option
-- [ ] 8.2 Implement depth-first traversal for search
-- [ ] 8.3 Implement search result highlighting logic
-- [ ] 8.4 Implement navigateToSearchResult() with ancestor expansion
-- [ ] 8.5 Implement viewport centering on search result
-- [ ] 8.6 Implement next/previous result navigation
-- [ ] 8.7 Implement real-time search with debouncing
-- [ ] 8.8 Implement search result count tracking
-- [ ] 8.9 Handle empty search results gracefully
-- [ ] 8.10 Optimize search performance for large trees
+- [x] 8.1 Implement searchNodes() with case-sensitive option
+- [x] 8.2 Implement depth-first traversal for search
+- [x] 8.3 Implement search result highlighting logic
+- [x] 8.4 Implement navigateToSearchResult() with ancestor expansion
+- [x] 8.5 Implement viewport centering on search result
+- [x] 8.6 Implement next/previous result navigation
+- [x] 8.7 Implement real-time search with debouncing
+- [x] 8.8 Implement search result count tracking
+- [x] 8.9 Handle empty search results gracefully
+- [x] 8.10 Optimize search performance for large trees
 
 
 ### Task 9: Color Management
@@ -178,16 +178,16 @@ Tasks are organized into phases:
 **Design References**: Color assignment algorithm
 **Properties**: 16, 17, 18, 19
 
-- [ ] 9.1 Define predefined color palette with visual harmony
-- [ ] 9.2 Implement random color assignment for root children
-- [ ] 9.3 Implement color inheritance for descendants
-- [ ] 9.4 Implement WCAG AA contrast checking (4.5:1 ratio)
-- [ ] 9.5 Implement color differentiation for siblings
-- [ ] 9.6 Handle color palette exhaustion gracefully
-- [ ] 9.7 Implement color randomization on regeneration
-- [ ] 9.8 Add color configuration options
-- [ ] 9.9 Test color contrast with various backgrounds
-- [ ] 9.10 Document color palette choices
+- [x] 9.1 Define predefined color palette with visual harmony
+- [x] 9.2 Implement random color assignment for root children
+- [x] 9.3 Implement color inheritance for descendants
+- [x] 9.4 Implement WCAG AA contrast checking (4.5:1 ratio)
+- [x] 9.5 Implement color differentiation for siblings
+- [x] 9.6 Handle color palette exhaustion gracefully
+- [x] 9.7 Implement color randomization on regeneration
+- [x] 9.8 Add color configuration options
+- [x] 9.9 Test color contrast with various backgrounds
+- [x] 9.10 Document color palette choices
 
 ## Phase 2: Web Platform Implementation
 
@@ -196,16 +196,16 @@ Tasks are organized into phases:
 **Requirements**: Foundation for platform portability
 **Design References**: Platform Adapter Implementations
 
-- [ ] 10.1 Define StorageAdapter interface
-- [ ] 10.2 Define FileSystemAdapter interface
-- [ ] 10.3 Define RendererAdapter interface
-- [ ] 10.4 Define AutoSaveRecord interface
-- [ ] 10.5 Define UserPreferences interface
-- [ ] 10.6 Define ExportFormat type
-- [ ] 10.7 Define NodeChange interface for renderer updates
-- [ ] 10.8 Document adapter interface contracts
-- [ ] 10.9 Create adapter factory pattern
-- [ ] 10.10 Add adapter interface validation
+- [x] 10.1 Define StorageAdapter interface
+- [x] 10.2 Define FileSystemAdapter interface
+- [x] 10.3 Define RendererAdapter interface
+- [x] 10.4 Define AutoSaveRecord interface
+- [x] 10.5 Define UserPreferences interface
+- [x] 10.6 Define ExportFormat type
+- [x] 10.7 Define NodeChange interface for renderer updates
+- [x] 10.8 Document adapter interface contracts
+- [x] 10.9 Create adapter factory pattern
+- [x] 10.10 Add adapter interface validation
 
 ### Task 11: Web Storage Adapter
 
@@ -213,16 +213,16 @@ Tasks are organized into phases:
 **Design References**: WebStorageAdapter class
 **Properties**: 23
 
-- [ ] 11.1 Implement IndexedDB initialization
-- [ ] 11.2 Implement saveAutoSave() with IndexedDB
-- [ ] 11.3 Implement loadAutoSave() with IndexedDB
-- [ ] 11.4 Implement clearAutoSave() with IndexedDB
-- [ ] 11.5 Implement savePreferences() with LocalStorage
-- [ ] 11.6 Implement loadPreferences() with LocalStorage
-- [ ] 11.7 Handle IndexedDB quota exceeded errors
-- [ ] 11.8 Implement database migration strategy
-- [ ] 11.9 Add error handling for storage failures
-- [ ] 11.10 Test storage adapter with large datasets
+- [x] 11.1 Implement IndexedDB initialization
+- [x] 11.2 Implement saveAutoSave() with IndexedDB
+- [x] 11.3 Implement loadAutoSave() with IndexedDB
+- [x] 11.4 Implement clearAutoSave() with IndexedDB
+- [x] 11.5 Implement savePreferences() with LocalStorage
+- [x] 11.6 Implement loadPreferences() with LocalStorage
+- [x] 11.7 Handle IndexedDB quota exceeded errors
+- [x] 11.8 Implement database migration strategy
+- [x] 11.9 Add error handling for storage failures
+- [x] 11.10 Test storage adapter with large datasets
 
 
 ### Task 12: Web File System Adapter
@@ -231,33 +231,33 @@ Tasks are organized into phases:
 **Design References**: WebFileSystemAdapter class
 **Properties**: 23, 24, 25
 
-- [ ] 12.1 Implement openFile() with File System Access API
-- [ ] 12.2 Implement fallback file picker with input element
-- [ ] 12.3 Implement saveFile() with File System Access API
-- [ ] 12.4 Implement fallback download mechanism
-- [ ] 12.5 Implement getRecentFiles() with LocalStorage
-- [ ] 12.6 Implement addRecentFile() with deduplication
-- [ ] 12.7 Implement file handle caching for quick re-save
-- [ ] 12.8 Implement drag-and-drop file handling
-- [ ] 12.9 Implement file path validation
-- [ ] 12.10 Handle file permission errors gracefully
+- [x] 12.1 Implement openFile() with File System Access API
+- [x] 12.2 Implement fallback file picker with input element
+- [x] 12.3 Implement saveFile() with File System Access API
+- [x] 12.4 Implement fallback download mechanism
+- [x] 12.5 Implement getRecentFiles() with LocalStorage
+- [x] 12.6 Implement addRecentFile() with deduplication
+- [x] 12.7 Implement file handle caching for quick re-save
+- [x] 12.8 Implement drag-and-drop file handling
+- [x] 12.9 Implement file path validation
+- [x] 12.10 Handle file permission errors gracefully
 
 ### Task 13: D3.js Renderer Implementation
 
 **Requirements**: Req 2, 3, 10
 **Design References**: D3Renderer class, Renderer interface, Markmap rendering patterns
 
-- [ ] 13.1 Initialize D3.js SVG container (reference: markmap-view patterns)
-- [ ] 13.2 Implement renderLinks() with curved connections (inspired by Markmap)
-- [ ] 13.3 Implement renderNodes() with rectangles and text (custom implementation)
-- [ ] 13.4 Apply branch colors to nodes and links (pattern from Markmap)
-- [ ] 13.5 Implement node click handlers for expand/collapse
-- [ ] 13.6 Implement collapsible indicator icons
-- [ ] 13.7 Implement update() with D3 data join (enter/update/exit pattern from Markmap)
-- [ ] 13.8 Implement smooth transitions for animations (D3 transition patterns)
-- [ ] 13.9 Implement clear() to remove all rendered elements
-- [ ] 13.10 Optimize rendering performance with batching
-- [ ] 13.11 Document which patterns came from Markmap study
+- [x] 13.1 Initialize D3.js SVG container (reference: markmap-view patterns)
+- [x] 13.2 Implement renderLinks() with curved connections (inspired by Markmap)
+- [x] 13.3 Implement renderNodes() with rectangles and text (custom implementation)
+- [x] 13.4 Apply branch colors to nodes and links (pattern from Markmap)
+- [x] 13.5 Implement node click handlers for expand/collapse
+- [x] 13.6 Implement collapsible indicator icons
+- [x] 13.7 Implement update() with D3 data join (enter/update/exit pattern from Markmap)
+- [x] 13.8 Implement smooth transitions for animations (D3 transition patterns)
+- [x] 13.9 Implement clear() to remove all rendered elements
+- [x] 13.10 Optimize rendering performance with batching
+- [x] 13.11 Document which patterns came from Markmap study
 
 ### Task 14: Lazy Rendering System
 
@@ -265,16 +265,16 @@ Tasks are organized into phases:
 **Design References**: LazyRenderer, ViewportCuller classes
 **Properties**: 43
 
-- [ ] 14.1 Implement ViewportCuller with buffer zone
-- [ ] 14.2 Implement viewport bounds calculation
-- [ ] 14.3 Implement node visibility checking
-- [ ] 14.4 Implement traverseAndCheck() for tree traversal
-- [ ] 14.5 Implement visible node set management
-- [ ] 14.6 Integrate lazy rendering with D3 renderer
-- [ ] 14.7 Implement dynamic loading/unloading of nodes
-- [ ] 14.8 Test performance with 1000+ node trees
-- [ ] 14.9 Optimize culling algorithm for speed
-- [ ] 14.10 Add performance monitoring and metrics
+- [x] 14.1 Implement ViewportCuller with buffer zone
+- [x] 14.2 Implement viewport bounds calculation
+- [x] 14.3 Implement node visibility checking
+- [x] 14.4 Implement traverseAndCheck() for tree traversal
+- [x] 14.5 Implement visible node set management
+- [x] 14.6 Integrate lazy rendering with D3 renderer
+- [x] 14.7 Implement dynamic loading/unloading of nodes
+- [x] 14.8 Test performance with 1000+ node trees
+- [x] 14.9 Optimize culling algorithm for speed
+- [x] 14.10 Add performance monitoring and metrics
 
 
 ### Task 15: UI Components - Toolbar
@@ -282,32 +282,32 @@ Tasks are organized into phases:
 **Requirements**: Req 4, 8, 9, 10, 11
 **Design References**: Toolbar Component
 
-- [ ] 15.1 Create toolbar component using shadcn/ui Button components
-- [ ] 15.2 Implement file operations buttons (open, save, save as) with shadcn/ui
-- [ ] 15.3 Implement export dropdown with shadcn/ui DropdownMenu
-- [ ] 15.4 Implement layout direction selector (5 options) with shadcn/ui Select
-- [ ] 15.5 Implement expand/collapse all buttons with shadcn/ui Button
-- [ ] 15.6 Implement reset controls (zoom, pan, all) with shadcn/ui Button
-- [ ] 15.7 Display file status indicator (saved/unsaved/saving) with Tailwind badges
-- [ ] 15.8 Display current file path with Tailwind text styling
-- [ ] 15.9 Implement keyboard shortcut hints on hover with Tailwind tooltips
-- [ ] 15.10 Style toolbar with Tailwind CSS and shadcn/ui theme system
+- [x] 15.1 Create toolbar component using shadcn/ui Button components
+- [x] 15.2 Implement file operations buttons (open, save, save as) with shadcn/ui
+- [x] 15.3 Implement export dropdown with shadcn/ui DropdownMenu
+- [x] 15.4 Implement layout direction selector (5 options) with shadcn/ui Select
+- [x] 15.5 Implement expand/collapse all buttons with shadcn/ui Button
+- [x] 15.6 Implement reset controls (zoom, pan, all) with shadcn/ui Button
+- [x] 15.7 Display file status indicator (saved/unsaved/saving) with Tailwind badges
+- [x] 15.8 Display current file path with Tailwind text styling
+- [x] 15.9 Implement keyboard shortcut hints on hover with Tailwind tooltips
+- [x] 15.10 Style toolbar with Tailwind CSS and shadcn/ui theme system
 
 ### Task 16: UI Components - Canvas
 
 **Requirements**: Req 7, 10
 **Design References**: Canvas Component
 
-- [ ] 16.1 Create SVG canvas container
-- [ ] 16.2 Implement mouse drag for panning
-- [ ] 16.3 Implement mouse wheel for zooming
-- [ ] 16.4 Implement touch gestures for pan and zoom
-- [ ] 16.5 Implement space+drag for panning
-- [ ] 16.6 Apply transform matrix to SVG group
-- [ ] 16.7 Implement edge detection and visual feedback
-- [ ] 16.8 Integrate lazy rendering system
-- [ ] 16.9 Handle window resize events
-- [ ] 16.10 Optimize canvas performance for smooth interactions
+- [x] 16.1 Create SVG canvas container
+- [x] 16.2 Implement mouse drag for panning
+- [x] 16.3 Implement mouse wheel for zooming
+- [x] 16.4 Implement touch gestures for pan and zoom
+- [x] 16.5 Implement space+drag for panning
+- [x] 16.6 Apply transform matrix to SVG group
+- [x] 16.7 Implement edge detection and visual feedback
+- [x] 16.8 Integrate lazy rendering system
+- [x] 16.9 Handle window resize events
+- [x] 16.10 Optimize canvas performance for smooth interactions
 
 ### Task 17: UI Components - Minimap
 
@@ -315,16 +315,16 @@ Tasks are organized into phases:
 **Design References**: Minimap Component
 **Properties**: 31, 32
 
-- [ ] 17.1 Create minimap container with fixed position
-- [ ] 17.2 Render thumbnail of entire mind map
-- [ ] 17.3 Display viewport indicator rectangle
-- [ ] 17.4 Implement click-to-navigate functionality
-- [ ] 17.5 Update viewport indicator on pan/zoom
-- [ ] 17.6 Implement show/hide toggle
-- [ ] 17.7 Auto-hide for small mind maps (<100 nodes)
-- [ ] 17.8 Scale minimap appropriately for large trees
-- [ ] 17.9 Style minimap with semi-transparent overlay
-- [ ] 17.10 Optimize minimap rendering performance
+- [x] 17.1 Create minimap container with fixed position
+- [x] 17.2 Render thumbnail of entire mind map
+- [x] 17.3 Display viewport indicator rectangle
+- [x] 17.4 Implement click-to-navigate functionality
+- [x] 17.5 Update viewport indicator on pan/zoom
+- [x] 17.6 Implement show/hide toggle
+- [x] 17.7 Auto-hide for small mind maps (<100 nodes)
+- [x] 17.8 Scale minimap appropriately for large trees
+- [x] 17.9 Style minimap with semi-transparent overlay
+- [x] 17.10 Optimize minimap rendering performance
 
 
 ### Task 18: UI Components - Search Panel
@@ -332,40 +332,40 @@ Tasks are organized into phases:
 **Requirements**: Req 13
 **Design References**: Search Panel Component
 
-- [ ] 18.1 Create search panel with shadcn/ui Input component
-- [ ] 18.2 Implement real-time search with debouncing using shadcn/ui Input
-- [ ] 18.3 Display search result count (e.g., "3 of 15") with Tailwind text
-- [ ] 18.4 Implement next/previous navigation buttons with shadcn/ui Button
-- [ ] 18.5 Implement case-sensitive toggle with shadcn/ui Toggle
-- [ ] 18.6 Implement clear search button with shadcn/ui Button
-- [ ] 18.7 Highlight matching nodes in visualization with Tailwind classes
-- [ ] 18.8 Display "No results found" message with Tailwind styling
-- [ ] 18.9 Implement Ctrl/Cmd+F to open search panel
-- [ ] 18.10 Implement Escape to close search panel with Tailwind animations
+- [x] 18.1 Create search panel with shadcn/ui Input component
+- [x] 18.2 Implement real-time search with debouncing using shadcn/ui Input
+- [x] 18.3 Display search result count (e.g., "3 of 15") with Tailwind text
+- [x] 18.4 Implement next/previous navigation buttons with shadcn/ui Button
+- [x] 18.5 Implement case-sensitive toggle with shadcn/ui Toggle
+- [x] 18.6 Implement clear search button with shadcn/ui Button
+- [x] 18.7 Highlight matching nodes in visualization with Tailwind classes
+- [x] 18.8 Display "No results found" message with Tailwind styling
+- [x] 18.9 Implement Ctrl/Cmd+F to open search panel
+- [x] 18.10 Implement Escape to close search panel with Tailwind animations
 
 ### Task 19: Keyboard Handler System
 
 **Requirements**: Req 11, 20
 **Design References**: Keyboard Handler
 
-- [ ] 19.1 Create keyboard event listener at application level
-- [ ] 19.2 Implement key combination detection (Ctrl/Cmd modifiers)
-- [ ] 19.3 Map Ctrl/Cmd+S to save
-- [ ] 19.4 Map Ctrl/Cmd+O to open
-- [ ] 19.5 Map Ctrl/Cmd+E to export
-- [ ] 19.6 Map Ctrl/Cmd+Z to undo
-- [ ] 19.7 Map Ctrl/Cmd+Shift+Z to redo
-- [ ] 19.8 Map F key to fit to screen
-- [ ] 19.9 Map R key to reset view
-- [ ] 19.10 Map E key to expand all
-- [ ] 19.11 Map C key to collapse all
-- [ ] 19.12 Map 1-5 keys to layout directions
-- [ ] 19.13 Map Ctrl/Cmd+F to search
-- [ ] 19.14 Map ? key to show shortcut reference
-- [ ] 19.15 Prevent browser default actions for mapped keys
-- [ ] 19.16 Implement keyboard shortcut reference modal
-- [ ] 19.17 Support platform-specific modifiers (Ctrl vs Cmd)
-- [ ] 19.18 Add keyboard navigation for accessibility
+- [x] 19.1 Create keyboard event listener at application level
+- [x] 19.2 Implement key combination detection (Ctrl/Cmd modifiers)
+- [x] 19.3 Map Ctrl/Cmd+S to save
+- [x] 19.4 Map Ctrl/Cmd+O to open
+- [x] 19.5 Map Ctrl/Cmd+E to export
+- [x] 19.6 Map Ctrl/Cmd+Z to undo
+- [x] 19.7 Map Ctrl/Cmd+Shift+Z to redo
+- [x] 19.8 Map F key to fit to screen
+- [x] 19.9 Map R key to reset view
+- [x] 19.10 Map E key to expand all
+- [x] 19.11 Map C key to collapse all
+- [x] 19.12 Map 1-5 keys to layout directions
+- [x] 19.13 Map Ctrl/Cmd+F to search
+- [x] 19.14 Map ? key to show shortcut reference
+- [x] 19.15 Prevent browser default actions for mapped keys
+- [x] 19.16 Implement keyboard shortcut reference modal
+- [x] 19.17 Support platform-specific modifiers (Ctrl vs Cmd)
+- [x] 19.18 Add keyboard navigation for accessibility
 
 ### Task 20: Export Manager
 
@@ -373,18 +373,18 @@ Tasks are organized into phases:
 **Design References**: Export Manager
 **Properties**: 20, 21, 22
 
-- [ ] 20.1 Implement HTML export with embedded styles
-- [ ] 20.2 Implement SVG export from D3 rendering
-- [ ] 20.3 Implement PNG export via canvas conversion
-- [ ] 20.4 Implement background color selection (transparent/white)
-- [ ] 20.5 Ensure minimum resolution of 1920x1080 for rasters
-- [ ] 20.6 Implement export progress indicator
-- [ ] 20.7 Implement export cancellation
-- [ ] 20.8 Implement export validation before download
-- [ ] 20.9 Remember last used export settings
-- [ ] 20.10 Handle export errors with retry mechanism
-- [ ] 20.11 Display success notification on completion
-- [ ] 20.12 Optimize export performance for large mind maps
+- [x] 20.1 Implement HTML export with embedded styles
+- [x] 20.2 Implement SVG export from D3 rendering
+- [x] 20.3 Implement PNG export via canvas conversion
+- [x] 20.4 Implement background color selection (transparent/white)
+- [x] 20.5 Ensure minimum resolution of 1920x1080 for rasters
+- [x] 20.6 Implement export progress indicator
+- [x] 20.7 Implement export cancellation
+- [x] 20.8 Implement export validation before download
+- [x] 20.9 Remember last used export settings
+- [x] 20.10 Handle export errors with retry mechanism
+- [x] 20.11 Display success notification on completion
+- [x] 20.12 Optimize export performance for large mind maps
 
 
 ### Task 21: File Manager
@@ -393,32 +393,32 @@ Tasks are organized into phases:
 **Design References**: File Manager
 **Properties**: 23, 24, 25
 
-- [ ] 21.1 Implement file loading with adapter
-- [ ] 21.2 Implement file saving with adapter
-- [ ] 21.3 Implement "Save As" functionality
-- [ ] 21.4 Implement recent files list management
-- [ ] 21.5 Implement drag-and-drop file handling
-- [ ] 21.6 Implement unsaved changes detection
-- [ ] 21.7 Prompt user before closing with unsaved changes
-- [ ] 21.8 Display current file path in UI
-- [ ] 21.9 Handle file operation errors gracefully
-- [ ] 21.10 Validate file paths before operations
+- [x] 21.1 Implement file loading with adapter
+- [x] 21.2 Implement file saving with adapter
+- [x] 21.3 Implement "Save As" functionality
+- [x] 21.4 Implement recent files list management
+- [x] 21.5 Implement drag-and-drop file handling
+- [x] 21.6 Implement unsaved changes detection
+- [x] 21.7 Prompt user before closing with unsaved changes
+- [x] 21.8 Display current file path in UI
+- [x] 21.9 Handle file operation errors gracefully
+- [x] 21.10 Validate file paths before operations
 
 ### Task 22: Auto-Save Manager
 
 **Requirements**: Req 14
 **Design References**: AutoSaveManager class
 
-- [ ] 22.1 Implement auto-save scheduling with debouncing
-- [ ] 22.2 Implement configurable auto-save interval (default 30s)
-- [ ] 22.3 Implement auto-save enable/disable toggle
-- [ ] 22.4 Create AutoSaveRecord with state snapshot
-- [ ] 22.5 Save auto-save records via storage adapter
-- [ ] 22.6 Implement crash recovery detection
-- [ ] 22.7 Offer recovery on application restart
-- [ ] 22.8 Clear recovery data after successful save
-- [ ] 22.9 Display save status indicator (saved/unsaved/saving)
-- [ ] 22.10 Ensure auto-save doesn't block user interactions
+- [x] 22.1 Implement auto-save scheduling with debouncing
+- [x] 22.2 Implement configurable auto-save interval (default 30s)
+- [x] 22.3 Implement auto-save enable/disable toggle
+- [x] 22.4 Create AutoSaveRecord with state snapshot
+- [x] 22.5 Save auto-save records via storage adapter
+- [x] 22.6 Implement crash recovery detection
+- [x] 22.7 Offer recovery on application restart
+- [x] 22.8 Clear recovery data after successful save
+- [x] 22.9 Display save status indicator (saved/unsaved/saving)
+- [x] 22.10 Ensure auto-save doesn't block user interactions
 
 ### Task 23: Error Handling System
 
@@ -426,16 +426,16 @@ Tasks are organized into phases:
 **Design References**: Error types and recovery strategies
 **Properties**: 46, 47, 48
 
-- [ ] 23.1 Create custom error classes (ParseError, FileSystemError, etc.)
-- [ ] 23.2 Implement error boundary for component errors
-- [ ] 23.3 Implement graceful degradation on errors
-- [ ] 23.4 Implement retry mechanism with exponential backoff
-- [ ] 23.5 Implement error logging system
-- [ ] 23.6 Convert technical errors to user-friendly messages
-- [ ] 23.7 Display error notifications with dismiss option
-- [ ] 23.8 Preserve application state on error
-- [ ] 23.9 Implement error reporting mechanism
-- [ ] 23.10 Test error handling for all failure modes
+- [x] 23.1 Create custom error classes (ParseError, FileSystemError, etc.)
+- [x] 23.2 Implement error boundary for component errors
+- [x] 23.3 Implement graceful degradation on errors
+- [x] 23.4 Implement retry mechanism with exponential backoff
+- [x] 23.5 Implement error logging system
+- [x] 23.6 Convert technical errors to user-friendly messages
+- [x] 23.7 Display error notifications with dismiss option
+- [x] 23.8 Preserve application state on error
+- [x] 23.9 Implement error reporting mechanism
+- [x] 23.10 Test error handling for all failure modes
 
 
 ### Task 24: Notification System
@@ -443,48 +443,48 @@ Tasks are organized into phases:
 **Requirements**: Req 19
 **Design References**: Visual feedback requirements
 
-- [ ] 24.1 Create notification component using shadcn/ui Toast
-- [ ] 24.2 Implement success notifications (auto-dismiss after 3s) with shadcn/ui
-- [ ] 24.3 Implement error notifications (manual dismiss) with shadcn/ui
-- [ ] 24.4 Implement warning notifications with shadcn/ui Toast
-- [ ] 24.5 Implement info notifications with shadcn/ui Toast
-- [ ] 24.6 Display notifications non-intrusively with Tailwind positioning
-- [ ] 24.7 Implement notification queue for multiple messages
-- [ ] 24.8 Add notification animation with Tailwind transitions
-- [ ] 24.9 Style notifications with Tailwind CSS and shadcn/ui theme
-- [ ] 24.10 Test notification accessibility with shadcn/ui components
+- [x] 24.1 Create notification component using shadcn/ui Toast
+- [x] 24.2 Implement success notifications (auto-dismiss after 3s) with shadcn/ui
+- [x] 24.3 Implement error notifications (manual dismiss) with shadcn/ui
+- [x] 24.4 Implement warning notifications with shadcn/ui Toast
+- [x] 24.5 Implement info notifications with shadcn/ui Toast
+- [x] 24.6 Display notifications non-intrusively with Tailwind positioning
+- [x] 24.7 Implement notification queue for multiple messages
+- [x] 24.8 Add notification animation with Tailwind transitions
+- [x] 24.9 Style notifications with Tailwind CSS and shadcn/ui theme
+- [x] 24.10 Test notification accessibility with shadcn/ui components
 
 ### Task 25: Status Bar
 
 **Requirements**: Req 19
 **Design References**: Status bar requirements
 
-- [ ] 25.1 Create status bar component at bottom using Tailwind flexbox
-- [ ] 25.2 Display current file name with shadcn/ui Text styling
-- [ ] 25.3 Display save status (saved/unsaved/saving) with Tailwind badges
-- [ ] 25.4 Display node count with Tailwind text styling
-- [ ] 25.5 Display current layout direction with Tailwind text
-- [ ] 25.6 Display zoom level percentage with Tailwind text
-- [ ] 25.7 Update status bar reactively on state changes
-- [ ] 25.8 Style status bar with Tailwind subtle background
-- [ ] 25.9 Make status bar items clickable with shadcn/ui Button
-- [ ] 25.10 Test status bar responsiveness with Tailwind breakpoints
+- [x] 25.1 Create status bar component at bottom using Tailwind flexbox
+- [x] 25.2 Display current file name with shadcn/ui Text styling
+- [x] 25.3 Display save status (saved/unsaved/saving) with Tailwind badges
+- [x] 25.4 Display node count with Tailwind text styling
+- [x] 25.5 Display current layout direction with Tailwind text
+- [x] 25.6 Display zoom level percentage with Tailwind text
+- [x] 25.7 Update status bar reactively on state changes
+- [x] 25.8 Style status bar with Tailwind subtle background
+- [x] 25.9 Make status bar items clickable with shadcn/ui Button
+- [x] 25.10 Test status bar responsiveness with Tailwind breakpoints
 
 ### Task 26: Main Application Integration
 
 **Requirements**: All requirements
 **Design References**: Application architecture
 
-- [ ] 26.1 Create main application entry point (app/page.tsx)
-- [ ] 26.2 Set up Next.js App Router with layout.tsx
-- [ ] 26.3 Configure Tailwind CSS with globals.css
-- [ ] 26.4 Initialize platform adapters (web implementations)
-- [ ] 26.5 Initialize state manager and command manager
-- [ ] 26.6 Initialize all UI components with shadcn/ui
-- [ ] 26.7 Wire up event handlers and data flow
-- [ ] 26.8 Implement application lifecycle (mount/unmount)
-- [ ] 26.9 Implement resource cleanup on unmount
-- [ ] 26.10 Test complete application workflow with Next.js dev server
+- [x] 26.1 Create main application entry point (app/page.tsx)
+- [x] 26.2 Set up Next.js App Router with layout.tsx
+- [x] 26.3 Configure Tailwind CSS with globals.css
+- [x] 26.4 Initialize platform adapters (web implementations)
+- [x] 26.5 Initialize state manager and command manager
+- [x] 26.6 Initialize all UI components with shadcn/ui
+- [x] 26.7 Wire up event handlers and data flow
+- [x] 26.8 Implement application lifecycle (mount/unmount)
+- [x] 26.9 Implement resource cleanup on unmount
+- [x] 26.10 Test complete application workflow with Next.js dev server
 
 
 ## Phase 3: Testing Infrastructure
@@ -494,32 +494,32 @@ Tasks are organized into phases:
 **Requirements**: Testing foundation
 **Design References**: Test generators
 
-- [ ] 27.1 Create markdown arbitrary generator
-- [ ] 27.2 Create tree node arbitrary generator
-- [ ] 27.3 Create application state arbitrary generator
-- [ ] 27.4 Create transform arbitrary generator
-- [ ] 27.5 Create layout direction arbitrary generator
-- [ ] 27.6 Configure fast-check with 100 iterations minimum
-- [ ] 27.7 Implement shrinking strategies for failing cases
-- [ ] 27.8 Test generators produce valid inputs
-- [ ] 27.9 Document generator constraints
-- [ ] 27.10 Create helper functions for test assertions
+- [x] 27.1 Create markdown arbitrary generator
+- [x] 27.2 Create tree node arbitrary generator
+- [x] 27.3 Create application state arbitrary generator
+- [x] 27.4 Create transform arbitrary generator
+- [x] 27.5 Create layout direction arbitrary generator
+- [x] 27.6 Configure fast-check with 100 iterations minimum
+- [x] 27.7 Implement shrinking strategies for failing cases
+- [x] 27.8 Test generators produce valid inputs
+- [x] 27.9 Document generator constraints
+- [x] 27.10 Create helper functions for test assertions
 
 ### Task 28: Parser Property Tests
 
 **Requirements**: Req 1, 5, 6
 **Design References**: Properties 1-9
 
-- [ ] 28.1 Property 1: Parse-serialize round-trip
-- [ ] 28.2 Property 2: JSON serialization round-trip
-- [ ] 28.3 Property 3: Correct tree structure from indentation
-- [ ] 28.4 Property 4: Unlimited nesting support
-- [ ] 28.5 Property 5: Invalid indentation error handling
-- [ ] 28.6 Property 6: Whitespace-only input rejection
-- [ ] 28.7 Property 7: Special character preservation
-- [ ] 28.8 Property 8: Indentation type support
-- [ ] 28.9 Property 9: Large document support
-- [ ] 28.10 Tag all tests with property numbers
+- [x] 28.1 Property 1: Parse-serialize round-trip
+- [x] 28.2 Property 2: JSON serialization round-trip
+- [x] 28.3 Property 3: Correct tree structure from indentation
+- [x] 28.4 Property 4: Unlimited nesting support
+- [x] 28.5 Property 5: Invalid indentation error handling
+- [x] 28.6 Property 6: Whitespace-only input rejection
+- [x] 28.7 Property 7: Special character preservation
+- [x] 28.8 Property 8: Indentation type support
+- [x] 28.9 Property 9: Large document support
+- [x] 28.10 Tag all tests with property numbers
 
 ### Task 29: Layout Property Tests
 
@@ -575,16 +575,16 @@ Tasks are organized into phases:
 **Requirements**: Req 6, 8, 12
 **Design References**: Properties 23-25, 38-39
 
-- [ ] 32.1 Property 23: Save-load round-trip
-- [ ] 32.2 Property 24: Recent files list management
-- [ ] 32.3 Property 25: File path validation
-- [ ] 32.4 Property 38: Undo-redo round-trip
-- [ ] 32.5 Property 39: Undo stack capacity
-- [ ] 32.6 Test state immutability
-- [ ] 32.7 Test command execution and reversal
-- [ ] 32.8 Test redo stack clearing
-- [ ] 32.9 Test state preservation on error
-- [ ] 32.10 Verify all state transitions
+- [x] 32.1 Property 23: Save-load round-trip
+- [x] 32.2 Property 24: Recent files list management
+- [x] 32.3 Property 25: File path validation
+- [x] 32.4 Property 38: Undo-redo round-trip
+- [x] 32.5 Property 39: Undo stack capacity
+- [x] 32.6 Test state immutability
+- [x] 32.7 Test command execution and reversal
+- [x] 32.8 Test redo stack clearing
+- [x] 32.9 Test state preservation on error
+- [x] 32.10 Verify all state transitions
 
 
 ### Task 33: Transform and Navigation Property Tests

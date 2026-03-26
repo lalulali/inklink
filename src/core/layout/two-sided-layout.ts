@@ -37,10 +37,17 @@ export class TwoSidedLayout extends BaseLayout {
     const rootY = viewport.height / 2;
     positions.set(root.id, { x: rootX, y: rootY });
 
+    // Calculate root width for symmetric spacing (approximate if not measured)
+    // In a real pass, this would be retrieved from metadata
+    const rootWidth = root.metadata.width || 100;
+
     // Step 4: Recursively layout each side
-    // One side grows left (-xOffset), other grows right (+xOffset)
-    this.layoutHorizontalSubtree(left, positions, rootX, rootY, -this.levelSpacing, 'left');
-    this.layoutHorizontalSubtree(right, positions, rootX, rootY, this.levelSpacing, 'right');
+    // Children should be spaced equally from the root's edges
+    const leftX = rootX - rootWidth / 2 - this.levelSpacing;
+    const rightX = rootX + rootWidth / 2 + this.levelSpacing;
+
+    this.layoutHorizontalSubtree(left, positions, leftX, rootY, -this.levelSpacing, 'left');
+    this.layoutHorizontalSubtree(right, positions, rightX, rootY, this.levelSpacing, 'right');
 
     // Step 5: Update metadata on nodes directly
     this.updateNodeMetadata(root, positions);

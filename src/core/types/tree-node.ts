@@ -35,11 +35,12 @@ export interface NodeMetadata {
  * Creates a new TreeNode with default values
  * @param content - Text content from markdown
  * @param depth - Indentation level (0 = root)
+ * @param id - Optional stable ID
  * @returns New TreeNode instance
  */
-export function createTreeNode(content: string, depth: number): TreeNode {
+export function createTreeNode(content: string, depth: number, id?: string): TreeNode {
   return {
-    id: generateId(),
+    id: id || generateId(),
     content,
     depth,
     children: [],
@@ -62,5 +63,5 @@ export function createTreeNode(content: string, depth: number): TreeNode {
  * @returns Unique string identifier
  */
 function generateId(): string {
-  return `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `node_${Math.random().toString(36).substr(2, 9)}`;
 }

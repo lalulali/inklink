@@ -91,10 +91,11 @@ export function partitionChildren(
     return { left: [], right: [] };
   }
 
-  // Sort children by subtree size (largest first) for optimal greedy packing
+  // Sort children by leaf count (largest first) for optimal greedy packing
+  // Height in a mindmap is proportional to the number of leaf nodes in the subtree
   const sorted = [...children].sort((a, b) => {
-    const sizeA = sizes.get(a.id) || 0;
-    const sizeB = sizes.get(b.id) || 0;
+    const sizeA = countLeafNodes(a);
+    const sizeB = countLeafNodes(b);
     return sizeB - sizeA;
   });
 
@@ -103,9 +104,9 @@ export function partitionChildren(
   let leftSize = 0;
   let rightSize = 0;
 
-  // Greedy distribution: always add to the side currently carrying fewer nodes
+  // Greedy distribution: always add to the side currently carrying fewer leaf nodes
   for (const child of sorted) {
-    const childSize = sizes.get(child.id) || 0;
+    const childSize = countLeafNodes(child);
     
     if (leftSize <= rightSize) {
       left.push(child);
