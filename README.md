@@ -1,5 +1,7 @@
 # Inklink
 
+![Development Status](https://img.shields.io/badge/status-development-yellow)
+
 A web-based visualization tool that transforms markdown documents into interactive mind maps.
 
 ## Features
@@ -19,33 +21,12 @@ A web-based visualization tool that transforms markdown documents into interacti
 
 ## Technology Stack
 
-- **Framework**: Next.js 14+ with App Router
+- **Framework**: Next.js 16 with App Router
 - **Language**: TypeScript with strict mode
 - **Styling**: Tailwind CSS with shadcn/ui components (Button, Select, DropdownMenu, Toggle, Toast, Tooltip)
 - **Rendering**: D3.js for SVG-based visualization
 - **Testing**: Jest + fast-check for property-based testing
 - **Utilities**: clsx + tailwind-merge for className composition
-
-## Project Status
-
-The project is being implemented in phases. Current status:
-
-- [x] **Phase 0**: Markmap Study and Analysis
-- [x] **Phase 1**: Core Foundation
-  - [x] Project Setup and Build Configuration
-  - [x] Core Data Structures and Types
-  - [x] Markdown Parser Implementation (Indentation-based)
-- [x] **Phase 2**: Web Platform Implementation
-  - [x] Platform Abstraction Layer
-  - [x] Web Storage and File System Adapters
-  - [x] D3.js Renderer with Side-Aware Alignment
-  - [x] Canvas-based Text Measurement for Precision
-- [x] **Phase 3**: Testing Infrastructure (Core utilities tested)
-- [x] **Phase 4**: Advanced Features and Polish
-  - [x] Smart Editor Behaviors (Auto-outdent, Tab-indent)
-  - [x] Hierarchical Header-List Nesting
-  - [x] Symmetric Root Centering
-  - [x] Undo/Redo & State Management
 
 
 ## Getting Started
