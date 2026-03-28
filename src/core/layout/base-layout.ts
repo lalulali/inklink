@@ -26,6 +26,52 @@ export abstract class BaseLayout implements LayoutAlgorithm {
   }
 
   /**
+   * Helper to accurately measure text width identically to the renderer
+   */
+  /**
+   * Helper to accurately measure text width identically to the renderer
+   */
+  /**
+   * Helper to accurately measure text width identically to the renderer
+   */
+  protected getNodeWidth(node: TreeNode): number {
+    const depth = node.depth || 0;
+    const fontSize = depth === 0 ? 22 : depth === 1 ? 17 : depth === 2 ? 14 : 12;
+    const fontWeight = depth === 0 ? '700' : depth === 1 ? '600' : '500';
+    
+    // Exact synchronization with d3-renderer dimensions
+    let textWidth = (node.content?.length || 0) * (fontSize * 0.6);
+    if (typeof document !== 'undefined') {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const lines = (node.content || '').split('\n');
+        let maxWidth = 0;
+        lines.forEach(line => {
+          // Strip basic inline markdown to measure only visible text
+          const cleanLine = line.replace(/(\*\*\*|\*\*|\*|~~)/g, '');
+          ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
+          maxWidth = Math.max(maxWidth, ctx.measureText(cleanLine).width);
+        });
+        textWidth = maxWidth;
+      }
+    }
+    
+    return textWidth + 24; // 24 is padding.x * 2 (12 * 2) matched identically with renderer
+  }
+
+  /**
+   * Helper to accurately measure node height identically to the renderer
+   */
+  protected getNodeHeight(node: TreeNode): number {
+    const depth = node.depth || 0;
+    const fontSize = depth === 0 ? 22 : depth === 1 ? 17 : depth === 2 ? 14 : 12;
+    const lineHeight = Math.round(fontSize * 1.25);
+    const lines = (node.content || '').split('\n').length;
+    return (lines * lineHeight) + 12; // 12 is padding.y * 2 (6 * 2) matched identically with renderer
+  }
+
+  /**
    * Must be implemented by concrete layout strategies
    */
   abstract calculateLayout(root: TreeNode, viewport: Viewport): Map<string, Position>;
@@ -105,77 +151,128 @@ export abstract class BaseLayout implements LayoutAlgorithm {
    * Universal implementation for horizontal mind map growth (L-R or R-L)
    * Positions a list of sibling nodes and their subtrees
    * Used by Two-Sided, Left-to-Right, and Right-to-Left strategies
+   * 
+   * Uses edge-alignment (left-aligned for right side, right-aligned for left side)
+   * which matches professional mind map layouts and creates consistent gaps.
    */
   protected layoutHorizontalSubtree(
     nodes: TreeNode[],
     positions: Map<string, Position>,
-    parentX: number,
+    parentBoundaryX: number, // The x-coordinate where the level's inner boundary starts
     parentY: number,
-    xOffset: number,
+    levelSpacing: number, // Signed gap between levels
     side: 'left' | 'right'
   ): void {
     if (!nodes || nodes.length === 0) return;
 
-    // Calculate total height required based on subtree leaf node counts
-    const totalLeafNodes = nodes.reduce((sum, node) => sum + this.getMemoizedLeafCount(node), 0);
-    const totalHeight = (totalLeafNodes - 1) * this.nodeSpacing;
+    // Calculate heights of each branch
+    const branchHeights = nodes.map(node => this.getSubtreeHeight(node));
+    const totalBranchesHeight = branchHeights.reduce((sum, h) => sum + h, 0);
+    const totalGroupHeight = totalBranchesHeight + (nodes.length - 1) * this.nodeSpacing;
     
-    // Starting Y to center the sibling group against the parent's Y coordinate
-    let currentY = parentY - totalHeight / 2;
-    const currentX = parentX + xOffset;
+    // Start Y so the block is centered vertically around parentY
+    let currentBoundaryY = parentY - totalGroupHeight / 2;
 
-    for (const node of nodes) {
-      const nodeLeafCount = this.getMemoizedLeafCount(node);
-      const branchHeight = (nodeLeafCount - 1) * this.nodeSpacing;
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      const branchHeight = branchHeights[i];
+      const nodeWidth = this.getNodeWidth(node);
       
-      const nodeY = currentY + branchHeight / 2;
-      positions.set(node.id, { x: currentX, y: nodeY });
+      // Node's pivot Y is the vertical center of its branch space
+      const nodeY = currentBoundaryY + branchHeight / 2;
+      
+      // Node's pivot X aligns its inner edge to parentBoundaryX
+      const nodeX = side === 'right' ? parentBoundaryX + nodeWidth / 2 : parentBoundaryX - nodeWidth / 2;
+      positions.set(node.id, { x: nodeX, y: nodeY });
 
-      // Recursively layout children deeper into the tree
       if (node.children && node.children.length > 0 && !node.collapsed) {
-        this.layoutHorizontalSubtree(node.children, positions, currentX, nodeY, xOffset, side);
+        // Prepare recursion for the next level
+        // nextBoundaryX is the end edge of THIS level's node + levelSpacing
+        const dir = side === 'right' ? 1 : -1;
+        const nextBoundaryX = nodeX + (dir * (nodeWidth / 2 + Math.abs(levelSpacing)));
+        this.layoutHorizontalSubtree(node.children, positions, nextBoundaryX, nodeY, levelSpacing, side);
       }
 
-      currentY += branchHeight + this.nodeSpacing;
+      // Advance boundary Y for the next sibling
+      currentBoundaryY += branchHeight + this.nodeSpacing;
     }
   }
 
   /**
+   * Calculates the total vertical height of a subtree recursively
+   */
+  protected getSubtreeHeight(node: TreeNode): number {
+    const nodeHeight = this.getNodeHeight(node);
+    if (!node.children || node.children.length === 0 || node.collapsed) {
+      return nodeHeight;
+    }
+    
+    let childrenHeight = 0;
+    for (const child of node.children) {
+      childrenHeight += this.getSubtreeHeight(child);
+    }
+    // Add nodeSpacing between each child subtree
+    childrenHeight += (node.children.length - 1) * this.nodeSpacing;
+    
+    return Math.max(nodeHeight, childrenHeight);
+  }
+
+  /**
    * Universal implementation for vertical mind map growth (T-B or B-T)
-   * Positions a list of sibling nodes and their subtrees horizontally
-   * Used by Top-to-Bottom and Bottom-to-Top strategies
+   * Positions a list of sibling nodes and their subtrees horizontally.
+   * Uses precise edge-to-edge node widths to prevent horizontal overlap.
    */
   protected layoutVerticalSubtree(
     nodes: TreeNode[],
     positions: Map<string, Position>,
     parentX: number,
     parentY: number,
-    yOffset: number,
+    yOffset: number,  // positive = down, negative = up
     direction: 'top' | 'bottom'
   ): void {
     if (!nodes || nodes.length === 0) return;
 
-    // Calculate total width required based on subtree leaf node counts
-    const totalLeafNodes = nodes.reduce((sum, node) => sum + this.getMemoizedLeafCount(node), 0);
-    const totalWidth = (totalLeafNodes - 1) * this.nodeSpacing;
-    
-    // Starting X to center the sibling group against the parent's X coordinate
-    let currentX = parentX - totalWidth / 2;
     const currentY = parentY + yOffset;
 
-    for (const node of nodes) {
-      const nodeLeafCount = this.getMemoizedLeafCount(node);
-      const branchWidth = (nodeLeafCount - 1) * this.nodeSpacing;
+    // A helper to calculate the total horizontal width of a subtree recursively
+    const getSubtreeWidth = (node: TreeNode): number => {
+      const nodeWidth = this.getNodeWidth(node);
+      if (!node.children || node.children.length === 0 || node.collapsed) {
+        return nodeWidth;
+      }
+      let childrenWidth = 0;
+      for (const child of node.children) {
+        childrenWidth += getSubtreeWidth(child);
+      }
+      // Add nodeSpacing between each child subtree
+      childrenWidth += (node.children.length - 1) * this.nodeSpacing;
+      return Math.max(nodeWidth, childrenWidth);
+    };
+
+    // Calculate width of each branch and total width of all branches
+    const branchWidths = nodes.map(getSubtreeWidth);
+    const totalBranchesWidth = branchWidths.reduce((sum, w) => sum + w, 0);
+    const totalGroupWidth = totalBranchesWidth + (nodes.length - 1) * this.nodeSpacing;
+
+    // Start X so the entire block is centered exactly around parentX
+    let currentBoundaryX = parentX - totalGroupWidth / 2;
+
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      const branchWidth = branchWidths[i];
       
-      const nodeX = currentX + branchWidth / 2;
+      // Node's pivot X is the exact center of its allocated branch space
+      const nodeX = currentBoundaryX + branchWidth / 2;
       positions.set(node.id, { x: nodeX, y: currentY });
 
-      // Recursively layout children deeper into the tree
       if (node.children && node.children.length > 0 && !node.collapsed) {
-        this.layoutVerticalSubtree(node.children, positions, nodeX, currentY, yOffset, direction);
+        const nodeHeight = this.getNodeHeight(node);
+        const childYOffset = yOffset > 0 ? nodeHeight + this.levelSpacing : -nodeHeight - this.levelSpacing;
+        this.layoutVerticalSubtree(node.children, positions, nodeX, currentY, childYOffset, direction);
       }
 
-      currentX += branchWidth + this.nodeSpacing;
+      // Advance boundary X by the allocated branch width + spacing
+      currentBoundaryX += branchWidth + this.nodeSpacing;
     }
   }
 }

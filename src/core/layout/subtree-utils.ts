@@ -105,15 +105,16 @@ export function partitionChildren(
   let rightSize = 0;
 
   // Greedy distribution: always add to the side currently carrying fewer leaf nodes
+  // Priority is given to the RIGHT side for uneven counts to fix "left-heavy" layout issue
   for (const child of sorted) {
     const childSize = countLeafNodes(child);
     
-    if (leftSize <= rightSize) {
-      left.push(child);
-      leftSize += childSize;
-    } else {
+    if (rightSize <= leftSize) {
       right.push(child);
       rightSize += childSize;
+    } else {
+      left.push(child);
+      leftSize += childSize;
     }
   }
 

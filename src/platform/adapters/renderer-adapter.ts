@@ -21,8 +21,9 @@ export interface RendererAdapter {
    * Render the complete tree
    * @param root - Root node of the tree
    * @param positions - Map of node IDs to positions
+   * @param isDarkMode - Flag for theme mode
    */
-  render(root: TreeNode, positions: Map<string, Position>): void;
+  render(root: TreeNode, positions: Map<string, Position>, isDarkMode?: boolean): void;
 
   /**
    * Update specific nodes (for partial updates)

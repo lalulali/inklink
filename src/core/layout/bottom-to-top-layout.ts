@@ -22,17 +22,20 @@ export class BottomToTopLayout extends BaseLayout {
     
     if (!root) return positions;
 
-    // Step 1: Place root at the center of the viewport
-    const rootX = viewport.width / 2;
-    const rootY = viewport.height / 2;
+    // Step 1: Place root at the world origin
+    const rootX = 0;
+    const rootY = 0;
     positions.set(root.id, { x: rootX, y: rootY });
 
     // Step 2: Lay out all children growing to the top (-levelSpacing)
+    const rootHeight = this.getNodeHeight(root);
+    const startY = rootY - rootHeight / 2;
+
     this.layoutVerticalSubtree(
       root.children, 
       positions, 
       rootX, 
-      rootY, 
+      startY, 
       -this.levelSpacing, 
       'top'
     );

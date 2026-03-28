@@ -6,13 +6,21 @@ A web-based visualization tool that transforms markdown documents into interacti
 
 ## Features
 
+- **Multiple Layouts**: Choose from five layout directions (two-sided, left-to-right, right-to-left, top-to-bottom, bottom-to-top)
+  - Height-based layout algorithm for precise, balanced node spacing
+  - Precise edge-to-edge spacing to eliminate layout "messiness"
+- **Interactive Visualization**: Pan, zoom, and navigate through your mind maps with ease
+  - Synchronized minimap for improved context awareness
+  - Centered node positioning within the viewport
+- **Themes**: Visual Studio-inspired color palettes for light and dark modes
+  - High-contrast branch identification consistently across themes
+  - Automated theme switching support
 - **Markdown Parsing**: Convert markdown text into hierarchical mind map structures based on indentation
   - Indentation detection (spaces vs tabs)
   - Mixed indentation normalization
+  - Virtual root system for handling multiple top-level headers
   - Parse-serialize round-trip support
   - Comprehensive error reporting with line/column information
-- **Multiple Layouts**: Choose from five layout directions (two-sided, left-to-right, right-to-left, top-to-bottom, bottom-to-top)
-- **Interactive Visualization**: Pan, zoom, and navigate through your mind maps with ease
 - **Export Options**: Export to HTML, SVG, and PNG formats
 - **File Operations**: Open, save, and auto-save markdown files
 - **Search**: Find nodes within your mind map quickly

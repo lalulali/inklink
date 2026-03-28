@@ -12,6 +12,7 @@ import { RendererAdapter } from '@/platform/adapters';
 import { TreeNode } from '@/core/types';
 import { globalState } from '@/core/state/state-manager';
 import { LayoutFactory } from '@/core/layout/layout-factory';
+import { useTheme } from 'next-themes';
 
 /**
  * Main application canvas
@@ -21,12 +22,18 @@ export function Canvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<RendererAdapter | null>(null);
   const [state, setState] = React.useState(globalState.getState());
+  const { resolvedTheme } = useTheme();
   const internalTransform = useRef(state.transform);
 
   // Subscribe to changes
   useEffect(() => {
     return globalState.subscribe(s => setState(s));
   }, []);
+
+  // Sync theme
+  useEffect(() => {
+    globalState.setState({ isDarkMode: resolvedTheme === 'dark' });
+  }, [resolvedTheme]);
 
   /**
    * Initialize renderer on mount
@@ -47,14 +54,48 @@ export function Canvas() {
       rendererRef.current = renderer;
     }
     
-    // Resize handler for browser window changes
-    const onResize = () => {
-      console.debug('Canvas container resized');
-    };
-    window.addEventListener('resize', onResize);
+    // Use ResizeObserver to keep canvas centered when dimensions change (e.g., opening editor)
+    let prevWidth = 0;
+    let prevHeight = 0;
+    
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        
+        if (prevWidth > 0 && prevHeight > 0 && (prevWidth !== width || prevHeight !== height)) {
+          // Adjust transform to keep the same world point in the center
+          const dx = (width - prevWidth) / 2;
+          const dy = (height - prevHeight) / 2;
+          const currentTransform = globalState.getState().transform;
+          
+          globalState.setState({
+            transform: {
+              ...currentTransform,
+              x: currentTransform.x + dx,
+              y: currentTransform.y + dy
+            }
+          });
+        } else if (prevWidth === 0 && prevHeight === 0) {
+          // On first render, if transform is default (0,0), center it.
+          const currentTransform = globalState.getState().transform;
+          if (currentTransform.x === 0 && currentTransform.y === 0) {
+            globalState.setState({
+               transform: { ...currentTransform, x: width / 2, y: height / 2 }
+            });
+          }
+        }
+        
+        prevWidth = width;
+        prevHeight = height;
+      }
+    });
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
     
     return () => {
-      window.removeEventListener('resize', onResize);
+      observer.disconnect();
       if (renderer) {
           renderer.clear();
       }
@@ -91,6 +132,15 @@ export function Canvas() {
     }
   }, [state.searchResults, state.currentSearchIndex]);
 
+  /**
+   * Sync selected node
+   */
+  useEffect(() => {
+    if (rendererRef.current && (rendererRef.current as any).setSelectedNode) {
+      (rendererRef.current as any).setSelectedNode(state.selectedNode);
+    }
+  }, [state.selectedNode]);
+
   const lastTreeRef = useRef<TreeNode | null>(null);
   const lastLayoutRef = useRef(state.layoutDirection);
 
@@ -99,28 +149,33 @@ export function Canvas() {
    */
   useEffect(() => {
     const renderNodeTree = () => {
-      if (rendererRef.current && state.tree && containerRef.current) {
-        const { width, height } = containerRef.current.getBoundingClientRect();
-        const layout = LayoutFactory.create(state.layoutDirection);
-        const positions = layout.calculateLayout(state.tree, { width, height });
-        
-        // Update renderer
-        rendererRef.current.render(state.tree, positions);
+      if (rendererRef.current && containerRef.current) {
+        if (state.tree) {
+          const { width, height } = containerRef.current.getBoundingClientRect();
+          const layout = LayoutFactory.create(state.layoutDirection);
+          const positions = layout.calculateLayout(state.tree, { width, height });
+          
+          // Update renderer
+          rendererRef.current.render(state.tree, positions, state.isDarkMode);
 
-        // Share positions with other components if changed
-        if (state.tree !== lastTreeRef.current || state.layoutDirection !== lastLayoutRef.current) {
-          globalState.setState({ layoutPositions: positions });
-          lastTreeRef.current = state.tree;
-          lastLayoutRef.current = state.layoutDirection;
+          // Share positions with other components if changed
+          if (state.tree !== lastTreeRef.current || state.layoutDirection !== lastLayoutRef.current) {
+            globalState.setState({ layoutPositions: positions });
+            lastTreeRef.current = state.tree;
+            lastLayoutRef.current = state.layoutDirection;
+          }
+        } else {
+          // Clear the canvas if there's no tree
+          rendererRef.current.clear();
+          lastTreeRef.current = null;
         }
       }
     };
 
     renderNodeTree();
     
-    window.addEventListener('resize', renderNodeTree);
-    return () => window.removeEventListener('resize', renderNodeTree);
-  }, [state.tree, state.layoutDirection]);
+    return () => {};
+  }, [state.tree, state.layoutDirection, state.isDarkMode]);
 
   return (
     <div className="relative h-full w-full bg-slate-50/50" id="inklink-mindmap-canvas-container">

@@ -12,29 +12,55 @@ import { TreeNode } from '../types/tree-node';
  * Utility for assigning colors to branches and ensuring accessibility
  */
 export class ColorManager {
-  // Task 9.1: Predefined harmonious color palette
+  // Task 9.1: Curated premium color palette
   private static readonly PALETTE = [
-    '#2563eb', // Blue
-    '#dc2626', // Red
-    '#16a34a', // Green
-    '#d97706', // Amber
-    '#7c3aed', // Violet
-    '#db2777', // Pink
-    '#0891b2', // Cyan
-    '#ea580c', // Orange
-    '#4f46e5', // Indigo
-    '#059669', // Emerald
+    '#6366f1', // Indigo 500
+    '#8b5cf6', // Violet 500
+    '#f43f5e', // Rose 500
+    '#f59e0b', // Amber 500
+    '#10b981', // Emerald 500
+    '#0ea5e9', // Sky 500
+    '#ec4899', // Pink 500
+    '#f97316', // Orange 500
+    '#14b8a6', // Teal 500
+    '#64748b', // Slate 500
   ];
 
+  // Mapping from light mode shades (500) to darker mode shades (700 hex)
+  private static readonly DARK_SHADES: Record<string, string> = {
+    '#6366f1': '#4338ca', // Indigo 700
+    '#8b5cf6': '#6d28d9', // Violet 700
+    '#f43f5e': '#be123c', // Rose 700
+    '#f59e0b': '#b45309', // Amber 700
+    '#10b981': '#047857', // Emerald 700
+    '#0ea5e9': '#0369a1', // Sky 700
+    '#ec4899': '#be185d', // Pink 700
+    '#f97316': '#c2410c', // Orange 700
+    '#14b8a6': '#0f766e', // Teal 700
+    '#64748b': '#334155', // Slate 700
+  };
+
   /**
-   * Task 9.2 / 9.3: Assign colors starting from root children
-   * Each primary branch gets a unique color, which descendants inherit
+   * Adapts a color for the current theme by returning a slightly lighter or more vibrant shade in dark mode.
+   */
+  public static getThemeShade(color: string, isDarkMode: boolean): string {
+    if (!isDarkMode) return color;
+    return this.DARK_SHADES[color.toLowerCase()] || color;
+  }
+
+  /**
+   * Task 9.2: Assign colors following user rules:
+   * - Root (Depth 0) is monochrome (handled by renderer default or current node color)
+   * - 2nd level branches (Depth 1) and below get distinct primary colors
    */
   public static assignBranchColors(root: TreeNode): void {
+    // Explicitly set root to monochrome (empty string uses theme default)
+    root.color = '';
+
     if (!root.children || root.children.length === 0) return;
 
+    // Each child of root is the start of a major branch
     root.children.forEach((child, index) => {
-      // Assign color from palette to top-level branches
       const branchColor = this.PALETTE[index % this.PALETTE.length];
       this.applyColorRecursively(child, branchColor);
     });

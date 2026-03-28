@@ -761,10 +761,10 @@ Tasks are organized into phases:
 **Requirements**: Req 20
 **Design References**: Accessibility requirements
 
-- [ ] 43.1 Implement Tab navigation between nodes
-- [ ] 43.2 Implement Arrow key navigation
-- [ ] 43.3 Implement Enter key for expand/collapse
-- [ ] 43.4 Add ARIA labels to all interactive elements
+- [x] 43.1 Implement Tab navigation between nodes
+- [x] 43.2 Implement Arrow key navigation
+- [x] 43.3 Implement Enter key for expand/collapse
+- [x] 43.4 Add ARIA labels to all interactive elements
 - [ ] 43.5 Add screen reader support for node content
 - [ ] 43.6 Implement high contrast mode
 - [ ] 43.7 Ensure visible focus indicators

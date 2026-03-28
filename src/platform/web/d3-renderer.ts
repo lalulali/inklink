@@ -8,6 +8,7 @@ import * as d3 from 'd3';
 import { RendererAdapter } from '../adapters/renderer-adapter';
 import { TreeNode, Position, NodeChange, Transform } from '@/core/types';
 import { ViewportCuller } from './viewport-culler';
+import { ColorManager } from '@/core/theme/color-manager';
 
 /**
  * Web implementation of RendererAdapter using D3.js
@@ -22,7 +23,11 @@ export class D3Renderer implements RendererAdapter {
   private lastRoot: TreeNode | null = null;
   private lastPositions: Map<string, Position> | null = null;
   private highlightIds: Set<string> = new Set();
-  
+  private selectedNodeId: string | null = null;
+  private isVertical: boolean = false; // Track layout orientation
+  private isDarkMode: boolean = false; // Track theme mode
+
+
   public onTransform?: (transform: Transform) => void;
 
   /**
@@ -32,9 +37,36 @@ export class D3Renderer implements RendererAdapter {
     padding: { x: 12, y: 6 },
     margin: { x: 40, y: 20 },
     borderRadius: 4,
-    animationDuration: 500,
-    highlightColor: '#2563eb', // Blue-600
+    animationDuration: 280,
+    staggerDelay: 28,       // ms per depth level for cascade effect
+    highlightColor: '#2563eb',
   };
+
+  /**
+   * Helper to get font size based on node depth (Heading style)
+   */
+  private getFontSize(depth: number): number {
+    if (depth === 0) return 22;      // Level 1: Biggest
+    if (depth === 1) return 17;      // Level 2
+    if (depth === 2) return 14;      // Level 3
+    return 12;                       // Level 4+
+  }
+
+  /**
+   * Helper to get font weight based on node depth
+   */
+  private getFontWeight(depth: number): string {
+    if (depth === 0) return '700';
+    if (depth === 1) return '600';
+    return '500';
+  }
+
+  /**
+   * Helper to get line height based on depth
+   */
+  private getLineHeight(depth: number): number {
+    return Math.round(this.getFontSize(depth) * 1.25);
+  }
 
   /**
    * Initialize D3 SVG container
@@ -64,31 +96,68 @@ export class D3Renderer implements RendererAdapter {
         // Allow left-click (0) and middle-click (1) for panning
         return !event.ctrlKey && (event.button === 0 || event.button === 1);
       })
+      .on('start', () => {
+        this.svg?.style('cursor', 'grabbing');
+      })
       .on('zoom', (event) => {
         this.g?.attr('transform', event.transform);
         
-        // Notify of transform changes
-        this.onTransform?.({
-          x: event.transform.x,
-          y: event.transform.y,
-          scale: event.transform.k,
-        });
-
-        if (this.lastRoot && this.lastPositions) {
-          this.render(this.lastRoot, this.lastPositions);
+        // Only notify React state if the change came from user interaction (prevents feedback loops during resizes)
+        if (event.sourceEvent && this.onTransform) {
+          this.onTransform({
+            x: event.transform.x,
+            y: event.transform.y,
+            scale: event.transform.k,
+          });
         }
+      })
+      .on('end', () => {
+        this.svg?.style('cursor', 'grab');
       });
 
-    this.svg.call(this.zoom);
+    this.svg.call(this.zoom)
+      .style('cursor', 'grab');
   }
 
   /**
    * Render the complete tree
    */
-  render(root: TreeNode, positions: Map<string, Position>): void {
-    if (!this.g || !this.svg) return;
+  render(root: TreeNode, positions: Map<string, Position>, isDarkMode: boolean = false): void {
+    if (!this.g || !this.svg || !root || !positions) {
+      if (!root || !positions) this.clear();
+      return;
+    }
+    this.isDarkMode = isDarkMode;
+
+    // Safety check for NaN positions which can break d3 transitions
+    for (const pos of positions.values()) {
+        if (isNaN(pos.x) || isNaN(pos.y)) {
+            console.error('D3Renderer: Invalid positions (NaN) detected', positions);
+            this.clear();
+            return;
+        }
+    }
+
     this.lastRoot = root;
     this.lastPositions = positions;
+
+    // Detect layout orientation from tree structure
+    if (root.children.length > 0) {
+      const rootPos = positions.get(root.id) || { x: 0, y: 0 };
+      let maxDx = 0;
+      
+      // Heuristic: In horizontal layouts (L-R, R-L, Two-Sided), 
+      // children are placed at a significant horizontal distance (levelSpacing).
+      // In vertical layouts (T-B, B-T), children are centered horizontally (dx ≈ 0).
+      root.children.forEach(child => {
+        const childPos = positions.get(child.id);
+        if (childPos) {
+          maxDx = Math.max(maxDx, Math.abs(childPos.x - rootPos.x));
+        }
+      });
+      
+      this.isVertical = maxDx < 40; // levelSpacing is typically 80-100, sibling spacing is 40
+    }
 
     // Get current transform for culling
     const d3Transform = d3.zoomTransform(this.svg.node() as SVGSVGElement);
@@ -110,22 +179,43 @@ export class D3Renderer implements RendererAdapter {
     // Text measurement using canvas
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    if (ctx) ctx.font = '14px Inter, sans-serif';
 
     // Heuristic measurement for nodes
     const allNodes = this.flattenTree(root);
     allNodes.forEach(node => {
+      const depth = node.depth || 0;
+      const fontSize = this.getFontSize(depth);
+      const fontWeight = this.getFontWeight(depth);
+      const lineHeight = this.getLineHeight(depth);
+      
+      if (ctx) ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
+
       // Always re-measure to ensure tidy appearance
-      const textWidth = ctx ? ctx.measureText(node.content).width : node.content.length * 8;
-      node.metadata.width = textWidth + (this.config.padding.x * 2);
-      node.metadata.height = 14 + (this.config.padding.y * 2);
+      const lines = node.content.split('\n');
+      let maxWidth = 0;
+      lines.forEach(line => {
+        const segments = this.parseMarkdownLine(line);
+        let lineWidth = 0;
+        segments.forEach(seg => {
+          if (ctx) {
+            ctx.font = `${seg.bold ? 'bold ' : fontWeight} ${seg.italic ? 'italic ' : ''}${fontSize}px Inter, sans-serif`;
+            lineWidth += ctx.measureText(seg.text).width;
+          } else {
+            lineWidth += seg.text.length * (fontSize * 0.6);
+          }
+        });
+        maxWidth = Math.max(maxWidth, lineWidth);
+      });
+      node.metadata.width = maxWidth + (this.config.padding.x * 2);
+      node.metadata.height = (lines.length * lineHeight) + (this.config.padding.y * 2);
     });
 
-    const nodesToRender = allNodes.filter(node => visibleNodes.has(node.id));
+    // Temporarily disabled culling to ensure reliable initial render
+    const nodesToRender = allNodes;
     
     // Links are visible if target is visible
     const allLinks = this.getLinks(allNodes);
-    const linksToRender = allLinks.filter(link => visibleNodes.has(link.target.id));
+    const linksToRender = allLinks;
 
     this.renderLinks(linksToRender, positions);
     this.renderNodes(nodesToRender, positions);
@@ -136,15 +226,18 @@ export class D3Renderer implements RendererAdapter {
    */
   update(changes: NodeChange[]): void {
     if (this.lastRoot && this.lastPositions) {
-      this.render(this.lastRoot, this.lastPositions);
+      this.render(this.lastRoot, this.lastPositions, this.isDarkMode);
     }
   }
 
   /**
-   * Clear all rendered elements
+   * Clear all rendered elements while preserving layer groups
    */
   clear(): void {
-    this.g?.selectAll('*').remove();
+    if (this.g) {
+      this.g.selectAll('g.nodes-layer *').remove();
+      this.g.selectAll('g.links-layer *').remove();
+    }
     this.lastRoot = null;
     this.lastPositions = null;
   }
@@ -172,8 +265,14 @@ export class D3Renderer implements RendererAdapter {
     if (!this.svg || !this.zoom || !this.g) return;
     
     // Find node elements
-    const node = this.g.select(`g.node[data-id="${nodeId}"]`);
+    const node = this.g.select<SVGGElement>(`g.node[data-id="${nodeId}"]`);
     if (node.empty()) return;
+
+    // Trigger browser focus for accessibility
+    const nodeElement = node.node();
+    if (nodeElement) {
+        nodeElement.focus();
+    }
 
     const transform = d3.zoomTransform(this.svg.node() as SVGSVGElement);
     const bounds = this.getViewportBounds();
@@ -232,7 +331,17 @@ export class D3Renderer implements RendererAdapter {
   highlightNodes(nodeIds: string[]): void {
     this.highlightIds = new Set(nodeIds);
     if (this.lastRoot && this.lastPositions) {
-      this.render(this.lastRoot, this.lastPositions);
+      this.render(this.lastRoot, this.lastPositions, this.isDarkMode);
+    }
+  }
+
+  /**
+   * Set the selected node for highlighting and focus
+   */
+  setSelectedNode(nodeId: string | null): void {
+    this.selectedNodeId = nodeId;
+    if (this.lastRoot && this.lastPositions) {
+      this.render(this.lastRoot, this.lastPositions, this.isDarkMode);
     }
   }
 
@@ -241,16 +350,26 @@ export class D3Renderer implements RendererAdapter {
    */
   private renderNodes(nodes: TreeNode[], positions: Map<string, Position>): void {
     if (!this.g) return;
+    const thisRenderer = this;
     const layer = this.g.select('g.nodes-layer');
 
     const nodeGroups = layer.selectAll<SVGGElement, TreeNode>('g.node')
       .data(nodes, (d) => d.id);
 
-    // EXIT
+    // EXIT: reverse of enter animation (fly to parent)
     nodeGroups.exit()
       .transition()
-      .duration(200)
+      .duration(this.config.animationDuration)
+      .ease(d3.easeCubicIn)
       .attr('opacity', 0)
+      .attr('transform', (d: any) => {
+        const fallbackPos = this.lastPositions?.get(d.id) || { x: 0, y: 0 };
+        if (d.parent) {
+          const parentPos = positions.get(d.parent.id) || this.lastPositions?.get(d.parent.id) || fallbackPos;
+          return `translate(${parentPos.x}, ${parentPos.y})`;
+        }
+        return `translate(${fallbackPos.x}, ${fallbackPos.y})`;
+      })
       .remove();
 
     // ENTER
@@ -259,28 +378,46 @@ export class D3Renderer implements RendererAdapter {
       .attr('class', 'node')
       .attr('cursor', 'pointer')
       .attr('opacity', 0)
+      .attr('tabindex', -1)
+      .style('outline', 'none')
+      .attr('role', 'button')
+      .attr('aria-label', (d) => `Node: ${d.content}`)
+      .attr('transform', (d) => {
+        // Start new nodes at their final position to avoid \"flying from (0,0)\"
+        // Or start them at their parent's position for a \"growth\" effect
+        const targetPos = positions.get(d.id) || { x: 0, y: 0 };
+        if (d.parent) {
+          const parentPos = positions.get(d.parent.id) || targetPos;
+          return `translate(${parentPos.x}, ${parentPos.y})`;
+        }
+        return `translate(${targetPos.x}, ${targetPos.y})`;
+      })
       .on('click', (event, d) => {
         event.stopPropagation();
+        this.nodeClickCallback(d.id);
+      })
+      .on('focus', (event, d) => {
+        // When focused via keyboard, trigger selection
         this.nodeClickCallback(d.id);
       });
 
     enter.append('rect')
       .attr('rx', this.config.borderRadius)
       .attr('ry', this.config.borderRadius)
-      .attr('fill', 'white')
       .attr('stroke-width', 2);
 
     enter.append('text')
       .attr('dy', '0.35em')
-      .attr('font-size', '14px')
       .attr('font-family', 'Inter, sans-serif');
 
-    // UPDATE with transition
+    // UPDATE with transition — staggered by depth for cascade feel
     const update = enter.merge(nodeGroups);
-    const t = this.g.transition().duration(this.config.animationDuration);
 
     update.attr('data-id', (d) => d.id)
-      .transition(t as any)
+      .transition()
+      .duration(this.config.animationDuration)
+      .ease(d3.easeCubicOut)
+      .delay((d) => (d.depth || 0) * this.config.staggerDelay)
       .attr('opacity', 1)
       .attr('transform', (d) => {
         const pos = positions.get(d.id) || { x: 0, y: 0 };
@@ -288,32 +425,86 @@ export class D3Renderer implements RendererAdapter {
       });
 
     update.select('text')
-      .text((d) => d.content)
-      .transition(t as any)
+      .each(function(d) {
+        const textElement = d3.select(this);
+        const lines = d.content.split('\n');
+        
+        // Calculate the target x (same as the .attr('x') logic below)
+        const width = (d as any).metadata?.width || 0;
+        let x: number;
+        if (thisRenderer.isVertical) {
+            x = -width / 2 + thisRenderer.config.padding.x;
+        } else {
+            const pos = positions.get(d.id) || { x: 0, y: 0 };
+            const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
+            if (!parentPos) x = -width / 2 + thisRenderer.config.padding.x;
+            else if (pos.x < parentPos.x) x = -width + thisRenderer.config.padding.x;
+            else x = thisRenderer.config.padding.x;
+        }
+
+        // Clean up previous tspans
+        textElement.selectAll('tspan').remove();
+        
+        // Add new tspans for each line
+        lines.forEach((line, i) => {
+          const tspan = textElement.append('tspan')
+            .attr('x', x)
+            .attr('dy', i === 0 ? '0.35em' : '1.2em');
+            
+          const segments = thisRenderer.parseMarkdownLine(line);
+          segments.forEach(seg => {
+            const span = tspan.append('tspan')
+              .text(seg.text);
+            
+            if (seg.bold) span.style('font-weight', 'bold');
+            else span.style('font-weight', thisRenderer.getFontWeight(d.depth));
+            
+            if (seg.italic) span.style('font-style', 'italic');
+            if (seg.strikethrough) span.style('text-decoration', 'line-through');
+          });
+        });
+      })
+      .attr('font-size', (d) => `${thisRenderer.getFontSize(d.depth)}px`)
+      .attr('font-weight', (d) => thisRenderer.getFontWeight(d.depth))
+      .attr('fill', (d) => {
+        if (thisRenderer.isDarkMode) {
+          if (d.depth === 0) return '#1e1e1e'; // Dark text on light grey root
+          return 'white'; // White text on colored branches
+        }
+        return 'white';
+      })
+      .transition()
+      .duration(this.config.animationDuration)
+      .ease(d3.easeCubicOut)
+      .delay((d) => (d.depth || 0) * this.config.staggerDelay)
       .attr('x', (d) => {
         const width = (d as any).metadata?.width || 0;
+        if (thisRenderer.isVertical) return -width / 2 + thisRenderer.config.padding.x;
         const pos = positions.get(d.id) || { x: 0, y: 0 };
         const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
-        
-        // Root centering
-        if (!parentPos) {
-           return -width / 2 + this.config.padding.x;
-        }
-
-        // Left side: right-aligned box, text starts at -width + padding
-        if (pos.x < parentPos.x) {
-          return -width + this.config.padding.x;
-        }
-        return this.config.padding.x;
+        if (!parentPos) return -width / 2 + thisRenderer.config.padding.x;
+        if (pos.x < parentPos.x) return -width + thisRenderer.config.padding.x;
+        return thisRenderer.config.padding.x;
       })
-      .attr('y', 0);
+      .attr('y', (d) => {
+        const lines = d.content.split('\n');
+        const fontSize = thisRenderer.getFontSize(d.depth);
+        const lineHeight = thisRenderer.getLineHeight(d.depth);
+        // Shift up by half the total extra height to center vertically
+        return -((lines.length - 1) * lineHeight) / 2;
+      });
 
     update.select('rect')
-      .transition(t as any)
+      .transition()
+      .duration(this.config.animationDuration)
+      .ease(d3.easeCubicOut)
+      .delay((d) => (d.depth || 0) * this.config.staggerDelay)
       .attr('width', (d) => (d as any).metadata?.width || 0)
       .attr('height', (d) => (d as any).metadata?.height || 0)
       .attr('x', (d) => {
         const width = (d as any).metadata?.width || 0;
+        if (thisRenderer.isVertical) return -width / 2;
+
         const pos = positions.get(d.id) || { x: 0, y: 0 };
         const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
         
@@ -329,8 +520,26 @@ export class D3Renderer implements RendererAdapter {
         return 0; // Right side nodes grow from the pivot
       })
       .attr('y', (d) => -((d as any).metadata?.height || 0) / 2)
-      .attr('stroke', (d) => this.highlightIds.has(d.id) ? this.config.highlightColor : (d.color || '#ccc'))
-      .attr('stroke-width', (d) => this.highlightIds.has(d.id) ? 3 : 1.5);
+      .attr('fill', (d) => {
+        if (thisRenderer.isDarkMode) {
+          if (d.depth === 0) return '#d4d4d4'; // Visual Studio Light Grey Root in Dark Mode
+          return ColorManager.getThemeShade(d.color, true) || '#1e293b'; 
+        }
+        if (d.depth === 0) return '#1e1e1e'; // Visual Studio Dark Grey Root in Light Mode
+        return d.color || '#f1f5f9'; // Branches colored (500)
+      })
+      .attr('stroke', (d) => {
+        if (this.selectedNodeId === d.id) return '#ef4444'; // Red for selected
+        if (this.highlightIds.has(d.id)) return this.config.highlightColor;
+        
+        if (thisRenderer.isDarkMode) {
+          if (d.depth === 0) return '#ffffff'; // Root border for extra pop
+          return ColorManager.getThemeShade(d.color, true) || 'currentColor';
+        }
+        if (d.depth === 0) return '#000000'; // Root border darker in light mode
+        return d.color || 'currentColor';
+      })
+      .attr('stroke-width', (d) => (this.selectedNodeId === d.id || this.highlightIds.has(d.id)) ? 3 : 1.5);
 
     // Indicators logic: dependent on side
     const indicator = update.selectAll<SVGCircleElement, TreeNode>('circle.collapsible-indicator')
@@ -341,41 +550,80 @@ export class D3Renderer implements RendererAdapter {
     indicator.enter()
       .append('circle')
       .attr('class', 'collapsible-indicator')
+      .style('outline', 'none')
       .attr('r', 6)
-      .attr('fill', 'white')
+      .attr('fill', 'none') // Managed by transition
       .attr('stroke-width', 2)
+      .attr('role', 'button')
+      .attr('aria-label', (d) => d.collapsed ? "Expand node" : "Collapse node")
+      .attr('tabindex', -1) // Not directly tabbable, controlled via Enter on node
       .on('mouseover', function() { d3.select(this).attr('r', 8); })
       .on('mouseout', function() { d3.select(this).attr('r', 6); })
       .on('click', (event, d) => {
         event.stopPropagation();
-        d.collapsed = !d.collapsed;
-        if (this.lastRoot && this.lastPositions) {
-            this.render(this.lastRoot, this.lastPositions);
-        }
+        this.toggleNode(d);
       })
       .merge(indicator as any)
-      .transition(t as any)
+      .transition() // Use a new transition for enter/update
+      .duration(280) // Reduced animation duration
+      .ease(d3.easeCubicOut) // Apply easeCubicOut
+      .delay((d) => (d.depth || 0) * 30) // Depth-based stagger delay
       .attr('cx', (d) => {
+        if (thisRenderer.isVertical) return 0; // Centered horizontally for vertical layouts
         const width = (d as any).metadata?.width || 0;
         const pos = positions.get(d.id) || { x: 0, y: 0 };
         const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
-        
-        // Root is special: it doesn't usually have a single collapse point,
-        // but if it does, let's put it on its right side or center?
-        // Let's hide it for root to avoid confusion, or put it on the right edge.
         if (!parentPos) {
-          return width / 2;
+          const firstChild = d.children[0];
+          const childPos = firstChild ? positions.get(firstChild.id) : null;
+          if (childPos && childPos.x < pos.x) return -width / 2; // RTL
+          return width / 2; // LTR / two-sided right
         }
-
-        // Left side: indicator on the far left
-        if (pos.x < parentPos.x) {
-          return -width;
-        }
-        return width; // Far right
+        if (pos.x < parentPos.x) return -width; // Left-side node
+        return width; // Right-side node
       })
-      .attr('cy', 0)
-      .attr('stroke', (d) => d.color || '#ccc')
-      .attr('fill', (d) => d.collapsed ? (d.color || '#ccc') : 'white');
+      .attr('cy', (d) => {
+        if (!thisRenderer.isVertical) return 0; // Centered vertically for horizontal layouts
+        const height = (d as any).metadata?.height || 0;
+        const pos = positions.get(d.id) || { x: 0, y: 0 };
+        
+        // Determine Top-Down vs Bottom-Up based on children positions
+        const firstChild = d.children[0];
+        const childPos = firstChild ? positions.get(firstChild.id) : null;
+        if (childPos && childPos.y < pos.y) {
+          return -height / 2; // Bottom-up (children above): indicator at Top
+        }
+        return height / 2; // Top-down: indicator at Bottom
+      })
+      .attr('stroke', (d) => {
+        if (!thisRenderer.isDarkMode) return 'white'; // Light mode rings
+        if (d.depth === 0) return '#1e1e1e'; // Dark ring for the light grey root in dark mode
+        return 'white'; // White ring for colored branches in dark mode
+      })
+      .attr('fill', (d) => {
+        if (thisRenderer.isDarkMode) {
+          if (d.collapsed) return 'white'; // Solid indicator when closed
+          
+          // Open: Follow the node background
+          if (d.depth === 0) return '#d4d4d4'; // Match light grey root in dark mode
+          return ColorManager.getThemeShade(d.color, true) || '#1e293b';
+        }
+        
+        // Light mode
+        if (d.collapsed) return 'white';
+        if (d.depth === 0) return '#1e1e1e';
+        return d.color || '#f1f5f9';
+      });
+  }
+
+  /**
+   * Toggle node collapse state
+   */
+  public toggleNode(node: TreeNode): void {
+    node.collapsed = !node.collapsed;
+    if (this.lastRoot && this.lastPositions) {
+      this.render(this.lastRoot, this.lastPositions, this.isDarkMode);
+    }
   }
 
   /**
@@ -390,7 +638,8 @@ export class D3Renderer implements RendererAdapter {
 
     linkPaths.exit()
       .transition()
-      .duration(200)
+      .duration(this.config.animationDuration)
+      .ease(d3.easeCubicIn)
       .attr('stroke-opacity', 0)
       .remove();
 
@@ -399,56 +648,118 @@ export class D3Renderer implements RendererAdapter {
       .attr('class', 'link')
       .attr('fill', 'none')
       .attr('stroke-opacity', 0)
-      .attr('stroke-width', 2);
+      .attr('stroke-width', 2)
+      .attr('d', (d) => {
+        const sPos = positions.get(d.source.id) || { x: 0, y: 0 };
+        const sWidth = (d.source as any).metadata?.width || 0;
+        const tPos = positions.get(d.target.id) || { x: 0, y: 0 };
 
-    const update = enter.merge(linkPaths);
-    const t = this.g.transition().duration(this.config.animationDuration);
+        // Use the same edge calculation as sideAwareDiagonal for the initial (collapsed) state
+        let sX: number;
+        let sY: number = sPos.y;
 
-    const diagonal = d3.linkHorizontal<any, any>()
-      .x((d) => {
-        const pos = positions.get(d.id) || { x: 0, y: 0 };
-        const width = (d as any).metadata?.width || 0;
-        
-        // Find if this is source or target
-        // We need to know which side it's on to connect to correct edge
-        return pos.x; // Default to left edge
-      })
-      .y((d) => (positions.get(d.id) || { x: 0, y: 0 }).y);
+        if (this.isVertical) {
+          sX = sPos.x;
+          const sHeight = (d.source as any).metadata?.height || 0;
+          sY = tPos.y < sPos.y ? sPos.y - sHeight / 2 : sPos.y + sHeight / 2;
+          return `M${sX},${sY}C${sX},${sY} ${sX},${sY} ${sX},${sY}`;
+        } else {
+          if (!d.source.parent) {
+            sX = tPos.x < sPos.x ? sPos.x - sWidth / 2 : sPos.x + sWidth / 2;
+          } else {
+            const pPos = positions.get(d.source.parent.id) || { x: 0, y: 0 };
+            sX = sPos.x < pPos.x ? sPos.x - sWidth : sPos.x + sWidth;
+          }
+          return `M${sX},${sY}C${sX},${sY} ${sX},${sY} ${sX},${sY}`;
+        }
+      });
 
-    // Custom diagonal generator to handle side-aware offsets
+    // ── Diagonal generators (must be defined before update.transition) ──────
+
+    const getSourceX = (source: any, target: any): number => {
+      const sPos = positions.get(source.id) || { x: 0, y: 0 };
+      const tPos = positions.get(target.id) || { x: 0, y: 0 };
+      const sWidth = (source as any).metadata?.width || 0;
+      if (!source.parent) return tPos.x < sPos.x ? sPos.x - sWidth / 2 : sPos.x + sWidth / 2;
+      const pPos = positions.get(source.parent.id) || { x: 0, y: 0 };
+      return sPos.x < pPos.x ? sPos.x - sWidth : sPos.x + sWidth;
+    };
+
+    const getSourceY = (source: any, target: any): number => {
+      const sPos = positions.get(source.id) || { x: 0, y: 0 };
+      const tPos = positions.get(target.id) || { x: 0, y: 0 };
+      const sHeight = (source as any).metadata?.height || 0;
+      return tPos.y < sPos.y ? sPos.y - sHeight / 2 : sPos.y + sHeight / 2;
+    };
+
+    const getTargetY = (source: any, target: any): number => {
+      const sPos = positions.get(source.id) || { x: 0, y: 0 };
+      const tPos = positions.get(target.id) || { x: 0, y: 0 };
+      const tHeight = (target as any).metadata?.height || 0;
+      return tPos.y < sPos.y ? tPos.y + tHeight / 2 : tPos.y - tHeight / 2;
+    };
+
     const sideAwareDiagonal = (d: any) => {
       const sPos = positions.get(d.source.id) || { x: 0, y: 0 };
       const tPos = positions.get(d.target.id) || { x: 0, y: 0 };
-      const sWidth = (d.source as any).metadata?.width || 0;
-      const tWidth = (d.target as any).metadata?.width || 0;
 
-      // Source side identification:
-      // If source is root, we look at target's position
-      let sX = sPos.x;
-      if (!d.source.parent) {
-        sX = tPos.x < sPos.x ? sPos.x : sPos.x + sWidth;
-      } else {
-        const pPos = positions.get(d.source.parent.id) || { x: 0, y: 0 };
-        const isLeft = sPos.x < pPos.x;
-        sX = isLeft ? sPos.x - sWidth : sPos.x + sWidth;
+      if (this.isVertical) {
+        const sX = sPos.x;
+        const sY = getSourceY(d.source, d.target);
+        const tX = tPos.x;
+        const tY = getTargetY(d.source, d.target);
+        const cp1y = sY + (tY - sY) / 2;
+        return `M${sX},${sY}C${sX},${cp1y} ${tX},${cp1y} ${tX},${tY}`;
       }
 
+      const sX = getSourceX(d.source, d.target);
       const sY = sPos.y;
-
-      // Target side: connects to its inner edge (which is always 0 relative to pivot)
-      // BUT for left nodes, pivot is the inner edge (right side). Correct.
-      // For right nodes, pivot is the inner edge (left side). Correct.
       const tX = tPos.x;
       const tY = tPos.y;
-
       const cp1x = sX + (tX - sX) / 2;
       return `M${sX},${sY}C${cp1x},${sY} ${cp1x},${tY} ${tX},${tY}`;
     };
 
-    update.transition(t as any)
+    // ── Apply transition to all links (enter + update) ───────────────────────
+    const update = enter.merge(linkPaths);
+
+    update.transition()
+      .duration(this.config.animationDuration)
+      .ease(d3.easeCubicOut)
+      .delay((d) => (d.target.depth || 0) * this.config.staggerDelay)
       .attr('d', sideAwareDiagonal)
-      .attr('stroke-opacity', 0.6)
-      .attr('stroke', (d) => d.target.color || '#ccc');
+      .attr('stroke-opacity', (d) => this.isDarkMode ? 0.8 : 0.55)
+      .attr('stroke', (d) => ColorManager.getThemeShade(d.target.color, this.isDarkMode) || 'currentColor');
+  }
+
+  /**
+   * Simple inline markdown parser
+   */
+  private parseMarkdownLine(line: string): { text: string; bold?: boolean; italic?: boolean; strikethrough?: boolean }[] {
+    const segments: { text: string; bold?: boolean; italic?: boolean; strikethrough?: boolean }[] = [];
+    
+    // Support combination like ***bold and italic***
+    // Support non-nested tags for simplicity
+    // Regex matches: ***bolditalic***, **bold**, *italic*, ~~strike~~
+    const regex = /(\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|~~.*?~~)/g;
+    const parts = line.split(regex);
+    
+    parts.forEach(part => {
+      if (!part) return;
+      if (part.startsWith('***') && part.endsWith('***')) {
+        segments.push({ text: part.slice(3, -3), bold: true, italic: true });
+      } else if (part.startsWith('**') && part.endsWith('**')) {
+        segments.push({ text: part.slice(2, -2), bold: true });
+      } else if (part.startsWith('*') && part.endsWith('*')) {
+        segments.push({ text: part.slice(1, -1), italic: true });
+      } else if (part.startsWith('~~') && part.endsWith('~~')) {
+        segments.push({ text: part.slice(2, -2), strikethrough: true });
+      } else {
+        segments.push({ text: part });
+      }
+    });
+    
+    return segments;
   }
 
   /**

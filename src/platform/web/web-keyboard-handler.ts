@@ -85,9 +85,68 @@ export class WebKeyboardHandler {
       return;
     }
 
-    // Navigation (Arrow keys)
-    if (!isMod && (e.key.startsWith('Arrow') || e.key === 'Tab')) {
-      // Handle node navigation
+    // Ignore keystrokes when editing text in CodeMirror or other inputs
+    const target = e.target as HTMLElement;
+    const isEditorOrInput = target.tagName === 'INPUT' || 
+                            target.tagName === 'TEXTAREA' || 
+                            target.isContentEditable ||
+                            !!target.closest('.cm-editor');
+
+    // Navigation and Interaction
+    if (!isMod && !isEditorOrInput) {
+      if (e.key === 'Enter') {
+        const state = globalState.getState();
+        if (state.selectedNode && state.tree) {
+          const node = this.findNode(state.tree, state.selectedNode);
+          if (node && node.children.length > 0) {
+            e.preventDefault();
+            node.collapsed = !node.collapsed;
+            globalState.setState({ tree: state.tree, isDirty: true });
+            return;
+          }
+        }
+      }
+
+      if (e.key.startsWith('Arrow')) {
+        const state = globalState.getState();
+        if (state.selectedNode && state.tree) {
+          const node = this.findNode(state.tree, state.selectedNode);
+          if (node) {
+            let nextNodeId: string | null = null;
+            if (e.key === 'ArrowRight' && !node.collapsed && node.children.length > 0) {
+              nextNodeId = node.children[0].id;
+            } else if (e.key === 'ArrowLeft' && node.parent) {
+              nextNodeId = node.parent.id;
+            } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+               if (node.parent) {
+                  const idx = node.parent.children.findIndex((c: any) => c.id === node.id);
+                  if (e.key === 'ArrowDown' && idx < node.parent.children.length - 1) {
+                     nextNodeId = node.parent.children[idx + 1].id;
+                  } else if (e.key === 'ArrowUp' && idx > 0) {
+                     nextNodeId = node.parent.children[idx - 1].id;
+                  }
+               }
+            }
+            
+            if (nextNodeId) {
+              e.preventDefault();
+              globalState.setState({ selectedNode: nextNodeId });
+              const el = document.querySelector(`g.node[data-id="${nextNodeId}"]`) as HTMLElement;
+              if (el) el.focus();
+              return;
+            }
+          }
+        }
+      }
     }
   };
+
+  private findNode(root: any, id: string): any {
+    if (root.id === id) return root;
+    for (const child of root.children) {
+      const found = this.findNode(child, id);
+      if (found) return found;
+    }
+    return null;
+  }
 }

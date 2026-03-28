@@ -20,7 +20,8 @@ import {
   RefreshCcwIcon,
   SearchIcon,
   HelpCircleIcon,
-  LayoutGridIcon
+  LayoutGridIcon,
+  FileTextIcon
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -42,7 +43,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { FileTextIcon } from "lucide-react";
+import { ModeToggle } from "@/components/mode-toggle";
 
 /**
  * Main application toolbar
@@ -150,7 +151,7 @@ export function Toolbar({
               <SelectValue placeholder="Select layout" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="two-sided">Two-Sided Scale</SelectItem>
+              <SelectItem value="two-sided">Two-Sided</SelectItem>
               <SelectItem value="left-to-right">Left to Right</SelectItem>
               <SelectItem value="right-to-left">Right to Left</SelectItem>
               <SelectItem value="top-to-bottom">Top to Bottom</SelectItem>
@@ -217,7 +218,7 @@ export function Toolbar({
           </DropdownMenu>
         </div>
 
-        {/* Help / Status */}
+        {/* Help / Theme / Status */}
         <div className="ml-auto flex shrink-0 items-center gap-2 pr-2">
           <div className="hidden items-center gap-2 px-3 text-[10px] sm:flex">
              <span className={cn(
@@ -228,6 +229,9 @@ export function Toolbar({
                {state.isDirty ? 'Unsaved' : 'Saved'}
              </span>
           </div>
+
+          <ModeToggle />
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">

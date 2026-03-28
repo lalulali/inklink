@@ -40,7 +40,8 @@ export interface TreeBuildResult {
 export function buildTree(
   lines: string[],
   indentType: IndentationType,
-  indentSize: number
+  indentSize: number,
+  defaultRootName: string = 'Mind Map'
 ): TreeBuildResult {
   if (lines.length === 0) {
     throw new TreeBuildError('Cannot build tree from empty input', -1);
@@ -55,78 +56,98 @@ export function buildTree(
     }
   }
 
+  const orphans: TreeNode[] = [];
   const stack: TreeNode[] = [];
-  let root: TreeNode | null = null;
   let maxDepth = 0;
   let lastHeaderDepth = -1;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trimStart();
+    if (trimmed.length === 0) continue;
+
     let rawDepth = calculateIndentLevel(line, indentType, indentSize);
-    
-    // Check if it's a header to update lastHeaderDepth
     const isHeader = trimmed.startsWith('#');
     const isList = /^(\*|-|\+|\d+\.)\s+/.test(trimmed);
+    const isInitiator = isHeader || isList;
 
     if (isHeader) {
       lastHeaderDepth = rawDepth;
     } else if (lastHeaderDepth !== -1) {
-      // Sub-items of a header must be shifted by the header's depth
-      // so they properly descend from it without losing their relative hierarchy.
       rawDepth += lastHeaderDepth;
     }
     
-    // Depth is relative to the first line
     const currentDepth = Math.max(0, rawDepth - firstLineDepth);
 
     // Precise content extraction
     let content = '';
     if (isHeader) {
       content = trimmed.replace(/^#+\s*/, '');
-    } else {
-      // Strip list markers (- , * , + , 1. )
+    } else if (isList) {
       content = trimmed.replace(/^(\*|-|\+|\d+\.)\s+/, '');
+    } else {
+      const indentCharCount = indentType === 'tabs' ? rawDepth : (line.length - line.trimStart().length);
+      content = line.substring(indentCharCount);
+    }
+
+    if (content.trim().length === 0 && isInitiator) continue;
+
+    if (isInitiator || orphans.length === 0) {
+      const node = createTreeNode(content, currentDepth, `line_${i}`);
+
+      if (orphans.length === 0) {
+        orphans.push(node);
+        stack.push(node);
+        maxDepth = Math.max(maxDepth, currentDepth);
+        continue;
+      }
+
+      while (stack.length > 0 && stack[stack.length - 1].depth >= currentDepth) {
+        stack.pop();
+      }
       
-      // If no marker found but still has indent, use manual slice
-      if (content === trimmed) {
-        const indentCharCount = indentType === 'tabs' ? rawDepth : rawDepth * indentSize;
-        content = line.substring(indentCharCount);
+      const parent = stack.length > 0 ? stack[stack.length - 1] : null;
+      if (parent) {
+        node.parent = parent;
+        parent.children.push(node);
+      } else {
+        orphans.push(node);
+      }
+      
+      stack.push(node);
+      maxDepth = Math.max(maxDepth, currentDepth);
+    } else {
+      let targetNode = stack[stack.length - 1];
+      if (targetNode) {
+          targetNode.content += '\n' + content;
+      } else if (orphans.length > 0) {
+          orphans[orphans.length - 1].content += '\n' + content;
       }
     }
-
-    if (content.trim().length === 0) continue;
-
-    // Create new node with stable ID based on line index
-    const node = createTreeNode(content, currentDepth, `line_${i}`);
-
-    if (!root) {
-      root = node;
-      stack.push(node);
-      continue;
-    }
-
-    // Adjust stack based on depth
-    // Find parent: the deepest node whose depth is strictly less than currentDepth
-    while (stack.length > 0 && stack[stack.length - 1].depth >= currentDepth) {
-        stack.pop();
-    }
-    
-    const parent = stack.length > 0 ? stack[stack.length - 1] : root;
-    if (parent) {
-      node.parent = parent;
-      parent.children.push(node);
-    } else {
-      // Fallback for sibling roots
-      node.parent = root;
-      root.children.push(node);
-    }
-    
-    stack.push(node);
-    maxDepth = Math.max(maxDepth, currentDepth);
   }
 
-  return { root: root!, lineCount: lines.length, maxDepth };
+  if (orphans.length === 0) {
+     throw new TreeBuildError('Failed to build tree: no nodes found', -1);
+  }
+
+  if (orphans.length === 1) {
+    return { root: orphans[0], lineCount: lines.length, maxDepth };
+  }
+
+  // Multiple roots: Create Virtual Root with Fallback Name
+  const virtualRootName = defaultRootName;
+  const virtualRoot = createTreeNode(virtualRootName, 0, 'virtual_root');
+  orphans.forEach(o => {
+    o.parent = virtualRoot;
+    virtualRoot.children.push(o);
+    const incrementDepth = (n: TreeNode) => {
+        n.depth += 1;
+        n.children.forEach(incrementDepth);
+    };
+    incrementDepth(o);
+  });
+
+  return { root: virtualRoot, lineCount: lines.length, maxDepth: maxDepth + 1 };
 }
 
 /**
@@ -155,46 +176,51 @@ export function validateTreeStructure(
     };
   }
 
-  // Check first line is at depth 0
-  const firstLineDepth = calculateIndentLevel(lines[0].trimStart(), indentType, indentSize);
-  if (firstLineDepth !== 0) {
+  // Check first line depth
+  const firstLineRawDepth = calculateIndentLevel(lines[0], indentType, indentSize);
+  // We no longer strictly enforce first line at depth 0, because baseline normalization handles it.
+  // But we want it to be a valid depth (non-negative).
+  if (firstLineRawDepth < 0) {
     errors.push({
       line: 0,
-      message: `First line must be at depth 0, found depth ${firstLineDepth}`,
+      message: `Invalid starting line depth: ${firstLineRawDepth}`,
     });
   }
 
-  // Track previous depth to detect jumps
-  let previousDepth = firstLineDepth;
+  // Track previous node depth to detect jumps
+  let previousNodeDepth = 0; // Normalized baseline is always 0
+  const baselineDepth = firstLineRawDepth;
 
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmedLine = line.trim();
+    if (trimmedLine.length === 0) continue;
 
-    if (trimmedLine.length === 0) {
-      continue;
+    const rawDepth = calculateIndentLevel(line, indentType, indentSize);
+    const currentDepth = Math.max(0, rawDepth - baselineDepth);
+    
+    const isHeader = trimmedLine.startsWith('#');
+    const isList = /^(\*|-|\+|\d+\.)\s+/.test(trimmedLine);
+    const isInitiator = isHeader || isList;
+
+    // Only validate jumps for node initiators
+    if (isInitiator) {
+      if (currentDepth > previousNodeDepth + 1) {
+        warnings.push({
+          line: i,
+          message: `Indentation jumped from depth ${previousNodeDepth} to ${currentDepth}. ` +
+                   `Depth should ideally only increase by 1 at a time.`,
+        });
+      }
+      previousNodeDepth = currentDepth;
     }
 
-    const currentDepth = calculateIndentLevel(line, indentType, indentSize);
-
-    // Check for invalid jumps (more than +1)
-    if (currentDepth > previousDepth + 1) {
-      errors.push({
-        line: i,
-        message: `Indentation jumped from depth ${previousDepth} to ${currentDepth}. ` +
-                 `Depth can only increase by 1 at a time.`,
-      });
-    }
-
-    // Check for negative depth
     if (currentDepth < 0) {
       errors.push({
         line: i,
         message: 'Invalid indentation (negative depth)',
       });
     }
-
-    previousDepth = currentDepth;
   }
 
   return {

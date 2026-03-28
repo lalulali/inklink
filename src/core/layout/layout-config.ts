@@ -13,9 +13,10 @@ export const LAYOUT_CONFIG = {
   SIBLING_SPACING: 40,
   MIN_SIBLING_GAP: 20,
   
-  // Horizontal spacing between levels
-  LEVEL_SPACING: 160,
-  MIN_PARENT_CHILD_GAP: 80,
+  // Horizontal spacing between levels.
+  // This is used as the exact edge-to-edge horizontal gap for horizontal layouts
+  LEVEL_SPACING: 100,
+  MIN_PARENT_CHILD_GAP: 40,
   
   // Default node dimensions (used before real measurements are available)
   DEFAULT_NODE_WIDTH: 120,

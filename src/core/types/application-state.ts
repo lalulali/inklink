@@ -6,6 +6,7 @@
 
 import type { TreeNode } from './tree-node';
 import type { LayoutDirection, Transform, Notification, FileHandle, Position } from './interfaces';
+import { getRandomFunWord } from '../constants/branding';
 
 /**
  * Complete application state
@@ -38,6 +39,10 @@ export interface ApplicationState {
   loading: boolean;
   error: string | null;
   notification: Notification | null;
+  isDarkMode: boolean;
+
+  // Stable random root name for multi-root scenarios
+  currentFallbackRootName: string;
 }
 
 /**
@@ -67,5 +72,7 @@ export function createInitialState(): ApplicationState {
     loading: false,
     error: null,
     notification: null,
+    isDarkMode: false,
+    currentFallbackRootName: getRandomFunWord(),
   };
 }

@@ -67,7 +67,7 @@ export function StatusBar() {
       <div className="flex items-center gap-3 ml-auto">
         <div className="flex items-center gap-1.5">
           <ZoomInIcon className="h-3 w-3" />
-          <span>{Math.round(state.transform.scale * 100)}%</span>
+          <span>{Math.round((state.transform?.scale || 1) * 100)}%</span>
         </div>
         <div className="flex items-center gap-1.5 opacity-60">
           <span>{state.layoutDirection === 'two-sided' ? 'Balanced' : 'Linear'} View</span>

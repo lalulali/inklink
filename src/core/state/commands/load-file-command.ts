@@ -37,7 +37,10 @@ export class LoadFileCommand implements Command {
   execute(): void {
     // Use the concrete IndentationParser
     const parser = new IndentationParser();
-    const tree = parser.parse(this.newMarkdown);
+    const state = this.stateManager.getState();
+    const fileName = this.filePath ? this.filePath.split('/').pop()?.replace(/\.[^/.]+$/, "") : undefined;
+    const finalRootName = fileName || state.currentFallbackRootName;
+    const tree = parser.parse(this.newMarkdown, finalRootName);
     
     // 2. Update state through manager
     this.stateManager.setState({

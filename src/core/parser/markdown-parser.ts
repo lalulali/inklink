@@ -28,10 +28,11 @@ export interface MarkdownParser {
   /**
    * Parse markdown text into tree structure
    * @param markdown - Raw markdown text
+   * @param defaultRootName - Optional name for the virtual root if multiple roots are found
    * @returns Root node of parsed tree
    * @throws ParseError if markdown is invalid
    */
-  parse(markdown: string): TreeNode;
+  parse(markdown: string, defaultRootName?: string): TreeNode;
 
   /**
    * Convert tree structure back to markdown
@@ -121,7 +122,7 @@ export class IndentationParser implements MarkdownParser {
    * - Mixed indentation: Returns warning and attempts normalization
    * - Invalid indentation patterns: Returns descriptive error with line info
    */
-  parse(markdown: string): TreeNode {
+  parse(markdown: string, defaultRootName?: string): TreeNode {
     // Handle empty or whitespace-only input
     if (!markdown || markdown.trim().length === 0) {
       throw new ParseError(
@@ -208,7 +209,7 @@ export class IndentationParser implements MarkdownParser {
 
     // Build the tree
     try {
-      const result = buildTree(processedLines, currentIndentType, currentIndentSize);
+      const result = buildTree(processedLines, currentIndentType, currentIndentSize, defaultRootName);
       return result.root;
     } catch (error) {
       // Convert tree build errors to ParseError
@@ -250,9 +251,24 @@ export class IndentationParser implements MarkdownParser {
      * @param depth - Current indentation depth
      */
     const serializeNode = (node: TreeNode, depth: number): void => {
-      // Add indentation based on depth
-      const indent = indentString.repeat(depth);
-      lines.push(`${indent}${node.content}`);
+      // For list items, indentation is (depth - 1) * indentSize
+      // because the list marker itself adds 1 level of depth.
+      // For the root (depth 0), indentation is always 0.
+      const indentCount = Math.max(0, depth - 1);
+      const indent = indentString.repeat(indentCount);
+      
+      const marker = depth === 0 ? '# ' : '- ';
+      const contentLines = node.content.split('\n');
+      
+      // First line gets the marker and indentation
+      lines.push(`${indent}${marker}${contentLines[0]}`);
+      
+      // Subsequent lines are indented to match the content start (after the marker)
+      // The content start is at indentCount * indentSize + 2 spaces (for "# " or "- ")
+      const continuationIndent = indent + '  '; 
+      for (let i = 1; i < contentLines.length; i++) {
+        lines.push(`${continuationIndent}${contentLines[i]}`);
+      }
 
       // Recursively serialize children
       if (node.children && node.children.length > 0) {

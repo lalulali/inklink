@@ -24,32 +24,49 @@ export class TwoSidedLayout extends BaseLayout {
     this.startLayoutPass();
     const positions = new Map<string, Position>();
     
-    if (!root) return positions;
+    if (!root || !root.children) return positions;
 
-    // Step 1: Calculate subtree sizes to determine balancing
-    const sizes = calculateSubtreeSizes(root);
-    
-    // Step 2: Partition root's children into left and right groups
-    const { left, right } = partitionChildren(root.children, sizes);
-
-    // Step 3: Place root at the center of the viewport
-    const rootX = viewport.width / 2;
-    const rootY = viewport.height / 2;
+    // Step 1: Place root at the center
+    const rootX = 0;
+    const rootY = 0;
     positions.set(root.id, { x: rootX, y: rootY });
 
-    // Calculate root width for symmetric spacing (approximate if not measured)
-    // In a real pass, this would be retrieved from metadata
-    const rootWidth = root.metadata.width || 100;
+    const rootWidth = this.getNodeWidth(root);
 
-    // Step 4: Recursively layout each side
-    // Children should be spaced equally from the root's edges
-    const leftX = rootX - rootWidth / 2 - this.levelSpacing;
-    const rightX = rootX + rootWidth / 2 + this.levelSpacing;
+    // Step 2: Partition children based on subtree heights for optimal balancing
+    // We avoid greedy leaf-count which fails to account for multi-line nodes
+    const childrenWithHeights = root.children.map(child => ({
+      node: child,
+      height: this.getSubtreeHeight(child)
+    }));
 
-    this.layoutHorizontalSubtree(left, positions, leftX, rootY, -this.levelSpacing, 'left');
-    this.layoutHorizontalSubtree(right, positions, rightX, rootY, this.levelSpacing, 'right');
+    // Sort by height descending for optimal greedy packing
+    childrenWithHeights.sort((a, b) => b.height - a.height);
 
-    // Step 5: Update metadata on nodes directly
+    const left: TreeNode[] = [];
+    const right: TreeNode[] = [];
+    let leftHeight = 0;
+    let rightHeight = 0;
+
+    for (const item of childrenWithHeights) {
+      if (rightHeight <= leftHeight) {
+        right.push(item.node);
+        rightHeight += item.height + this.nodeSpacing;
+      } else {
+        left.push(item.node);
+        leftHeight += item.height + this.nodeSpacing;
+      }
+    }
+
+    // Step 3: Recursively layout each side
+    // Boundaries are at rootWidth/2 + levelSpacing from the root center
+    const leftBoundaryX = rootX - rootWidth / 2 - Math.abs(this.levelSpacing);
+    const rightBoundaryX = rootX + rootWidth / 2 + Math.abs(this.levelSpacing);
+
+    this.layoutHorizontalSubtree(left, positions, leftBoundaryX, rootY, -this.levelSpacing, 'left');
+    this.layoutHorizontalSubtree(right, positions, rightBoundaryX, rootY, this.levelSpacing, 'right');
+
+    // Step 4: Update metadata on nodes directly
     this.updateNodeMetadata(root, positions);
 
     return positions;

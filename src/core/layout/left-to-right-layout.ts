@@ -22,16 +22,19 @@ export class LeftToRightLayout extends BaseLayout {
     
     if (!root) return positions;
 
-    // Step 1: Place root at the center of the viewport
-    const rootX = viewport.width / 2;
-    const rootY = viewport.height / 2;
+    // Step 1: Place root at the world origin
+    const rootX = 0;
+    const rootY = 0;
     positions.set(root.id, { x: rootX, y: rootY });
 
     // Step 2: Lay out all children growing to the right (+levelSpacing)
+    const rootWidth = this.getNodeWidth(root);
+    const startX = rootX + rootWidth / 2 + this.levelSpacing;
+
     this.layoutHorizontalSubtree(
       root.children, 
       positions, 
-      rootX, 
+      startX, 
       rootY, 
       this.levelSpacing, 
       'right'
