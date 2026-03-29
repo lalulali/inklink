@@ -56,6 +56,18 @@ export interface RendererAdapter {
   onNodeClick(callback: (nodeId: string) => void): void;
 
   /**
+   * Register callback for node double click events
+   * @param callback - Function called with double clicked node ID
+   */
+  onNodeDoubleClick(callback: (nodeId: string) => void): void;
+
+  /**
+   * Register callback for node toggle (collapse/expand) events
+   * @param callback - Function called with toggled node ID
+   */
+  onNodeToggle(callback: (nodeId: string) => void): void;
+
+  /**
    * Get the current viewport bounds
    * @returns Bounding box of visible area
    */
@@ -71,6 +83,11 @@ export interface RendererAdapter {
    * Set the current pan/zoom transform
    */
   setTransform(transform: Transform): void;
+
+  /**
+   * Get the current pan/zoom transform
+   */
+  getTransform(): Transform;
 
   /**
    * Register callback for viewport transform changes

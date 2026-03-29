@@ -143,11 +143,13 @@ export class IndentationParser implements MarkdownParser {
       );
     }
 
-    // Filter out empty lines for processing
-    const lines = rawLines.filter(line => line.trim().length > 0);
+    // Map lines to include their original index for traceability
+    const mappedLines = rawLines
+      .map((text, index) => ({ text, index }))
+      .filter(line => line.text.trim().length > 0);
 
     // Check if we have any valid content after filtering
-    if (lines.length === 0) {
+    if (mappedLines.length === 0) {
       throw new ParseError(
         'No valid content found: markdown contains only whitespace',
         0,
@@ -156,6 +158,7 @@ export class IndentationParser implements MarkdownParser {
       );
     }
 
+    // Initial indentation detection
     try {
       const indentResult = detectIndentation(markdown);
       this.indentType = indentResult.type;
@@ -179,7 +182,6 @@ export class IndentationParser implements MarkdownParser {
 
     // If mixed indentation detected, normalize and warn
     let processedMarkdown = markdown;
-    let warning: MarkdownParseWarning | null = null;
 
     if (hasMixedIndentation) {
       // Attempt to normalize indentation
@@ -191,11 +193,16 @@ export class IndentationParser implements MarkdownParser {
       }
     }
 
-    // Re-split lines after potential normalization
-    const processedLines = processedMarkdown.split('\n').filter(line => line.trim().length > 0);
+    // After potential normalization, we re-map to ensure indices stay accurate to the source
+    const finalLines = processedMarkdown.split('\n').map((text, index) => ({ text, index }));
+    const filteredFinalLines = finalLines.filter(line => line.text.trim().length > 0);
 
     // Validate tree structure
-    const structureValidation = validateTreeStructure(processedLines, currentIndentType, currentIndentSize);
+    const structureValidation = validateTreeStructure(
+      filteredFinalLines.map(l => l.text), 
+      currentIndentType, 
+      currentIndentSize
+    );
 
     if (!structureValidation.valid && structureValidation.errors.length > 0) {
       const firstError = structureValidation.errors[0];
@@ -209,10 +216,9 @@ export class IndentationParser implements MarkdownParser {
 
     // Build the tree
     try {
-      const result = buildTree(processedLines, currentIndentType, currentIndentSize, defaultRootName);
+      const result = buildTree(filteredFinalLines, currentIndentType, currentIndentSize, defaultRootName);
       return result.root;
     } catch (error) {
-      // Convert tree build errors to ParseError
       if (error instanceof TreeBuildError) {
         throw new ParseError(
           error.message,

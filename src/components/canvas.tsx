@@ -51,6 +51,56 @@ export function Canvas() {
         globalState.setState({ transform });
       };
 
+      // Wire up node selection and double-click logic
+      renderer.onNodeClick((nodeId) => {
+        globalState.setState({ selectedNode: nodeId });
+      });
+
+      renderer.onNodeDoubleClick((nodeId) => {
+        // Find the node to get content from global state tree
+        const findNode = (node: any, id: string): any => {
+           if (node.id === id) return node;
+           if (!node.children) return null;
+           for (const child of node.children) {
+              const res = findNode(child, id);
+              if (res) return res;
+           }
+           return null;
+        }
+        
+        const node = findNode(globalState.getState().tree, nodeId);
+        if (node) {
+           // 1. Show editor
+           window.dispatchEvent(new CustomEvent('inklink-editor-show'));
+           // 2. Reveal in editor
+           // Delay slightly to allow editor to mount if it was hidden
+           setTimeout(() => {
+             window.dispatchEvent(new CustomEvent('inklink-editor-reveal', { 
+               detail: { content: node.content, nodeId } 
+             }));
+           }, 50);
+        }
+      });
+
+      // Recalculate layout on node toggle (collapse/expand)
+      renderer.onNodeToggle((nodeId) => {
+        const s = globalState.getState();
+        if (!s.tree) return;
+
+        const findAndToggle = (current: TreeNode): boolean => {
+          if (current.id === nodeId) {
+             current.collapsed = !current.collapsed;
+             return true;
+          }
+          return current.children.some(child => findAndToggle(child));
+        };
+
+        if (findAndToggle(s.tree)) {
+           // We replace the tree root reference to trigger the useEffect that runs the Layout calculation
+           globalState.setState({ tree: { ...s.tree } });
+        }
+      });
+
       rendererRef.current = renderer;
     }
     
@@ -66,15 +116,23 @@ export function Canvas() {
           // Adjust transform to keep the same world point in the center
           const dx = (width - prevWidth) / 2;
           const dy = (height - prevHeight) / 2;
-          const currentTransform = globalState.getState().transform;
           
-          globalState.setState({
-            transform: {
-              ...currentTransform,
-              x: currentTransform.x + dx,
-              y: currentTransform.y + dy
-            }
-          });
+          if (rendererRef.current) {
+             // 1. Get current transform directly from renderer (source of truth)
+             const current = rendererRef.current.getTransform();
+             const next = {
+               ...current,
+               x: current.x + dx,
+               y: current.y + dy
+             };
+
+             // 2. Update renderer IMMEDIATELY (prevents shakiness)
+             rendererRef.current.setTransform(next);
+
+             // 3. Sync global state without waiting for re-render cycle
+             internalTransform.current = next;
+             globalState.setState({ transform: next });
+          }
         } else if (prevWidth === 0 && prevHeight === 0) {
           // On first render, if transform is default (0,0), center it.
           const currentTransform = globalState.getState().transform;
@@ -148,10 +206,42 @@ export function Canvas() {
       
       const currentId = state.searchResults[state.currentSearchIndex];
       if (currentId) {
-        (rendererRef.current as any).focusNode?.(currentId);
+        // Find if we need to expand ancestors to make the node visible
+        const s = globalState.getState();
+        if (s.tree) {
+          let treeChanged = false;
+          
+          // Pure recursive function to return an updated tree path
+          const updateTree = (node: any, targetId: string): any => {
+            if (node.id === targetId) return node;
+            if (!node.children) return null;
+            
+            for (let i = 0; i < node.children.length; i++) {
+              const result = updateTree(node.children[i], targetId);
+              if (result) {
+                if (node.collapsed) treeChanged = true;
+                const newChildren = [...node.children];
+                newChildren[i] = result;
+                return { ...node, children: newChildren, collapsed: false };
+              }
+            }
+            return null;
+          };
+
+          const newTree = updateTree(s.tree, currentId);
+          if (newTree && treeChanged) {
+             globalState.setState({ tree: newTree, isDirty: true });
+             return; // Wait for next render cycle
+          }
+        }
+
+        // If visible/available, focus and center
+        const active = document.activeElement;
+        const isSearchFocused = active?.closest('#inklink-search-panel');
+        (rendererRef.current as any).focusNode?.(currentId, !!isSearchFocused);
       }
     }
-  }, [state.searchResults, state.currentSearchIndex]);
+  }, [state.searchResults, state.currentSearchIndex, state.tree]);
 
   /**
    * Sync selected node
@@ -199,12 +289,26 @@ export function Canvas() {
   }, [state.tree, state.layoutDirection, state.isDarkMode]);
 
   return (
-    <div className="relative h-full w-full bg-slate-50/50" id="inklink-mindmap-canvas-container">
+    <div 
+      className="relative h-full w-full bg-slate-50/50 outline-none focus-within:ring-1 focus-within:ring-primary/20 transition-all duration-300" 
+      id="inklink-mindmap-canvas-container"
+      onMouseDown={() => {
+        // Ensure clicking focusing the canvas for shortcuts
+        document.getElementById('inklink-mindmap-canvas')?.focus();
+      }}
+      onClick={() => {
+        // Only unselect if something was actually selected to avoid redundant updates
+        if (globalState.getState().selectedNode) {
+          globalState.setState({ selectedNode: null });
+        }
+      }}
+    >
       <div 
         ref={containerRef} 
-        className="h-full w-full overflow-hidden" 
+        className="h-full w-full overflow-hidden outline-none" 
         id="inklink-mindmap-canvas"
         aria-label="Mind map visualization canvas"
+        tabIndex={0}
       />
       
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-muted-foreground opacity-50 select-none">

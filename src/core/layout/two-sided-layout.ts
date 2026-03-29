@@ -7,10 +7,6 @@
 import { BaseLayout } from './base-layout';
 import { TreeNode } from '../types/tree-node';
 import { Viewport, Position } from '../types/interfaces';
-import { 
-  calculateSubtreeSizes, 
-  partitionChildren
-} from './subtree-utils';
 
 /**
  * Two-sided balanced layout implementation
@@ -33,30 +29,22 @@ export class TwoSidedLayout extends BaseLayout {
 
     const rootWidth = this.getNodeWidth(root);
 
-    // Step 2: Partition children based on subtree heights for optimal balancing
-    // We avoid greedy leaf-count which fails to account for multi-line nodes
-    const childrenWithHeights = root.children.map(child => ({
-      node: child,
-      height: this.getSubtreeHeight(child)
-    }));
-
-    // Sort by height descending for optimal greedy packing
-    childrenWithHeights.sort((a, b) => b.height - a.height);
-
+    // Step 2: Set side anchors based on index to ensure visual stability
+    // We avoid dynamic re-balancing (sorting by height) which causes nodes to "jump" sides.
     const left: TreeNode[] = [];
     const right: TreeNode[] = [];
-    let leftHeight = 0;
-    let rightHeight = 0;
 
-    for (const item of childrenWithHeights) {
-      if (rightHeight <= leftHeight) {
-        right.push(item.node);
-        rightHeight += item.height + this.nodeSpacing;
+    root.children.forEach((child, index) => {
+      // Split branches based on index % 2. 
+      // This is the most stable deterministic layout: 
+      // - Child 0, 2, 4... stay on the Right
+      // - Child 1, 3, 5... stay on the Left
+      if (index % 2 === 0) {
+        right.push(child);
       } else {
-        left.push(item.node);
-        leftHeight += item.height + this.nodeSpacing;
+        left.push(child);
       }
-    }
+    });
 
     // Step 3: Recursively layout each side
     // Boundaries are at rootWidth/2 + levelSpacing from the root center

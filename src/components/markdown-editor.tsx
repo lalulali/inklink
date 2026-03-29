@@ -160,6 +160,60 @@ export function MarkdownEditor() {
     }
   }, [processUpdate]);
 
+  // Handle programmatic reveals (from canvas double click)
+  React.useEffect(() => {
+    const handleReveal = (e: any) => {
+      const { content, nodeId } = e.detail;
+      if (!editorRef.current?.view) return;
+      
+      const view = editorRef.current.view;
+      const state = view.state;
+      
+      // Attempt 1: If ID is in "line_N" format, jump directly to line
+      if (nodeId && nodeId.startsWith('line_')) {
+        const lineIdx = parseInt(nodeId.replace('line_', ''));
+        // CodeMirror lines are 1-based
+        const lineNum = lineIdx + 1;
+        
+        if (lineNum <= state.doc.lines) {
+          try {
+            const line = state.doc.line(lineNum);
+            // Search for content within that line or nearby
+            const findIndex = line.text.indexOf(content);
+            const anchor = findIndex !== -1 ? line.from + findIndex : line.from;
+            const head = findIndex !== -1 ? anchor + content.length : line.to;
+
+            view.dispatch({
+              selection: { anchor, head },
+              scrollIntoView: true,
+              userEvent: 'select.reveal'
+            });
+            
+            view.focus();
+            return;
+          } catch (e) {
+            console.error('Failed to jump to line by index:', e);
+          }
+        }
+      }
+
+      // Attempt 2: Fallback to global string search if index is invalid or virtual
+      const doc = state.doc.toString();
+      const index = doc.indexOf(content);
+      if (index !== -1) {
+        view.dispatch({
+          selection: { anchor: index, head: index + content.length },
+          scrollIntoView: true,
+          userEvent: 'select.reveal'
+        });
+        view.focus();
+      }
+    };
+
+    window.addEventListener('inklink-editor-reveal', handleReveal);
+    return () => window.removeEventListener('inklink-editor-reveal', handleReveal);
+  }, []);
+
   // Clean up timer on unmount
   React.useEffect(() => {
     return () => {
@@ -445,7 +499,7 @@ export function MarkdownEditor() {
             rectangularSelection: true,
             crosshairCursor: true,
             highlightActiveLine: true,
-            highlightSelectionMatches: true,
+            highlightSelectionMatches: false,
             tabSize: 2,
           }}
         />

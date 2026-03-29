@@ -84,6 +84,14 @@ export function KeyboardHandler() {
       if (e.key === 'r' && !isMod) {
         console.debug('Command: Reset View');
       }
+
+      // Interaction: Escape to unselect
+      if (e.key === 'Escape') {
+        const state = globalState.getState();
+        if (state.selectedNode) {
+          globalState.setState({ selectedNode: null });
+        }
+      }
       
     };
 

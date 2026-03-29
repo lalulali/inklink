@@ -43,6 +43,10 @@ export default function Home() {
       layoutDirection: layoutToSet as any,
       currentFallbackRootName: getRandomFunWord()
     });
+
+    const handleOpenEditor = () => setEditorVisible(true);
+    window.addEventListener('inklink-editor-show', handleOpenEditor);
+    return () => window.removeEventListener('inklink-editor-show', handleOpenEditor);
   }, []);
 
   return (

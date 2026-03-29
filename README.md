@@ -9,6 +9,9 @@ A web-based visualization tool that transforms markdown documents into interacti
 - **Multiple Layouts**: Choose from three core layout directions (Balanced Two-Sided, Left-to-Right, Right-to-Left)
   - Height-based layout algorithm for precise, balanced node spacing
   - Precise edge-to-edge spacing with hierarchical scaling support
+- **Interactive Mind Map**:
+  - **Double-Click Reveal**: Double-click any node to immediately open the editor and highlight the source lines
+  - **Quick Unselect**: Press `Escape` or click any empty canvas area to clear the active node selection
 - **Enhanced Viewport Controls**: 
   - **Dynamic Zoom**: 10% to 300% zoom range with status bar slider
   - **Pan/Zoom Gestures**: Smart wheel navigation (Wheel to pan, Alt/Cmd+Wheel to zoom)

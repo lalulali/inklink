@@ -12,6 +12,11 @@ import {
   IndentationError,
 } from './indentation';
 
+export interface LineInfo {
+  text: string;
+  index: number;
+}
+
 /**
  * Result of tree building operation
  */
@@ -24,21 +29,14 @@ export interface TreeBuildResult {
 /**
  * Builds a tree structure from markdown lines using stack-based construction
  * 
- * Algorithm:
- * 1. Use a stack to track current parent nodes at each depth level
- * 2. For each line, calculate its indentation level
- * 3. Pop stack until we find the parent of the current line
- * 4. Create new node and add as child to parent
- * 5. Push new node to stack for potential children
- * 
- * @param lines - Array of markdown lines (non-empty, trimmed)
- * @param indentType - Detected indentation type (spaces or tabs)
+ * @param lines - Array of LineInfo objects (non-empty)
+ * @param indentType - Detected indentation type
  * @param indentSize - Number of spaces per indentation level
+ * @param defaultRootName - Optional name for the virtual root
  * @returns TreeBuildResult containing root node and metadata
- * @throws IndentationError if indentation is inconsistent
  */
 export function buildTree(
-  lines: string[],
+  lines: LineInfo[],
   indentType: IndentationType,
   indentSize: number,
   defaultRootName: string = 'Mind Map'
@@ -50,8 +48,8 @@ export function buildTree(
   // Pre-process to find the baseline depth (first non-empty line)
   let firstLineDepth = -1;
   for (const line of lines) {
-    if (line.trim().length > 0) {
-      firstLineDepth = calculateIndentLevel(line, indentType, indentSize);
+    if (line.text.trim().length > 0) {
+      firstLineDepth = calculateIndentLevel(line.text, indentType, indentSize);
       break;
     }
   }
@@ -62,7 +60,7 @@ export function buildTree(
   let lastHeaderDepth = -1;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    const { text: line, index: originalIndex } = lines[i];
     const trimmed = line.trimStart();
     if (trimmed.length === 0) continue;
 
@@ -93,7 +91,8 @@ export function buildTree(
     if (content.trim().length === 0 && isInitiator) continue;
 
     if (isInitiator || orphans.length === 0) {
-      const node = createTreeNode(content, currentDepth, `line_${i}`);
+      // Use original index in the ID for traceability
+      const node = createTreeNode(content, currentDepth, `line_${originalIndex}`);
 
       if (orphans.length === 0) {
         orphans.push(node);
@@ -134,7 +133,7 @@ export function buildTree(
     return { root: orphans[0], lineCount: lines.length, maxDepth };
   }
 
-  // Multiple roots: Create Virtual Root with Fallback Name
+  // Multiple roots
   const virtualRootName = defaultRootName;
   const virtualRoot = createTreeNode(virtualRootName, 0, 'virtual_root');
   orphans.forEach(o => {

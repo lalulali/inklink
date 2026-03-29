@@ -43,8 +43,8 @@ export class D3Renderer implements RendererAdapter {
       y: 20 * 0.75  // 15
     },
     borderRadius: 4,
-    animationDuration: 280,
-    staggerDelay: 28,       // ms per depth level for cascade effect
+    animationDuration: 250,
+    staggerDelay: 25,       // ms per depth level for cascade effect
     highlightColor: '#2563eb',
   };
 
@@ -207,6 +207,32 @@ export class D3Renderer implements RendererAdapter {
       this.isVertical = maxDx < 40; // levelSpacing is typically 80-100, sibling spacing is 40
     }
 
+    // Heuristic measurement for nodes
+    const allNodes = this.flattenTree(root);
+
+    // Update zoom translate extent based on actual map bounds with padding
+    // This allows the "canvas to grow on the fly" as content is added or expanded.
+    if (this.zoom && this.svg) {
+        let minX = 0, maxX = 0, minY = 0, maxY = 0;
+        allNodes.forEach(node => {
+            const pos = positions.get(node.id);
+            if (pos) {
+                const w = (node as any).metadata?.width || 100;
+                const h = (node as any).metadata?.height || 40;
+                minX = Math.min(minX, pos.x - w);
+                maxX = Math.max(maxX, pos.x + w);
+                minY = Math.min(minY, pos.y - h);
+                maxY = Math.max(maxY, pos.y + h);
+            }
+        });
+        
+        // Add 2000px padding to the calculated bounds for freedom of movement
+        this.zoom.translateExtent([
+            [minX - 2000, minY - 2000],
+            [maxX + 2000, maxY + 2000]
+        ]);
+    }
+
     // Get current transform for culling
     const d3Transform = d3.zoomTransform(this.svg.node() as SVGSVGElement);
     const transform: Transform = {
@@ -229,7 +255,6 @@ export class D3Renderer implements RendererAdapter {
     const ctx = canvas.getContext('2d');
 
     // Heuristic measurement for nodes
-    const allNodes = this.flattenTree(root);
     allNodes.forEach(node => {
       const depth = node.depth || 0;
       const fontSize = this.getFontSize(depth);
@@ -309,36 +334,37 @@ export class D3Renderer implements RendererAdapter {
   /**
    * Focus and center viewport on a specific node
    */
-  focusNode(nodeId: string): void {
+  focusNode(nodeId: string, skipBrowserFocus: boolean = false): void {
     if (!this.svg || !this.zoom || !this.g) return;
     
     // Find node elements
     const node = this.g.select<SVGGElement>(`g.node[data-id="${nodeId}"]`);
     if (node.empty()) return;
 
-    // Trigger browser focus for accessibility
-    const nodeElement = node.node();
-    if (nodeElement) {
+    // Trigger browser focus for accessibility only if requested
+    const nodeElement = node.node() as SVGGElement;
+    if (nodeElement && !skipBrowserFocus) {
         nodeElement.focus();
     }
 
     const bounds = this.getViewportBounds();
-    
-    // Get node position from D3 data or attribute
-    const d = node.datum() as any;
-    if (!d) return;
+    const pos = this.lastPositions?.get(nodeId);
+    if (!pos || !nodeElement) return;
 
-    // Center calculation
-    const x = d.x || 0;
-    const y = d.y || 0;
+    // Calculate visual center of the node to handle large/card nodes correctly
+    const bbox = nodeElement.getBBox();
+    
+    const x = pos.x + bbox.x + bbox.width / 2;
+    const y = pos.y + bbox.y + bbox.height / 2;
     
     this.svg.transition()
       .duration(750)
+      .ease(d3.easeCubicOut)
       .call(
         this.zoom.transform,
         d3.zoomIdentity
           .translate(bounds.width / 2, bounds.height / 2)
-          .scale(1.3)
+          .scale(1.5)
           .translate(-x, -y)
       );
   }
@@ -414,13 +440,38 @@ export class D3Renderer implements RendererAdapter {
     );
   }
 
+  /**
+   * Get the current transform as reported by D3 zoom state
+   */
+  getTransform(): Transform {
+    if (!this.svg) return { x: 0, y: 0, scale: 1 };
+    const t = d3.zoomTransform(this.svg.node() as SVGSVGElement);
+    return { x: t.x, y: t.y, scale: t.k };
+  }
+
   private nodeClickCallback: (nodeId: string) => void = () => {};
+  private nodeDoubleClickCallback: (nodeId: string) => void = () => {};
+  private nodeToggleCallback: (nodeId: string) => void = () => {};
 
   /**
    * Register callback for node click events
    */
   onNodeClick(callback: (nodeId: string) => void): void {
     this.nodeClickCallback = callback;
+  }
+
+  /**
+   * Register callback for node double click events
+   */
+  onNodeDoubleClick(callback: (nodeId: string) => void): void {
+    this.nodeDoubleClickCallback = callback;
+  }
+
+  /**
+   * Register callback for node toggle events
+   */
+  onNodeToggle(callback: (nodeId: string) => void): void {
+    this.nodeToggleCallback = callback;
   }
 
   /**
@@ -454,16 +505,23 @@ export class D3Renderer implements RendererAdapter {
     const nodeGroups = layer.selectAll<SVGGElement, TreeNode>('g.node')
       .data(nodes, (d) => d.id);
 
-    // EXIT: reverse of enter animation (fly to parent)
+    // EXIT: fly to the nearest visible ancestor
     nodeGroups.exit()
       .transition()
       .duration(this.config.animationDuration)
-      .ease(d3.easeCubicIn)
+      .ease(d3.easeCubicOut)
       .attr('opacity', 0)
       .attr('transform', (d: any) => {
         const fallbackPos = this.lastPositions?.get(d.id) || { x: 0, y: 0 };
-        if (d.parent) {
-          const parentPos = positions.get(d.parent.id) || this.lastPositions?.get(d.parent.id) || fallbackPos;
+        
+        // Walk up the tree to find the nearest visible ancestor
+        let ancestor = d.parent;
+        while (ancestor && !positions.has(ancestor.id)) {
+            ancestor = ancestor.parent;
+        }
+
+        if (ancestor) {
+          const parentPos = positions.get(ancestor.id)!;
           return `translate(${parentPos.x}, ${parentPos.y})`;
         }
         return `translate(${fallbackPos.x}, ${fallbackPos.y})`;
@@ -493,6 +551,10 @@ export class D3Renderer implements RendererAdapter {
       .on('click', (event, d) => {
         event.stopPropagation();
         this.nodeClickCallback(d.id);
+      })
+      .on('dblclick', (event, d) => {
+        event.stopPropagation();
+        this.nodeDoubleClickCallback(d.id);
       })
       .on('focus', (event, d) => {
         // When focused via keyboard, trigger selection
@@ -733,10 +795,8 @@ export class D3Renderer implements RendererAdapter {
    * Toggle node collapse state
    */
   public toggleNode(node: TreeNode): void {
-    node.collapsed = !node.collapsed;
-    if (this.lastRoot && this.lastPositions) {
-      this.render(this.lastRoot, this.lastPositions, this.isDarkMode);
-    }
+    // Notify the application to trigger a layout recalculation
+    this.nodeToggleCallback(node.id);
   }
 
   /**
@@ -752,8 +812,43 @@ export class D3Renderer implements RendererAdapter {
     linkPaths.exit()
       .transition()
       .duration(this.config.animationDuration)
-      .ease(d3.easeCubicIn)
+      .ease(d3.easeCubicOut)
       .attr('stroke-opacity', 0)
+      .attr('d', (data: any) => {
+        // Find nearest visible source/target or their ancestors
+        const getVisiblePos = (node: TreeNode): Position => {
+            let curr: TreeNode | null = node;
+            while (curr && !positions.has(curr.id)) {
+                curr = curr.parent;
+            }
+            return curr ? positions.get(curr.id)! : (this.lastPositions?.get(node.id) || { x: 0, y: 0 });
+        };
+
+        const sPos = getVisiblePos(data.source);
+        const tPos = getVisiblePos(data.target);
+        const sWidth = (data.source as any).metadata?.width || 0;
+        const sY = sPos.y;
+        
+        let sX: number;
+        if (this.isVertical) {
+          sX = sPos.x;
+          const sHeight = (data.source as any).metadata?.height || 0;
+          const dy = tPos.y < sPos.y ? -sHeight/2 : sHeight/2;
+          return `M${sX},${sPos.y + dy}C${sX},${sPos.y + dy} ${sX},${sPos.y + dy} ${sX},${sPos.y + dy}`;
+        } else {
+          // Robust source side detection
+          if (!data.source.parent) {
+             sX = tPos.x < sPos.x ? sPos.x - sWidth/2 : sPos.x + sWidth/2;
+          } else {
+             // For non-root sources, we use the direction toward its own parent if possible
+             let pVisible = data.source.parent;
+             while (pVisible && !positions.has(pVisible.id)) pVisible = pVisible.parent;
+             const pPos = pVisible ? positions.get(pVisible.id)! : { x: sPos.x - 1, y: sPos.y };
+             sX = sPos.x < pPos.x ? sPos.x - sWidth : sPos.x + sWidth;
+          }
+          return `M${sX},${sY}C${sX},${sY} ${sX},${sY} ${sX},${sY}`;
+        }
+      })
       .remove();
 
     const enter = linkPaths.enter()
