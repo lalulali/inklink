@@ -414,7 +414,7 @@ export function MarkdownEditor() {
         Markdown Editor
       </div>
       <div 
-        className="flex-1 overflow-y-auto cursor-text min-h-0" 
+        className="flex-1 overflow-y-auto cursor-text min-h-0 sleek-scrollbar" 
         onClick={handleContainerClick}
       >
         <CodeMirror

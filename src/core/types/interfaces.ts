@@ -10,9 +10,7 @@
 export type LayoutDirection =
   | 'two-sided'
   | 'left-to-right'
-  | 'right-to-left'
-  | 'top-to-bottom'
-  | 'bottom-to-top';
+  | 'right-to-left';
 
 /**
  * Pan and zoom transformation state

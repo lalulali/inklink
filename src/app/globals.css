@@ -4,25 +4,25 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 0 0% 98.5%;
+    --foreground: 215 16% 28%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 215 16% 28%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
+    --popover-foreground: 215 16% 28%;
+    --primary: 215 16% 24%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary-foreground: 215 16% 24%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
     --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent-foreground: 215 16% 24%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 215 16% 28%;
     --radius: 0.5rem;
   }
 
@@ -120,5 +120,41 @@
   .inklink-link {
     stroke: hsl(var(--muted-foreground));
     stroke-opacity: 0.4;
+  }
+
+  /* Sleek Scrollbar Styling */
+  .sleek-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .sleek-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .sleek-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.15);
+    border-radius: 10px;
+    transition: background 0.2s ease;
+  }
+  .sleek-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+  .sleek-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Apply to CodeMirror internally too */
+  .cm-scroller::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .cm-scroller::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .cm-scroller::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.15);
+    border-radius: 10px;
+  }
+  .cm-scroller:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
   }
 }

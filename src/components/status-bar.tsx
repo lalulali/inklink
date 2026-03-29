@@ -1,11 +1,14 @@
 import React, { useEffect } from 'react';
 import { 
-  FileTextIcon, 
-  MapIcon, 
-  ZoomInIcon, 
-  CheckCircle2Icon, 
-  CircleIcon, 
-  Loader2Icon 
+  FileText as FileTextIcon, 
+  Map as MapIcon, 
+  ZoomIn as ZoomInIcon, 
+  ZoomOut as ZoomOutIcon,
+  Maximize2 as MaximizeIcon,
+  RefreshCcw as RefreshCcwIcon,
+  CheckCircle2 as CheckCircle2Icon, 
+  Circle as CircleIcon, 
+  Loader2 as Loader2Icon 
 } from 'lucide-react';
 import { globalState } from '@/core/state/state-manager';
 import { calculateSubtreeSizes } from '@/core/layout/subtree-utils';
@@ -63,12 +66,49 @@ export function StatusBar() {
         <span>{totalNodes} Nodes</span>
       </div>
 
-      {/* Viewport Info */}
-      <div className="flex items-center gap-3 ml-auto">
-        <div className="flex items-center gap-1.5">
-          <ZoomInIcon className="h-3 w-3" />
-          <span>{Math.round((state.transform?.scale || 1) * 100)}%</span>
+      {/* Viewport Info & Controls */}
+      <div className="flex items-center gap-4 ml-auto">
+        <div className="flex items-center gap-2 border-r pr-3 h-4">
+          <button 
+            onClick={() => window.dispatchEvent(new CustomEvent('inklink-fit-view'))}
+            className="hover:text-foreground transition-colors p-0.5 rounded"
+            title="Fit to Screen"
+          >
+            <MaximizeIcon className="h-3 w-3" />
+          </button>
+          
+          <div className="flex items-center gap-2 border-l pl-3 ml-1">
+            <ZoomOutIcon className="h-2.5 w-2.5 opacity-50" />
+            <input 
+              type="range"
+              min="0.1"
+              max="3"
+              step="0.05"
+              value={state.transform.scale}
+              onChange={(e) => {
+                const newScale = parseFloat(e.target.value);
+                globalState.setState({
+                  transform: { ...state.transform, scale: newScale }
+                });
+              }}
+              className="w-16 accent-blue-500 h-1 bg-muted-foreground/20 rounded-full appearance-none cursor-pointer hover:bg-muted-foreground/40 transition-all"
+            />
+            <ZoomInIcon className="h-2.5 w-2.5 opacity-50" />
+            
+            <button 
+              onClick={() => window.dispatchEvent(new CustomEvent('inklink-reset-view'))}
+              className="hover:text-foreground transition-colors p-0.5 rounded ml-1"
+              title="Reset to 100%"
+            >
+              <RefreshCcwIcon className="h-3 w-3" />
+            </button>
+          </div>
+
+          <span className="min-w-[40px] text-right font-bold text-foreground/80">
+            {Math.round((state.transform?.scale || 1) * 100)}%
+          </span>
         </div>
+        
         <div className="flex items-center gap-1.5 opacity-60">
           <span>{state.layoutDirection === 'two-sided' ? 'Balanced' : 'Linear'} View</span>
         </div>

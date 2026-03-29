@@ -9,8 +9,6 @@ import { LayoutAlgorithm } from './layout-interface';
 import { TwoSidedLayout } from './two-sided-layout';
 import { LeftToRightLayout } from './left-to-right-layout';
 import { RightToLeftLayout } from './right-to-left-layout';
-import { TopToBottomLayout } from './top-to-bottom-layout';
-import { BottomToTopLayout } from './bottom-to-top-layout';
 
 /**
  * Factory class to instantiate layout algorithms based on requested direction
@@ -31,10 +29,6 @@ export class LayoutFactory {
         return new LeftToRightLayout(config);
       case 'right-to-left':
         return new RightToLeftLayout(config);
-      case 'top-to-bottom':
-        return new TopToBottomLayout(config);
-      case 'bottom-to-top':
-        return new BottomToTopLayout(config);
       case 'two-sided':
       default:
         return new TwoSidedLayout(config);

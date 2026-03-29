@@ -7,6 +7,7 @@
 "use client";
 
 import React from 'react';
+import { globalState } from '@/core/state/state-manager';
 import { Toolbar } from "@/components/toolbar";
 import { Canvas } from "@/components/canvas";
 import { Minimap } from "@/components/minimap";
@@ -22,6 +23,27 @@ import { MarkdownEditor } from "@/components/markdown-editor";
  */
 export default function Home() {
   const [editorVisible, setEditorVisible] = React.useState(true);
+
+  // Persistence: Restore layout preference and randomize fun word on mount
+  React.useEffect(() => {
+    const { getRandomFunWord } = require('@/core/constants/branding');
+    
+    // 1. Restore layout direction
+    const savedLayout = localStorage.getItem('inklink_layout_direction');
+    let layoutToSet = 'two-sided';
+    if (savedLayout) {
+      const { isLayoutDirection } = require('@/core/types/type-guards');
+      if (isLayoutDirection(savedLayout)) {
+        layoutToSet = savedLayout;
+      }
+    }
+
+    // 2. Set stable initial client state
+    globalState.setState({ 
+      layoutDirection: layoutToSet as any,
+      currentFallbackRootName: getRandomFunWord()
+    });
+  }, []);
 
   return (
     <main className="flex h-screen w-full flex-col overflow-hidden bg-background select-none">

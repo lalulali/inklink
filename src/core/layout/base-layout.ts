@@ -35,8 +35,9 @@ export abstract class BaseLayout implements LayoutAlgorithm {
    * Helper to accurately measure text width identically to the renderer
    */
   protected getNodeWidth(node: TreeNode): number {
+    const scale = LAYOUT_CONFIG.BASE_SCALE;
     const depth = node.depth || 0;
-    const fontSize = depth === 0 ? 22 : depth === 1 ? 17 : depth === 2 ? 14 : 12;
+    const fontSize = (depth === 0 ? 22 : depth === 1 ? 17 : depth === 2 ? 14 : 12) * scale;
     const fontWeight = depth === 0 ? '700' : depth === 1 ? '600' : '500';
     
     // Exact synchronization with d3-renderer dimensions
@@ -57,18 +58,19 @@ export abstract class BaseLayout implements LayoutAlgorithm {
       }
     }
     
-    return textWidth + 24; // 24 is padding.x * 2 (12 * 2) matched identically with renderer
+    return textWidth + (24 * scale); // padding.x * 2 (12 * 0.75 * 2 = 18)
   }
 
   /**
    * Helper to accurately measure node height identically to the renderer
    */
   protected getNodeHeight(node: TreeNode): number {
+    const scale = LAYOUT_CONFIG.BASE_SCALE;
     const depth = node.depth || 0;
-    const fontSize = depth === 0 ? 22 : depth === 1 ? 17 : depth === 2 ? 14 : 12;
+    const fontSize = (depth === 0 ? 22 : depth === 1 ? 17 : depth === 2 ? 14 : 12) * scale;
     const lineHeight = Math.round(fontSize * 1.25);
     const lines = (node.content || '').split('\n').length;
-    return (lines * lineHeight) + 12; // 12 is padding.y * 2 (6 * 2) matched identically with renderer
+    return (lines * lineHeight) + (12 * scale); // padding.y * 2 (6 * 0.75 * 2 = 9)
   }
 
   /**
@@ -181,15 +183,16 @@ export abstract class BaseLayout implements LayoutAlgorithm {
       // Node's pivot Y is the vertical center of its branch space
       const nodeY = currentBoundaryY + branchHeight / 2;
       
-      // Node's pivot X aligns its inner edge to parentBoundaryX
-      const nodeX = side === 'right' ? parentBoundaryX + nodeWidth / 2 : parentBoundaryX - nodeWidth / 2;
+      // Node's pivot X IS the parentBoundaryX (connection point from parent)
+      // This ensures siblings align perfectly in a straight vertical line
+      const nodeX = parentBoundaryX;
       positions.set(node.id, { x: nodeX, y: nodeY });
 
       if (node.children && node.children.length > 0 && !node.collapsed) {
         // Prepare recursion for the next level
-        // nextBoundaryX is the end edge of THIS level's node + levelSpacing
+        // nextBoundaryX is the outer edge of THIS level's node + levelSpacing
         const dir = side === 'right' ? 1 : -1;
-        const nextBoundaryX = nodeX + (dir * (nodeWidth / 2 + Math.abs(levelSpacing)));
+        const nextBoundaryX = nodeX + (dir * (nodeWidth + Math.abs(levelSpacing)));
         this.layoutHorizontalSubtree(node.children, positions, nextBoundaryX, nodeY, levelSpacing, side);
       }
 

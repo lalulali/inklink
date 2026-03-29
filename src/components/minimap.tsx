@@ -41,7 +41,6 @@ export function Minimap() {
       svg.selectAll('*').remove();
       return;
     }
-    svg.selectAll('*').remove();
 
     const { width, height } = containerRef.current?.getBoundingClientRect() || { width: 192, height: 128 };
 
@@ -75,81 +74,98 @@ export function Minimap() {
       minX -= paddingX; maxX += paddingX; minY -= paddingY; maxY += paddingY;
     }
 
-    const mapW = Math.max(1, maxX - minX);
-    const mapH = Math.max(1, maxY - minY);
-    const mmW = width;
-    const mmH = height;
-
-    const scale = Math.min(mmW / mapW, mmH / mapH);
-    const offsetX = (mmW - mapW * scale) / 2;
-    const offsetY = (mmH - mapH * scale) / 2;
+    const mapW = maxX - minX;
+    const mapH = maxY - minY;
+    const scale = Math.min(width / mapW, height / mapH);
+    const offsetX = (width - mapW * scale) / 2;
+    const offsetY = (height - mapH * scale) / 2;
 
     const scaleX = (x: number) => ((x - minX) * scale) + offsetX;
     const scaleY = (y: number) => ((y - minY) * scale) + offsetY;
     const invertX = (mx: number) => ((mx - offsetX) / scale) + minX;
     const invertY = (my: number) => ((my - offsetY) / scale) + minY;
 
-    // Render nodes as dots
-    svg.selectAll('circle.node-dot')
-      .data(nodes)
-      .enter()
+    // --- NODE DOTS (Persistent) ---
+    let nodesContainer = svg.select<SVGGElement>('g.nodes-dots');
+    if (nodesContainer.empty()) nodesContainer = svg.append('g').attr('class', 'nodes-dots');
+
+    const nodeDots = nodesContainer.selectAll<SVGCircleElement, any>('circle.node-dot')
+      .data(nodes, d => d.id);
+
+    nodeDots.exit().remove();
+    nodeDots.enter()
       .append('circle')
       .attr('class', 'node-dot')
       .attr('r', 1.5)
+      .merge(nodeDots as any)
       .attr('fill', d => ColorManager.getThemeShade(d.color, state.isDarkMode) || '#94a3b8')
       .attr('cx', d => scaleX(d.x))
       .attr('cy', d => scaleY(d.y));
 
-    const viewport = svg.append('rect')
-      .attr('class', 'viewport-rect')
-      .attr('fill', 'rgba(59, 130, 246, 0.15)')
-      .attr('stroke', 'rgba(59, 130, 246, 0.6)')
-      .attr('stroke-width', 1.5)
-      .attr('cursor', 'move');
+    // --- VIEWPORT RECT (Persistent) ---
+    let viewport = svg.select<SVGRectElement>('rect.viewport-rect');
+    if (viewport.empty()) {
+      viewport = svg.append('rect')
+        .attr('class', 'viewport-rect')
+        .attr('fill', 'rgba(59, 130, 246, 0.15)')
+        .attr('stroke', 'rgba(59, 130, 246, 0.6)')
+        .attr('stroke-width', 1.5)
+        .attr('cursor', 'move');
+    }
 
-    // Drag behavior for viewport
+    // Capture dimensions and scale for transform updates
+    const canvasRect = document.getElementById('inklink-mindmap-canvas')?.getBoundingClientRect();
+    const canvasW = canvasRect?.width || window.innerWidth;
+    const canvasH = canvasRect?.height || window.innerHeight;
+    const currentScale = state.transform.scale;
+
+    // --- DRAG BEHAVIOR ---
     const drag = d3.drag<SVGRectElement, unknown>()
+      .subject(() => {
+        // Use current rect position as the subject to maintain absolute pointer tracking
+        return {
+          x: parseFloat(viewport.attr('x')) || 0,
+          y: parseFloat(viewport.attr('y')) || 0
+        };
+      })
       .on('drag', (event) => {
-        const currentScale = state.transform.scale;
-        const canvasRect = document.getElementById('inklink-mindmap-canvas')?.getBoundingClientRect();
-        const canvasW = canvasRect?.width || window.innerWidth;
-        const canvasH = canvasRect?.height || window.innerHeight;
+        // event.x/y are now the adjusted top-left coordinates in minimap space
+        const worldX = invertX(event.x);
+        const worldY = invertY(event.y);
         
-        const rw = canvasW / currentScale;
-        const rh = canvasH / currentScale;
-
-        // event.x is the top-left of the dragged rect, calculate center
-        const mxCenter = event.x + (rw * scale) / 2;
-        const myCenter = event.y + (rh * scale) / 2;
-
-        const worldX = invertX(mxCenter);
-        const worldY = invertY(myCenter);
+        // Use latest state to avoid stale closure issues during rapid updates
+        const currentTransform = globalState.getState().transform;
 
         globalState.setState({
           transform: {
-            ...state.transform,
-            x: canvasW / 2 - worldX * currentScale,
-            y: canvasH / 2 - worldY * currentScale
+            ...currentTransform,
+            x: -worldX * currentTransform.scale,
+            y: -worldY * currentTransform.scale
           }
         });
       });
 
     viewport.call(drag as any);
 
-    // Click to navigate
+    // --- UPDATE VIEWPORT DIMENSIONS ---
+    const lx = (0 - state.transform.x) / currentScale;
+    const ly = (0 - state.transform.y) / currentScale;
+    const rw = canvasW / currentScale;
+    const rh = canvasH / currentScale;
+
+    viewport
+      .attr('x', scaleX(lx))
+      .attr('y', scaleY(ly))
+      .attr('width', rw * scale)
+      .attr('height', rh * scale);
+
+    // --- CLICK TO JUMP ---
     svg.on('click', (event) => {
       if (event.defaultPrevented) return;
       const [mx, my] = d3.pointer(event);
-      
-      // For clicks, the pointer is exactly where we want the center
       const worldX = invertX(mx);
       const worldY = invertY(my);
       
-      const currentScale = state.transform.scale;
-      const canvasRect = document.getElementById('inklink-mindmap-canvas')?.getBoundingClientRect();
-      const canvasW = canvasRect?.width || window.innerWidth;
-      const canvasH = canvasRect?.height || window.innerHeight;
-
       globalState.setState({
         transform: {
           ...state.transform,
@@ -158,23 +174,6 @@ export function Minimap() {
         }
       });
     });
-
-    // Update viewport rect position/size
-    const s = state.transform.scale;
-    const canvasRect = document.getElementById('inklink-mindmap-canvas')?.getBoundingClientRect();
-    const canvasW = canvasRect?.width || window.innerWidth;
-    const canvasH = canvasRect?.height || window.innerHeight;
-    
-    const lx = (0 - state.transform.x) / s;
-    const ly = (0 - state.transform.y) / s;
-    const rw = canvasW / s;
-    const rh = canvasH / s;
-
-    viewport
-      .attr('x', scaleX(lx))
-      .attr('y', scaleY(ly))
-      .attr('width', rw * scale)
-      .attr('height', rh * scale);
 
   }, [state.transform, state.tree, state.layoutPositions, resizeToggle, state.isDarkMode]);
 

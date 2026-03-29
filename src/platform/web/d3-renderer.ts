@@ -34,8 +34,14 @@ export class D3Renderer implements RendererAdapter {
    * Node configuration
    */
   private readonly config = {
-    padding: { x: 12, y: 6 },
-    margin: { x: 40, y: 20 },
+    padding: { 
+      x: 12 * 0.75, // 9
+      y: 6 * 0.75   // 4.5
+    },
+    margin: { 
+      x: 40 * 0.75, // 30
+      y: 20 * 0.75  // 15
+    },
     borderRadius: 4,
     animationDuration: 280,
     staggerDelay: 28,       // ms per depth level for cascade effect
@@ -46,19 +52,17 @@ export class D3Renderer implements RendererAdapter {
    * Helper to get font size based on node depth (Heading style)
    */
   private getFontSize(depth: number): number {
-    if (depth === 0) return 22;      // Level 1: Biggest
-    if (depth === 1) return 17;      // Level 2
-    if (depth === 2) return 14;      // Level 3
-    return 12;                       // Level 4+
+    const base = depth === 0 ? 22 : depth === 1 ? 17 : depth === 2 ? 14 : 12;
+    return base * 0.75;
   }
 
   /**
    * Helper to get font weight based on node depth
    */
   private getFontWeight(depth: number): string {
-    if (depth === 0) return '700';
-    if (depth === 1) return '600';
-    return '500';
+    if (depth === 0) return '600';
+    if (depth === 1) return '500';
+    return '400';
   }
 
   /**
@@ -93,17 +97,19 @@ export class D3Renderer implements RendererAdapter {
       .scaleExtent([0.1, 4])
       .translateExtent([[-5000, -5000], [5000, 5000]])
       .filter((event) => {
-        // Allow left-click (0) and middle-click (1) for panning
-        return !event.ctrlKey && (event.button === 0 || event.button === 1);
+        // Only allow panning via drag when no modifier keys are pressed
+        return !event.ctrlKey && !event.altKey && !event.metaKey && (event.button === 0 || event.button === 1);
       })
       .on('start', () => {
         this.svg?.style('cursor', 'grabbing');
       })
       .on('zoom', (event) => {
-        this.g?.attr('transform', event.transform);
+        if (this.g) {
+          this.g.attr('transform', event.transform);
+        }
         
-        // Only notify React state if the change came from user interaction (prevents feedback loops during resizes)
-        if (event.sourceEvent && this.onTransform) {
+        // Sync with React state
+        if (this.onTransform) {
           this.onTransform({
             x: event.transform.x,
             y: event.transform.y,
@@ -116,7 +122,49 @@ export class D3Renderer implements RendererAdapter {
       });
 
     this.svg.call(this.zoom)
-      .style('cursor', 'grab');
+      .style('cursor', 'grab')
+      // Override default wheel behavior to support custom Pan/Zoom combinations
+      .on('wheel.zoom', (event: WheelEvent) => {
+        // Prevent default browser scrolling
+        event.preventDefault();
+
+        const isZoom = event.ctrlKey || event.altKey || event.metaKey;
+        
+        if (isZoom) {
+          // Handle Zoom: Alt+Wheel (Mac) or Ctrl+Wheel (Win)
+          const delta = -event.deltaY * (event.deltaMode === 1 ? 0.05 : event.deltaMode === 2 ? 1 : 0.002);
+          const factor = Math.pow(2, delta);
+          
+          // Zoom toward mouse pointer
+          const [mx, my] = d3.pointer(event, this.svg?.node());
+          if (this.zoom && this.svg) {
+            this.zoom.scaleBy(this.svg as any, factor, [mx, my]);
+          }
+        } else {
+          // Handle Pan: Wheel (Vertical) and Shift+Wheel (Horizontal)
+          let dx = event.deltaX;
+          let dy = event.deltaY;
+
+          // Normalize Shift+Scroll (some browsers don't swap axes automatically)
+          if (event.shiftKey && Math.abs(dy) > Math.abs(dx)) {
+            dx = dy;
+            dy = 0;
+          }
+
+          // Scale deltas based on deltaMode (lines/pages to pixels)
+          if (event.deltaMode === 1) { // lines
+            dx *= 20;
+            dy *= 20;
+          } else if (event.deltaMode === 2) { // pages
+            dx *= 200;
+            dy *= 200;
+          }
+
+          if (this.zoom && this.svg) {
+            this.zoom.translateBy(this.svg as any, -dx, -dy);
+          }
+        }
+      }, { passive: false });
   }
 
   /**
@@ -274,7 +322,6 @@ export class D3Renderer implements RendererAdapter {
         nodeElement.focus();
     }
 
-    const transform = d3.zoomTransform(this.svg.node() as SVGSVGElement);
     const bounds = this.getViewportBounds();
     
     // Get node position from D3 data or attribute
@@ -291,8 +338,59 @@ export class D3Renderer implements RendererAdapter {
         this.zoom.transform,
         d3.zoomIdentity
           .translate(bounds.width / 2, bounds.height / 2)
-          .scale(1.5)
+          .scale(1.3)
           .translate(-x, -y)
+      );
+  }
+
+  /**
+   * Fit the entire mind map into the current viewport
+   */
+  fitView(padding = 0.2): void {
+    if (!this.svg || !this.zoom || !this.lastRoot || !this.lastPositions) return;
+    
+    const viewportBounds = this.getViewportBounds();
+    if (viewportBounds.width === 0 || viewportBounds.height === 0) return;
+
+    // Calculate map bounds
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    
+    const nodes = this.flattenTree(this.lastRoot);
+    nodes.forEach(node => {
+      const pos = this.lastPositions!.get(node.id);
+      if (pos) {
+        const w = (node as any).metadata?.width || 0;
+        const h = (node as any).metadata?.height || 0;
+        
+        // This is a rough estimation of where the bounds are. 
+        // Horizontal nodes grow from pivot (x: 0 or -width)
+        // Vertical nodes focus on center
+        minX = Math.min(minX, pos.x - w); 
+        maxX = Math.max(maxX, pos.x + w);
+        minY = Math.min(minY, pos.y - h);
+        maxY = Math.max(maxY, pos.y + h);
+      }
+    });
+
+    if (!isFinite(minX)) return;
+
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    const scale = (1 - padding) / Math.max(contentWidth / viewportBounds.width, contentHeight / viewportBounds.height);
+    const finalScale = Math.max(0.1, Math.min(2.5, scale));
+
+    this.svg.transition()
+      .duration(750)
+      .ease(d3.easeCubicOut)
+      .call(
+        this.zoom.transform,
+        d3.zoomIdentity
+          .translate(viewportBounds.width / 2, viewportBounds.height / 2)
+          .scale(finalScale)
+          .translate(-centerX, -centerY)
       );
   }
 
@@ -525,19 +623,19 @@ export class D3Renderer implements RendererAdapter {
           if (d.depth === 0) return '#d4d4d4'; // Visual Studio Light Grey Root in Dark Mode
           return ColorManager.getThemeShade(d.color, true) || '#1e293b'; 
         }
-        if (d.depth === 0) return '#1e1e1e'; // Visual Studio Dark Grey Root in Light Mode
+        if (d.depth === 0) return '#444444'; // Subtle Dark Grey Root in Light Mode
         return d.color || '#f1f5f9'; // Branches colored (500)
       })
-      .attr('stroke', (d) => {
+      .style('stroke', (d) => {
         if (this.selectedNodeId === d.id) return '#ef4444'; // Red for selected
         if (this.highlightIds.has(d.id)) return this.config.highlightColor;
         
         if (thisRenderer.isDarkMode) {
           if (d.depth === 0) return '#ffffff'; // Root border for extra pop
-          return ColorManager.getThemeShade(d.color, true) || 'currentColor';
+          return '#444444'; // Subtle border in dark mode
         }
         if (d.depth === 0) return '#000000'; // Root border darker in light mode
-        return d.color || 'currentColor';
+        return '#cbd5e1'; // Slate 300 - consistent lightgrey border for all nodes
       })
       .attr('stroke-width', (d) => (this.selectedNodeId === d.id || this.highlightIds.has(d.id)) ? 3 : 1.5);
 
@@ -574,10 +672,21 @@ export class D3Renderer implements RendererAdapter {
         const pos = positions.get(d.id) || { x: 0, y: 0 };
         const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
         if (!parentPos) {
-          const firstChild = d.children[0];
-          const childPos = firstChild ? positions.get(firstChild.id) : null;
-          if (childPos && childPos.x < pos.x) return -width / 2; // RTL
-          return width / 2; // LTR / two-sided right
+          // Robust side detection: if any child is on the right, put indicator on the right
+          const hasRightChild = d.children.some(child => {
+            const childPos = positions.get(child.id);
+            return childPos && childPos.x > pos.x;
+          });
+          if (hasRightChild) return width / 2;
+
+          // Otherwise, if there are only left children, it must be RTL
+          const hasLeftChild = d.children.some(child => {
+            const childPos = positions.get(child.id);
+            return childPos && childPos.x < pos.x;
+          });
+          if (hasLeftChild) return -width / 2;
+          
+          return width / 2; // Default for no children or LTR
         }
         if (pos.x < parentPos.x) return -width; // Left-side node
         return width; // Right-side node
@@ -595,10 +704,14 @@ export class D3Renderer implements RendererAdapter {
         }
         return height / 2; // Top-down: indicator at Bottom
       })
-      .attr('stroke', (d) => {
-        if (!thisRenderer.isDarkMode) return 'white'; // Light mode rings
-        if (d.depth === 0) return '#1e1e1e'; // Dark ring for the light grey root in dark mode
-        return 'white'; // White ring for colored branches in dark mode
+      .style('stroke', (d) => {
+        if (!thisRenderer.isDarkMode) {
+          // Use both parent-null check and depth check for robust root detection
+          if (!d.parent || d.depth === 0) return '#000000'; 
+          return '#cbd5e1'; // Consistent lightgrey border for children
+        }
+        if (!d.parent || d.depth === 0) return '#1e1e1e'; // Dark ring for root in dark mode
+        return '#444444'; // Subtle border in dark mode
       })
       .attr('fill', (d) => {
         if (thisRenderer.isDarkMode) {
@@ -611,7 +724,7 @@ export class D3Renderer implements RendererAdapter {
         
         // Light mode
         if (d.collapsed) return 'white';
-        if (d.depth === 0) return '#1e1e1e';
+        if (d.depth === 0) return '#444444'; // Match the subtle root background
         return d.color || '#f1f5f9';
       });
   }

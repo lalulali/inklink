@@ -93,9 +93,30 @@ export function Canvas() {
     if (containerRef.current) {
       observer.observe(containerRef.current);
     }
+
+    // Global Command Listeners for UI interaction
+    const handleFitView = () => {
+       if (rendererRef.current) (rendererRef.current as any).fitView?.();
+    };
+
+    const handleResetView = () => {
+       if (rendererRef.current && containerRef.current) {
+          const { width, height } = containerRef.current.getBoundingClientRect();
+          rendererRef.current.setTransform({
+             x: width / 2,
+             y: height / 2,
+             scale: 1,
+          });
+       }
+    }
+
+    window.addEventListener('inklink-fit-view', handleFitView);
+    window.addEventListener('inklink-reset-view', handleResetView);
     
     return () => {
       observer.disconnect();
+      window.removeEventListener('inklink-fit-view', handleFitView);
+      window.removeEventListener('inklink-reset-view', handleResetView);
       if (renderer) {
           renderer.clear();
       }

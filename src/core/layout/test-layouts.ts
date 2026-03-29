@@ -1,6 +1,5 @@
 import { TwoSidedLayout } from './two-sided-layout';
 import { LeftToRightLayout } from './left-to-right-layout';
-import { TopToBottomLayout } from './top-to-bottom-layout';
 import { TreeNode } from '../types/tree-node';
 import { Viewport } from '../types/interfaces';
 
@@ -53,5 +52,4 @@ function runTest(name: string, layout: any) {
 /*
 runTest('Two-Sided', new TwoSidedLayout());
 runTest('L-R', new LeftToRightLayout());
-runTest('T-B', new TopToBottomLayout());
 */

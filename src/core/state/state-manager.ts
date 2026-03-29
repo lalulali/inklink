@@ -39,6 +39,13 @@ export class StateManager {
     const prevState = this.state;
     this.state = { ...this.state, ...newState };
     
+    // Task 6.2: Persistence logic
+    if (newState.layoutDirection && prevState.layoutDirection !== newState.layoutDirection) {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('inklink_layout_direction', newState.layoutDirection);
+        }
+    }
+
     // Only notify if changes actually occurred
     if (this.state !== prevState) {
       this.notify();

@@ -500,8 +500,6 @@ export function isLayoutDirection(value: unknown): value is LayoutDirection {
     'two-sided',
     'left-to-right',
     'right-to-left',
-    'top-to-bottom',
-    'bottom-to-top',
   ];
 
   return validDirections.includes(value as LayoutDirection);

@@ -12,16 +12,19 @@ import { useNotification } from "@/platform/web/web-notification-manager";
 import { globalState } from '@/core/state/state-manager';
 import { Button } from "@/components/ui/button";
 import { 
-  FolderOpenIcon, 
-  SaveIcon, 
-  DownloadIcon, 
-  MaximizeIcon, 
-  MinimizeIcon,
-  RefreshCcwIcon,
-  SearchIcon,
-  HelpCircleIcon,
-  LayoutGridIcon,
-  FileTextIcon
+  FolderOpen as FolderOpenIcon, 
+  Save as SaveIcon, 
+  Download as DownloadIcon, 
+  Maximize as MaximizeIcon, 
+  Minimize as MinimizeIcon,
+  RefreshCcw as RefreshCcwIcon,
+  Search as SearchIcon,
+  HelpCircle as HelpCircleIcon,
+  LayoutGrid as LayoutGridIcon,
+  FileText as FileTextIcon,
+  ZoomIn as ZoomInIcon,
+  ZoomOut as ZoomOutIcon,
+  Maximize2 as Maximize2Icon
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -154,8 +157,6 @@ export function Toolbar({
               <SelectItem value="two-sided">Two-Sided</SelectItem>
               <SelectItem value="left-to-right">Left to Right</SelectItem>
               <SelectItem value="right-to-left">Right to Left</SelectItem>
-              <SelectItem value="top-to-bottom">Top to Bottom</SelectItem>
-              <SelectItem value="bottom-to-top">Bottom to Top</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -180,16 +181,8 @@ export function Toolbar({
           </Tooltip>
         </div>
 
-        {/* View Tools */}
-        <div className="flex shrink-0 items-center gap-1 border-r pr-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <RefreshCcwIcon className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Reset View (R)</TooltipContent>
-          </Tooltip>
+        {/* Tools & Search */}
+        <div className="flex shrink-0 items-center gap-1 border-r pr-2 px-1">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">

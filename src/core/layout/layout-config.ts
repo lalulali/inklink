@@ -8,19 +8,20 @@
  */
 
 export const LAYOUT_CONFIG = {
-  // Vertical spacing between sibling nodes (center-to-center or edge-to-edge depends on implementation)
-  // We use 40px center-to-center as default to ensure at least 20px gap for 20px-high nodes
-  SIBLING_SPACING: 40,
-  MIN_SIBLING_GAP: 20,
+  // Global scale factor to re-baseline the visual density (75% becomes new 100%)
+  BASE_SCALE: 0.75,
+
+  // Vertical spacing between sibling nodes
+  SIBLING_SPACING: 40 * 0.75, // 30
+  MIN_SIBLING_GAP: 20 * 0.75,  // 15
   
-  // Horizontal spacing between levels.
-  // This is used as the exact edge-to-edge horizontal gap for horizontal layouts
-  LEVEL_SPACING: 100,
-  MIN_PARENT_CHILD_GAP: 40,
+  // Horizontal spacing between levels
+  LEVEL_SPACING: 100 * 0.75,  // 75
+  MIN_PARENT_CHILD_GAP: 40 * 0.75, // 30
   
-  // Default node dimensions (used before real measurements are available)
-  DEFAULT_NODE_WIDTH: 120,
-  DEFAULT_NODE_HEIGHT: 32,
+  // Default node dimensions
+  DEFAULT_NODE_WIDTH: 120 * 0.75,
+  DEFAULT_NODE_HEIGHT: 32 * 0.75,
   
   // Viewport defaults
   DEFAULT_VIEWPORT_WIDTH: 1920,

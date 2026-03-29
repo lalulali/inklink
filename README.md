@@ -6,26 +6,29 @@ A web-based visualization tool that transforms markdown documents into interacti
 
 ## Features
 
-- **Multiple Layouts**: Choose from five layout directions (two-sided, left-to-right, right-to-left, top-to-bottom, bottom-to-top)
+- **Multiple Layouts**: Choose from three core layout directions (Balanced Two-Sided, Left-to-Right, Right-to-Left)
   - Height-based layout algorithm for precise, balanced node spacing
-  - Precise edge-to-edge spacing to eliminate layout "messiness"
-- **Interactive Visualization**: Pan, zoom, and navigate through your mind maps with ease
-  - Synchronized minimap for improved context awareness
-  - Centered node positioning within the viewport
-- **Themes**: Visual Studio-inspired color palettes for light and dark modes
-  - High-contrast branch identification consistently across themes
-  - Automated theme switching support
+  - Precise edge-to-edge spacing with hierarchical scaling support
+- **Enhanced Viewport Controls**: 
+  - **Dynamic Zoom**: 10% to 300% zoom range with status bar slider
+  - **Pan/Zoom Gestures**: Smart wheel navigation (Wheel to pan, Alt/Cmd+Wheel to zoom)
+  - **Navigation Tools**: Fit-to-screen and Reset view (100% zoom)
+- **Synchronized Minimap**:
+  - **Persistent Viewport**: Real-time tracking of the visible area
+  - **Interactive Jump**: Click-to-navigate for rapid mind map traversal
+- **Theme-Adaptive Visuals**:
+  - **Visual Studio Palette**: Dark and Light grey root themes with color-coded branches
+  - **Hierarchical Scaling**: Dynamic font sizing (22px to 9px) and weight based on node depth
+  - **High Contrast**: Theme-aware shading (500-level for light, 700-level for dark)
 - **Markdown Parsing**: Convert markdown text into hierarchical mind map structures based on indentation
-  - Indentation detection (spaces vs tabs)
-  - Mixed indentation normalization
+  - Indentation detection (spaces vs tabs) and mixed indentation normalization
   - Virtual root system for handling multiple top-level headers
-  - Parse-serialize round-trip support
+  - Stable random root names for multi-root scenarios
   - Comprehensive error reporting with line/column information
+- **State Management**: Full undo/redo support with 50-operation history
 - **Export Options**: Export to HTML, SVG, and PNG formats
-- **File Operations**: Open, save, and auto-save markdown files
-- **Search**: Find nodes within your mind map quickly
-- **Undo/Redo**: Full undo/redo support with 50-operation history
-- **Type Safety**: Comprehensive runtime type validation with type guards for all core data structures
+- **File Operations**: Full file handle support with open and save capabilities
+- **Type Safety**: Strict TypeScript implementation with runtime type guards for all core data structures
 
 ## Technology Stack
 

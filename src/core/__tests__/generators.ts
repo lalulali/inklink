@@ -64,9 +64,7 @@ export const transformArb: fc.Arbitrary<Transform> = fc.record({
 export const layoutDirectionArb: fc.Arbitrary<LayoutDirection> = fc.constantFrom(
   'two-sided',
   'left-to-right',
-  'right-to-left',
-  'top-to-bottom',
-  'bottom-to-top'
+  'right-to-left'
 );
 
 /**
@@ -83,6 +81,7 @@ export const applicationStateArb: fc.Arbitrary<ApplicationState> = fc.record({
   isDirty: fc.boolean(),
   lastSaved: fc.option(fc.date(), { nil: null }),
   layoutDirection: layoutDirectionArb,
+  layoutPositions: fc.constant(new Map()),
   transform: transformArb,
   minimapVisible: fc.boolean(),
   selectedNode: fc.option(fc.string(), { nil: null }),
@@ -96,6 +95,8 @@ export const applicationStateArb: fc.Arbitrary<ApplicationState> = fc.record({
     message: fc.string(),
     duration: fc.option(fc.integer(), { nil: undefined }),
   }), { nil: null }),
+  isDarkMode: fc.boolean(),
+  currentFallbackRootName: fc.string(),
 });
 
 /**
