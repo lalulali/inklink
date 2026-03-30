@@ -75,6 +75,10 @@ Theme-aware rendering with color-coded branch hierarchies. Looks great in both m
 ### 📱 Mobile Responsive
 A fully adaptive layout — slide-in editor drawer, mobile-optimized toolbar, and quick-action markdown shortcuts — so the tool works wherever you are.
 
+### 🔗 Source Access
+Direct access to the project's source code via the GitHub icon in the application toolbar.
+
+
 ---
 
 ## Quick Start

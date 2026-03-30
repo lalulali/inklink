@@ -28,6 +28,7 @@ import {
 	ZoomOut as ZoomOutIcon,
 	Maximize2 as Maximize2Icon,
 	MoreHorizontal as MoreHorizontalIcon,
+	Github as GithubIcon,
 } from "lucide-react";
 import {
 	DropdownMenu,
@@ -492,8 +493,27 @@ export function Toolbar({
 					</DropdownMenu>
 				</div>
 
-				{/* Help / Theme / Status */}
+				{/* Help / Theme / GitHub / Status */}
 				<div className="ml-auto flex shrink-0 items-center gap-2 pr-2">
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8"
+								asChild
+							>
+								<a
+									href="https://github.com/lalulali/inklink"
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									<GithubIcon className="h-4 w-4" />
+								</a>
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>View on GitHub</TooltipContent>
+					</Tooltip>
 					<ModeToggle />
 					<Tooltip>
 						<TooltipTrigger asChild>
