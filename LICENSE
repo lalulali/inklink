@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2024 Markdown to Mind Map Generator
+Copyright (c) 2026 Inklink
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,8 @@ SOFTWARE.
 
 ### Markmap
 
-This project uses [Markmap](https://github.com/markmap/markmap) as a reference implementation for D3.js patterns and SVG rendering approaches. Markmap is used for study and inspiration only - no code from Markmap is directly included in this project.
+This project uses [Markmap](https://github.com/markmap/markmap) as a reference implementation for D3.js patterns and SVG rendering approaches. 
+Markmap is used for study and inspiration only - no code from Markmap is directly included in this project.
 
 Markmap is licensed under the MIT License. See: https://github.com/markmap/markmap
 
