@@ -48,15 +48,14 @@ export class WebKeyboardHandler {
     // Save
     if (isMod && e.key.toLowerCase() === 's') {
       e.preventDefault();
-      // Implementation through command or direct call
-      console.log('Shortcut: Save');
+      window.dispatchEvent(new CustomEvent('inklink-file-save'));
       return;
     }
 
     // Open
     if (isMod && e.key.toLowerCase() === 'o') {
       e.preventDefault();
-      console.log('Shortcut: Open');
+      window.dispatchEvent(new CustomEvent('inklink-file-open'));
       return;
     }
 

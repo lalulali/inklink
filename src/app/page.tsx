@@ -16,15 +16,79 @@ import { KeyboardHandler } from "@/components/keyboard-handler";
 import { StatusBar } from "@/components/status-bar";
 import { Toaster } from "@/components/ui/toaster";
 import { MarkdownEditor } from "@/components/markdown-editor";
+import { MobileEditorDrawer } from "@/components/mobile-editor-drawer";
+import { FilePermissionDialog } from "@/components/file-permission-dialog";
+import { ExportDialog } from "@/components/export-dialog";
+import { AppReferenceDialog } from "@/components/app-reference-dialog";
 
 /**
  * Root Application Component
- * Assembles the mind map generator layout with toolbar, canvas, and minimap
+ * Assembles the mind map generator layout with toolbar, canvas, and minimap.
+ * On mobile: stacks vertically with a slide-in drawer for the editor.
+ * On desktop: side-by-side resizable split view.
  */
 export default function Home() {
   const [editorVisible, setEditorVisible] = React.useState(true);
+  const [isMobile, setIsMobile] = React.useState(false);
 
-  // Persistence: Restore layout preference and randomize fun word on mount
+  // Persistence: Restore layout preference and randomized fun word on mount
+  const [editorWidth, setEditorWidth] = React.useState(0);
+  const isResizingRef = React.useRef(false);
+  const widthRef = React.useRef(0);
+
+  // Sync ref with state
+  React.useEffect(() => {
+    widthRef.current = editorWidth;
+  }, [editorWidth]);
+
+  // Detect mobile breakpoint (< 768px === md breakpoint)
+  React.useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    setIsMobile(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  // Initial load — editor hidden by default on mobile
+  React.useEffect(() => {
+    const mobile = window.matchMedia('(max-width: 767px)').matches;
+    if (mobile) {
+      setEditorVisible(false);
+      return;
+    }
+    const savedWidth = localStorage.getItem('inklink_editor_width');
+    const minWidth = window.innerWidth * 0.25;
+    const initialWidth = savedWidth ? Math.max(minWidth, parseInt(savedWidth)) : minWidth;
+    setEditorWidth(initialWidth);
+  }, []);
+
+  // Resize handling (desktop only)
+  React.useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      const minWidth = window.innerWidth * 0.25;
+      const maxWidth = window.innerWidth * 0.75;
+      const newWidth = Math.max(minWidth, Math.min(maxWidth, e.clientX));
+      setEditorWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      if (isResizingRef.current) {
+        isResizingRef.current = false;
+        document.body.style.cursor = 'default';
+        localStorage.setItem('inklink_editor_width', widthRef.current.toString());
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
   React.useEffect(() => {
     const { getRandomFunWord } = require('@/core/constants/branding');
     
@@ -45,25 +109,57 @@ export default function Home() {
     });
 
     const handleOpenEditor = () => setEditorVisible(true);
+    const handleToggleEditor = () => setEditorVisible(v => !v);
+    
     window.addEventListener('inklink-editor-show', handleOpenEditor);
-    return () => window.removeEventListener('inklink-editor-show', handleOpenEditor);
+    window.addEventListener('inklink-editor-toggle', handleToggleEditor);
+    
+    return () => {
+      window.removeEventListener('inklink-editor-show', handleOpenEditor);
+      window.removeEventListener('inklink-editor-toggle', handleToggleEditor);
+    };
   }, []);
 
   return (
-    <main className="flex h-screen w-full flex-col overflow-hidden bg-background select-none">
+    /**
+     * Use dvh (dynamic viewport height) for correct sizing on mobile browsers
+     * where the address bar shrinks/grows. Falls back to 100vh on unsupported browsers.
+     */
+    <main
+      className="flex w-full flex-col overflow-hidden bg-background select-none"
+      style={{ height: '100dvh' }}
+    >
       {/* Primary Navigation / Action Bar */}
       <Toolbar onToggleEditor={() => setEditorVisible(!editorVisible)} editorVisible={editorVisible} />
       
       {/* Main Workspace Area */}
-      <div className="relative flex-1 overflow-hidden h-full w-full flex flex-row">
-         {/* Markdown Source Editor Code View */}
-         {editorVisible && (
-          <div className="hidden h-full w-[350px] shrink-0 border-r bg-muted/20 md:block lg:w-[450px]">
-            <MarkdownEditor />
-          </div>
+      <div className="relative flex-1 overflow-hidden h-full w-full flex flex-row min-h-0">
+        {/* ── DESKTOP: Resizable sidebar editor ─────────────────────────── */}
+        {!isMobile && editorVisible && editorWidth > 0 && (
+          <>
+            <div
+              className="hidden h-full shrink-0 border-r bg-background md:block relative group overflow-hidden transition-[width] duration-300 ease-in-out"
+              style={{ width: editorWidth }}
+            >
+              <MarkdownEditor />
+            </div>
+
+            {/* Professional Resize Handle */}
+            <div
+              className="hidden md:flex w-1.5 h-full cursor-col-resize hover:bg-primary/40 active:bg-primary transition-colors z-50 items-center justify-center group"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                isResizingRef.current = true;
+                document.body.style.cursor = 'col-resize';
+              }}
+            >
+              <div className="w-[1px] h-8 bg-border group-hover:bg-primary/60 transition-colors" />
+            </div>
+          </>
         )}
 
-        <div className="relative flex-1 overflow-hidden h-full w-full">
+        {/* Canvas + Overlays — always visible */}
+        <div className="relative flex-1 overflow-hidden h-full w-full min-w-0">
           {/* SVG Drawing Surface */}
           <Canvas />
           
@@ -77,8 +173,20 @@ export default function Home() {
 
       <StatusBar />
       <KeyboardHandler />
+      {/* Branded modal for keyboard shortcut reference */}
+      <AppReferenceDialog />
+      {/* Branded modal for file export preferences */}
+      <ExportDialog />
+      {/* Branded modal for file permission explanation */}
+      <FilePermissionDialog />
       {/* Persistent global notification layer */}
       <Toaster />
+
+      {/* ── MOBILE: Slide-in drawer editor ───────────────────────────────── */}
+      <MobileEditorDrawer
+        open={isMobile && editorVisible}
+        onClose={() => setEditorVisible(false)}
+      />
     </main>
   );
 }

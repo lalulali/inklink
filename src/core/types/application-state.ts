@@ -56,6 +56,13 @@ export interface ApplicationState {
   editorReplacePreserveCase: boolean;
   editorSearchResultsCount: number;
   editorSearchCurrentIndex: number;
+
+  // Permission state
+  filePermissionRequest: { handle: any; path: string } | null;
+
+  // Export state
+  isExportDialogOpen: boolean;
+  isHelpDialogOpen: boolean;
 }
 
 /**
@@ -98,5 +105,8 @@ export function createInitialState(): ApplicationState {
     editorReplacePreserveCase: false,
     editorSearchResultsCount: 0,
     editorSearchCurrentIndex: -1,
+    filePermissionRequest: null,
+    isExportDialogOpen: false,
+    isHelpDialogOpen: false,
   };
 }

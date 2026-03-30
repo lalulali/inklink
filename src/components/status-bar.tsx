@@ -40,8 +40,8 @@ export function StatusBar() {
         <span className="truncate max-w-[200px]">{state.filePath || 'untitled.md'}</span>
       </div>
 
-      {/* Mind Map Metrics */}
-      <div className="flex items-center gap-1.5 border-r pr-3">
+      {/* Mind Map Metrics — hidden on mobile */}
+      <div className="hidden md:flex items-center gap-1.5 border-r pr-3">
         <MapIcon className="h-3 w-3" />
         <span>{totalNodes} Nodes</span>
       </div>
@@ -66,10 +66,11 @@ export function StatusBar() {
         )}
       </div>
 
-      {/* Viewport Info & Controls */}
-      <div className="flex items-center gap-4 ml-auto">
+      {/* Viewport Info & Controls — hidden on mobile */}
+      <div className="hidden md:flex items-center gap-4 ml-auto">
         <div className="flex items-center gap-2 border-r pr-3 h-4">
           <button 
+            type="button"
             onClick={() => window.dispatchEvent(new CustomEvent('inklink-fit-view'))}
             className="hover:text-foreground transition-colors p-0.5 rounded"
             title="Fit to Screen"
@@ -96,6 +97,7 @@ export function StatusBar() {
             <ZoomInIcon className="h-2.5 w-2.5 opacity-50" />
             
             <button 
+              type="button"
               onClick={() => window.dispatchEvent(new CustomEvent('inklink-reset-view'))}
               className="hover:text-foreground transition-colors p-0.5 rounded ml-1"
               title="Reset to 100%"

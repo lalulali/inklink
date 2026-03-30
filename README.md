@@ -1,99 +1,227 @@
 # Inklink
 
-![Development Status](https://img.shields.io/badge/status-development-yellow)
+![Status](https://img.shields.io/badge/status-MVP-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
 
-A web-based visualization tool that transforms markdown documents into interactive mind maps.
+> **Visualize your thinking. Navigate your knowledge. All in Markdown.**
 
-## Features
+---
 
-- **Multiple Layouts**: Choose from three core layout directions (Balanced Two-Sided, Left-to-Right, Right-to-Left)
-  - Height-based layout algorithm for precise, balanced node spacing
-  - Precise edge-to-edge spacing with hierarchical scaling support
-- **Interactive Mind Map**:
-  - **Double-Click Reveal**: Double-click any node to immediately open the editor and highlight the source lines
-  - **Quick Unselect**: Press `Escape` or click any empty canvas area to clear the active node selection
-- **Enhanced Viewport Controls**: 
-  - **Dynamic Zoom**: 10% to 300% zoom range with status bar slider
-  - **Pan/Zoom Gestures**: Smart wheel navigation (Wheel to pan, Alt/Cmd+Wheel to zoom)
-  - **Navigation Tools**: Fit-to-screen and Reset view (100% zoom)
-- **Synchronized Minimap**:
-  - **Persistent Viewport**: Real-time tracking of the visible area
-  - **Interactive Jump**: Click-to-navigate for rapid mind map traversal
-- **Theme-Adaptive Visuals**:
-  - **Visual Studio Palette**: Dark and Light grey root themes with color-coded branches
-  - **Hierarchical Scaling**: Dynamic font sizing (22px to 9px) and weight based on node depth
-  - **High Contrast**: Theme-aware shading (500-level for light, 700-level for dark)
-- **Markdown Parsing**: Convert markdown text into hierarchical mind map structures based on indentation
-  - Indentation detection (spaces vs tabs) and mixed indentation normalization
-  - Virtual root system for handling multiple top-level headers
-  - Stable random root names for multi-root scenarios
-  - Comprehensive error reporting with line/column information
-- **State Management**: Full undo/redo support with 50-operation history
-- **Professional Editor Search**:
-  - **VS Code Experience**: High-fidelity find and replace panel with integrated keyboard shortcuts (`Cmd+Shift+F`/`H`)
-  - **Smart Match Engine**: Supports overlapping matches (e.g., finding 2 occurrences of `lal` in `lalal`) to ensure 100% precision
-  - **Predictive Auto-Jump**: Selection instantly snaps to matches as you type, preventing "stuck" highlight bugs
-  - **Rich Modifiers**: Native support for "Match Case", "Match Whole Word", "Regex", and "Preserve Case" replacement
-- **Export Options**: Export to HTML, SVG, and PNG formats
-- **File Operations**: Full file handle support with open and save capabilities
-- **Type Safety**: Strict TypeScript implementation with runtime type guards for all core data structures
+## The Problem
 
-## Technology Stack
+*"Markdown is the new hot coding language. Deal with it."*
+— [InfoWorld, March 2026](https://www.infoworld.com/article/4146579/markdown-is-now-a-first-class-coding-language-deal-with-it.html)
 
-- **Framework**: Next.js 16 with App Router
-- **Language**: TypeScript with strict mode
-- **Styling**: Tailwind CSS with shadcn/ui components (Button, Select, DropdownMenu, Toggle, Toast, Tooltip)
-- **Rendering**: D3.js for SVG-based visualization
-- **Testing**: Jest + fast-check for property-based testing
-- **Utilities**: clsx + tailwind-merge for className composition
+Markdown is everywhere. It is how developers write specs, how teams collaborate on requirements, how AI agents receive instructions, and how knowledge gets shared. It has quietly become the lingua franca of the modern technical world — not just a formatting tool, but a **first-class language for structuring thought**.
 
+Yet the tooling has not caught up.
 
-## Getting Started
+You write a 300-line document and **lose the structure**. You share a markdown file and your collaborator has to read every line to understand the hierarchy. You use AI to generate specs in markdown and have no quick way to comprehend the shape of the output.
+
+**The gap is not in writing markdown — it is in reading and navigating it.**
+
+Inklink exists to close that gap.
+
+---
+
+## What is Inklink?
+
+Inklink is a **markdown-to-mind-map visualizer** built for the way we think and work today. It takes any markdown document — a spec, a plan, an outline, a set of AI instructions — and instantly renders it as an interactive, navigable mind map.
+
+There is no conversion step. No import format. No special syntax to learn. Just write markdown the way you always have, and Inklink gives you a living, visual representation of its structure in real time.
+
+**Write on the left. Think on the right.**
+
+---
+
+## Who is it for?
+
+- **Developers** who use markdown as the primary medium for specs, RFCs, and ADRs and want to quickly grasp or present their structure
+- **Product managers** who outline requirements in markdown and need a faster way to review hierarchy and coverage
+- **Technical writers** who maintain large documentation trees and need to navigate them without losing context
+- **AI practitioners** who work with markdown-heavy workflows, prompts, and system instructions and need to reason about their shape
+- **Anyone** who thinks better visually and has always found markdown indentation a bit hard to scan at a glance
+
+---
+
+## Core Features
+
+### 🗺️ Real-time Mind Map Rendering
+Your markdown becomes a mind map as you type. Headers and indented lists translate directly to nodes and branches — no configuration required.
+
+### 🔗 Bidirectional Navigation
+**Double-click any node** to jump directly to the corresponding source line in the editor. The connection between visual and text is always live — edit the markdown, the map updates; navigate the map, the editor follows.
+
+### 🧭 Multiple Layout Directions
+Choose how your map flows: balanced two-sided, left-to-right, or right-to-left. Each layout uses a height-based algorithm for clean, non-overlapping node spacing.
+
+### 🔍 Professional Search & Replace
+A VS Code-style find and replace panel with full keyboard shortcuts (`Cmd+Shift+F` / `Cmd+Shift+H`), overlapping match support, regex, match-case, whole-word, and preserve-case modes.
+
+### 🗂️ File-First Workflow
+Open any `.md` file directly from the filesystem. Save changes back in place. Auto-save to local storage ensures you never lose work on a refresh.
+
+### 📤 Export Options
+Export your mind map as SVG, PNG, or a standalone interactive HTML file — ready to embed in any documentation or share with stakeholders who do not have Inklink.
+
+### 📦 Full Undo / Redo
+50-step history with standard keyboard shortcuts. Change your mind as many times as you need.
+
+### 🌗 Dark & Light Mode
+Theme-aware rendering with color-coded branch hierarchies. Looks great in both modes.
+
+### 📱 Mobile Responsive
+A fully adaptive layout — slide-in editor drawer, mobile-optimized toolbar, and quick-action markdown shortcuts — so the tool works wherever you are.
+
+---
+
+## Quick Start
 
 ### Prerequisites
-
 - Node.js 18+
-- npm or yarn
+- npm
 
 ### Installation
 
 ```bash
-# Install dependencies
+git clone https://github.com/lalulali/inklink.git
+cd inklink
 npm install
-
-# Start development server
 npm run dev
+```
 
-# Build for production
+Then open [http://localhost:3000](http://localhost:3000).
+
+### Build for Production
+
+```bash
 npm run build
+npm start
+```
 
-# Run tests
+### Run Tests
+
+```bash
 npm test
 ```
 
-## Markmap Reference
+---
 
-This project is inspired by and references the [Markmap](https://github.com/markmap/markmap) project. Markmap is used as a **reference implementation** for understanding D3.js patterns and SVG rendering approaches, not as a direct dependency.
+## How it Works
 
-Key areas where Markmap patterns were studied:
-- D3.js integration for SVG mind map rendering
-- Tree data structure approaches
-- Pan/zoom interaction patterns
-- SVG export techniques
-- Color scheme application to branches
+Paste or type any markdown document into the editor panel. Inklink parses the heading hierarchy (`#`, `##`, `###`, ...) and list indentation (spaces or tabs) into a tree structure, which D3.js renders as an SVG mind map in real time.
 
-The implementation uses custom code for:
-- Markdown parsing (indentation-based)
-- Layout algorithms (5 directions)
-- State management (command pattern)
-- File operations (platform adapters)
+The format is flexible — you can mix heading levels and bullet lists freely, and add descriptive notes on the next indented line to annotate any node:
+
+```markdown
+# Product Vision
+
+## Core Features
+
+- Editor
+    use WYSIWYG editor for a seamless writing experience
+- Visualization
+    real-time mind map rendering as you type
+
+## Design
+
+### Typography
+### Color System
+    primary, secondary, and semantic tokens
+
+## Roadmap
+
+### MVP
+- Core editor
+- Mind map renderer
+- Export to SVG
+
+### v1.0
+- Collaborative editing
+- Plugin system
+```
+
+Inklink renders this as a branching mind map rooted at **Product Vision**. Each heading becomes a branch, each list item becomes a leaf node, and indented lines beneath a node appear as its descriptive label — giving you full control over both structure and context without leaving your markdown.
+
+---
+
+## Keyboard Shortcuts
+
+### 🌐 Global
+
+| Shortcut | Action |
+|---|---|
+| `Cmd/Ctrl + O` | Open file |
+| `Cmd/Ctrl + S` | Save file |
+| `Cmd/Ctrl + Z` | Undo |
+| `Cmd/Ctrl + Shift + Z` | Redo |
+| `Cmd/Ctrl + E` | Open export dialog |
+| `Cmd/Ctrl + F` | Find node on canvas |
+| `Cmd/Ctrl + Shift + F` | Find in editor |
+| `Cmd/Ctrl + Shift + H` | Find & replace in editor |
+| `?` | Open keyboard reference |
+
+### 🗺️ Canvas
+
+| Shortcut | Action |
+|---|---|
+| `E` | Toggle editor panel |
+| `X` | Expand selected node (or all) |
+| `C` | Collapse selected node (or all) |
+| `Enter` | Toggle collapse on selected node |
+| `F` | Fit map to screen |
+| `R` | Reset zoom to 100% |
+| `Escape` | Deselect node / close canvas search |
+| `Cmd/Ctrl + ←` | Switch to right-to-left layout |
+| `Cmd/Ctrl + →` | Switch to left-to-right layout |
+| `Cmd/Ctrl + ↑ / ↓` | Switch to two-sided layout |
+| `Arrow keys` *(node selected)* | Navigate between nodes |
+| `Scroll` | Pan canvas |
+| `Alt/Cmd + Scroll` | Zoom in / out |
+
+### ✏️ Editor
+
+| Shortcut | Action |
+|---|---|
+| `Cmd/Ctrl + B` | Toggle **bold** on selection |
+| `Cmd/Ctrl + I` | Toggle *italic* on selection |
+| `Cmd/Ctrl + Shift + X` | Toggle ~~strikethrough~~ on selection |
+| `Enter` | Continue list / auto-indent |
+| `Shift + Enter` | Add note line under current item |
+| `Tab` | Indent list item |
+| `Backspace` | Smart dedent on list items |
+
+---
+
+## Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 with App Router |
+| Language | TypeScript (strict mode) |
+| Rendering | D3.js (SVG-based) |
+| Styling | Tailwind CSS + shadcn/ui |
+| Testing | Jest + fast-check (property-based) |
+
+---
+
+## Inspiration & References
+
+This project was inspired by [Markmap](https://github.com/markmap/markmap), which was studied as a reference implementation for D3.js rendering patterns, pan/zoom interaction, and SVG export techniques. Inklink's markdown parser, layout algorithms, state management, and file operations are fully custom implementations.
+
+---
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT — see [LICENSE](./LICENSE) for details.
+
+---
 
 ## Acknowledgments
 
-- [Markmap](https://github.com/markmap/markmap) - For D3.js rendering patterns and inspiration
-- [D3.js](https://d3js.org/) - For SVG visualization capabilities
-- [shadcn/ui](https://ui.shadcn.com/) - For component patterns
+- [Markmap](https://github.com/markmap/markmap) — For D3.js rendering patterns and inspiration
+- [D3.js](https://d3js.org/) — For SVG visualization
+- [shadcn/ui](https://ui.shadcn.com/) — For component patterns
+- [InfoWorld](https://www.infoworld.com/article/4146579/markdown-is-now-a-first-class-coding-language-deal-with-it.html) — For articulating what the developer community already knows: Markdown is a first-class language, and the tools should treat it that way

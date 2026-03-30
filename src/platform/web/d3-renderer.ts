@@ -539,14 +539,22 @@ export class D3Renderer implements RendererAdapter {
       .attr('role', 'button')
       .attr('aria-label', (d) => `Node: ${d.content}`)
       .attr('transform', (d) => {
-        // Start new nodes at their final position to avoid \"flying from (0,0)\"
-        // Or start them at their parent's position for a \"growth\" effect
+        // Find where this node should emerge from
         const targetPos = positions.get(d.id) || { x: 0, y: 0 };
-        if (d.parent) {
-          const parentPos = positions.get(d.parent.id) || targetPos;
-          return `translate(${parentPos.x}, ${parentPos.y})`;
+        
+        // RECURSIVE FLY-OUT:
+        // Walk up the tree to find the nearest ancestor that WAS already visible 
+        // in the previous layout. This makes everything grow out from the CLICKED node.
+        let ancestor = d.parent;
+        while (ancestor && !this.lastPositions?.has(ancestor.id)) {
+            ancestor = ancestor.parent;
         }
-        return `translate(${targetPos.x}, ${targetPos.y})`;
+
+        const startPos = (ancestor && this.lastPositions?.get(ancestor.id)) || 
+                         (d.parent && positions.get(d.parent.id)) || 
+                         targetPos;
+
+        return `translate(${startPos.x}, ${startPos.y})`;
       })
       .on('click', (event, d) => {
         event.stopPropagation();
@@ -609,7 +617,7 @@ export class D3Renderer implements RendererAdapter {
         lines.forEach((line, i) => {
           const tspan = textElement.append('tspan')
             .attr('x', x)
-            .attr('dy', i === 0 ? '0.35em' : '1.2em');
+            .attr('dy', i === 0 ? '0.35em' : '1.25em');
             
           const segments = thisRenderer.parseMarkdownLine(line);
           segments.forEach(seg => {
@@ -725,9 +733,9 @@ export class D3Renderer implements RendererAdapter {
       })
       .merge(indicator as any)
       .transition() // Use a new transition for enter/update
-      .duration(280) // Reduced animation duration
-      .ease(d3.easeCubicOut) // Apply easeCubicOut
-      .delay((d) => (d.depth || 0) * 30) // Depth-based stagger delay
+      .duration(this.config.animationDuration) 
+      .ease(d3.easeCubicOut) 
+      .delay((d) => (d.depth || 0) * this.config.staggerDelay) 
       .attr('cx', (d) => {
         if (thisRenderer.isVertical) return 0; // Centered horizontally for vertical layouts
         const width = (d as any).metadata?.width || 0;
@@ -858,9 +866,21 @@ export class D3Renderer implements RendererAdapter {
       .attr('stroke-opacity', 0)
       .attr('stroke-width', 2)
       .attr('d', (d) => {
-        const sPos = positions.get(d.source.id) || { x: 0, y: 0 };
+        // RECURSIVE FLY-OUT:
+        // Find the nearest ancestor that WAS already visible
+        let ancestor = d.source;
+        while (ancestor && !this.lastPositions?.has(ancestor.id)) {
+            ancestor = ancestor.parent;
+        }
+
+        const sPos = (ancestor && this.lastPositions?.get(ancestor.id)) || 
+                     positions.get(d.source.id) || 
+                     { x: 0, y: 0 };
+                     
         const sWidth = (d.source as any).metadata?.width || 0;
-        const tPos = positions.get(d.target.id) || { x: 0, y: 0 };
+        
+        // Target in initial state is just the source point (collapsed)
+        const tPos = sPos;
 
         // Use the same edge calculation as sideAwareDiagonal for the initial (collapsed) state
         let sX: number;
@@ -868,12 +888,15 @@ export class D3Renderer implements RendererAdapter {
 
         if (this.isVertical) {
           sX = sPos.x;
+          // Sub-nodes in vertical layouts grow from the top/bottom of parent
           const sHeight = (d.source as any).metadata?.height || 0;
-          sY = tPos.y < sPos.y ? sPos.y - sHeight / 2 : sPos.y + sHeight / 2;
+          const targetFinalPos = positions.get(d.target.id) || sPos;
+          sY = targetFinalPos.y < sPos.y ? sPos.y - sHeight / 2 : sPos.y + sHeight / 2;
           return `M${sX},${sY}C${sX},${sY} ${sX},${sY} ${sX},${sY}`;
         } else {
           if (!d.source.parent) {
-            sX = tPos.x < sPos.x ? sPos.x - sWidth / 2 : sPos.x + sWidth / 2;
+            const targetFinalPos = positions.get(d.target.id) || sPos;
+            sX = targetFinalPos.x < sPos.x ? sPos.x - sWidth / 2 : sPos.x + sWidth / 2;
           } else {
             const pPos = positions.get(d.source.parent.id) || { x: 0, y: 0 };
             sX = sPos.x < pPos.x ? sPos.x - sWidth : sPos.x + sWidth;

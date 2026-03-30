@@ -4,7 +4,8 @@
  * Dependencies: FileSystemAdapter interface, core types
  */
 
-import { FileSystemAdapter, FileContent } from '../adapters/filesystem-adapter';
+import { FileSystemAdapter, FileContent, SaveResult } from '../adapters/filesystem-adapter';
+import { globalState } from '@/core/state/state-manager';
 
 const RECENT_FILES_KEY = 'inklink_recent_files';
 
@@ -46,15 +47,29 @@ export class WebFileSystemAdapter implements FileSystemAdapter {
    * Save content to a file
    * Uses showSaveFilePicker if available, falls back to download
    */
-  async saveFile(content: string, path?: string, handle?: any): Promise<void> {
+  async saveFile(content: string, path?: string, handle?: any): Promise<SaveResult> {
     if (handle && 'createWritable' in handle) {
       try {
-        const writable = await handle.createWritable();
-        await writable.write(content);
-        await writable.close();
-        return;
+        // Task 14.1: Check and request permission with high-fidelity UI
+        const status = await handle.queryPermission({ mode: 'readwrite' });
+        
+        if (status === 'prompt') {
+          globalState.setState({ 
+            filePermissionRequest: { handle, path: path || 'mindmap.md' } 
+          });
+          return { status: 'deferred' };
+        }
+
+        if (status === 'granted') {
+          const writable = await handle.createWritable();
+          await writable.write(content);
+          await writable.close();
+          return { status: 'saved' };
+        }
+
+        // If 'denied', we'll fall back to 'Save As' below
       } catch (error) {
-        console.warn('Silent save failed, following to save as dialog', error);
+        console.warn('Direct save check failed:', error);
       }
     }
 
@@ -70,12 +85,24 @@ export class WebFileSystemAdapter implements FileSystemAdapter {
         const writable = await newHandle.createWritable();
         await writable.write(content);
         await writable.close();
+        
+        const file = await newHandle.getFile();
+        return {
+          status: 'saved',
+          file: {
+            content,
+            path: file.name,
+            handle: newHandle,
+          }
+        };
       } catch (error: any) {
-        if (error.name === 'AbortError') return;
+        if (error.name === 'AbortError') return { status: 'cancelled' };
         this.fallbackSaveFile(content, path || 'mindmap.md');
+        return { status: 'saved' }; // Download is considered saved in fallback world
       }
     } else {
       this.fallbackSaveFile(content, path || 'mindmap.md');
+      return { status: 'saved' };
     }
   }
 

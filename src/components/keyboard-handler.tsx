@@ -16,59 +16,67 @@ import { TreeNode } from '@/core/types';
  */
 export function KeyboardHandler() {
   useEffect(() => {
-    const findNode = (root: TreeNode | null, id: string): TreeNode | null => {
-      if (!root) return null;
-      if (root.id === id) return root;
-      for (const child of root.children) {
-        const found = findNode(child, id);
-        if (found) return found;
+    const findAndToggle = (root: TreeNode | null, id: string, collapsed: boolean): boolean => {
+      if (!root) return false;
+      if (root.id === id) {
+        if (root.collapsed === collapsed) return false;
+        root.collapsed = collapsed;
+        return true;
       }
-      return null;
+      return root.children.some(child => findAndToggle(child, id, collapsed));
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
+      const isShift = e.shiftKey;
       const target = e.target as HTMLElement;
+      const key = e.key.toLowerCase();
 
-      // --- CRITICAL GLOBAL SHORTCUTS (MUST BE ABOVE GORDS) ---
+      // --- 1. CRITICAL GLOBAL OVERRIDES (Handled regardless of focus) ---
       
-      // Search (Canvas Find Node) - Cmd+F
-      if (isMod && !e.shiftKey && e.key.toLowerCase() === 'f') {
+      // Search (Canvas Find Node) - Cmd+F (Not Shift)
+      if (isMod && !isShift && key === 'f') {
         e.preventDefault();
         globalState.setState({ isCanvasSearchOpen: true });
-        window.dispatchEvent(new CustomEvent('inklink-focus-canvas-search'));
         return;
       }
 
       // Search (Editor Find) - Cmd+Shift+F
-      if (isMod && e.shiftKey && e.key.toLowerCase() === 'f') {
+      if (isMod && isShift && key === 'f') {
         e.preventDefault();
         globalState.setState({ isEditorSearchOpen: true, isEditorReplaceOpen: false });
-        window.dispatchEvent(new CustomEvent('inklink-focus-editor-search'));
         return;
       }
 
       // Replace (Editor) - Cmd+Shift+H
-      if (isMod && e.shiftKey && e.key.toLowerCase() === 'h') {
+      if (isMod && isShift && key === 'h') {
         e.preventDefault();
         globalState.setState({ isEditorSearchOpen: true, isEditorReplaceOpen: true });
-        window.dispatchEvent(new CustomEvent('inklink-focus-editor-search'));
         return;
       }
 
-      // File Operations
-      if (isMod && e.key === 's') {
+      // File: Save - Cmd/Ctrl + S
+      if (isMod && key === 's') {
         e.preventDefault();
-        console.debug('Command: Save');
+        window.dispatchEvent(new CustomEvent('inklink-save-file'));
         return;
       }
-      if (isMod && e.key === 'o') {
+
+      // File: Open - Cmd/Ctrl + O
+      if (isMod && key === 'o') {
         e.preventDefault();
-        console.debug('Command: Open');
+        window.dispatchEvent(new CustomEvent('inklink-open-file'));
+        return;
+      }
+
+      // Export - Cmd/Ctrl + E
+      if (isMod && key === 'e') {
+        e.preventDefault();
+        globalState.setState({ isExportDialogOpen: true });
         return;
       }
       
-      // Ignore other keystrokes when editing text in CodeMirror or other inputs
+      // --- 2. FOCUS PROTECTION ---
       const isEditorOrInput = target.tagName === 'INPUT' || 
                               target.tagName === 'TEXTAREA' || 
                               target.isContentEditable ||
@@ -76,27 +84,77 @@ export function KeyboardHandler() {
 
       if (isEditorOrInput) return;
 
-      // Interaction: Space or Enter to toggle collapse
-      if (e.key === ' ' || e.key === 'Enter') {
+      // --- 3. CANVAS-SPECIFIC INTERNALS ---
+
+      // Toggle Editor - 'E'
+      if (!isMod && key === 'e') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('inklink-editor-toggle'));
+      }
+
+      // Expand/Collapse - 'X' / 'C'
+      if (!isMod && (key === 'x' || key === 'c')) {
+         const state = globalState.getState();
+         if (!state.tree) return;
+         e.preventDefault();
+         const isCollapse = key === 'c';
+
+         if (state.selectedNode) {
+            // Target specific node
+            if (findAndToggle(state.tree, state.selectedNode, isCollapse)) {
+               globalState.setState({ tree: { ...state.tree }, isDirty: true });
+            }
+         } else {
+            // Target ALL nodes if no selection
+            const recursiveSet = (node: any) => {
+               node.collapsed = isCollapse;
+               if (node.children) node.children.forEach(recursiveSet);
+            };
+            const newTree = { ...state.tree };
+            recursiveSet(newTree);
+            globalState.setState({ tree: newTree, isDirty: true });
+         }
+      }
+
+      // Layout Controls - Cmd/Ctrl + Arrows
+      if (isMod) {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          globalState.setState({ layoutDirection: 'right-to-left' });
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          globalState.setState({ layoutDirection: 'left-to-right' });
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          globalState.setState({ layoutDirection: 'two-sided' });
+        }
+      }
+
+      // Selection: Enter to toggle (Legacy)
+      if (e.key === 'Enter') {
         const state = globalState.getState();
         if (state.selectedNode && state.tree) {
-          const node = findNode(state.tree, state.selectedNode);
-          if (node && node.children.length > 0) {
-            e.preventDefault();
-            node.collapsed = !node.collapsed;
-            // Force re-render by creating a new tree object
+          const isCurrentlyCollapsed = (node: any): boolean => {
+              if (node.id === state.selectedNode) return node.collapsed;
+              return node.children.some(isCurrentlyCollapsed);
+          };
+          const targetState = !isCurrentlyCollapsed(state.tree);
+          if (findAndToggle(state.tree, state.selectedNode, targetState)) {
             globalState.setState({ tree: { ...state.tree }, isDirty: true });
-            return;
           }
         }
       }
 
       // View Controls
-      if (e.key === 'f' && !isMod) {
-        console.debug('Command: Fit to Screen');
+      if (key === 'f' && !isMod) {
+        window.dispatchEvent(new CustomEvent('inklink-fit-view'));
       }
-      if (e.key === 'r' && !isMod) {
-        console.debug('Command: Reset View');
+      if (key === 'r' && !isMod) {
+        window.dispatchEvent(new CustomEvent('inklink-reset-view'));
+      }
+      if (e.key === '?' && !isMod) {
+        e.preventDefault();
+        globalState.setState({ isHelpDialogOpen: true });
       }
 
       // Interaction: Escape to unselect
@@ -105,12 +163,17 @@ export function KeyboardHandler() {
         if (state.selectedNode) {
           globalState.setState({ selectedNode: null });
         }
+        if (state.isCanvasSearchOpen) {
+          globalState.setState({ isCanvasSearchOpen: false });
+        }
       }
-      
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   return null; // Side-effect only component

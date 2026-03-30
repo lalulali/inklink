@@ -6,737 +6,967 @@
 
 "use client";
 
-import React from 'react';
-import CodeMirror, { EditorView, keymap, Decoration, DecorationSet, ViewUpdate, ViewPlugin } from '@uiw/react-codemirror';
-import { Prec, EditorSelection, RangeSetBuilder } from '@codemirror/state';
-import { markdown as mdLang } from '@codemirror/lang-markdown';
-import { languages } from '@codemirror/language-data';
-import { oneDark } from '@codemirror/theme-one-dark';
-import { tags as t } from '@lezer/highlight';
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { indentWithTab } from '@codemirror/commands';
-import { globalState } from '@/core/state/state-manager';
-import { createMarkdownParser } from '@/core/parser/markdown-parser';
-import { ColorManager } from '@/core/theme/color-manager';
-import { getRandomFunWord } from '@/core/constants/branding';
-import { cn } from '@/lib/utils';
-import { useTheme } from 'next-themes';
-import { search, getSearchQuery, findNext } from '@codemirror/search';
-import { MarkdownSearchPanel } from './markdown-search-panel';
+import React from "react";
+import CodeMirror, {
+	EditorView,
+	keymap,
+	Decoration,
+	DecorationSet,
+	ViewUpdate,
+	ViewPlugin,
+} from "@uiw/react-codemirror";
+import { Prec, EditorSelection, RangeSetBuilder } from "@codemirror/state";
+import { markdown as mdLang } from "@codemirror/lang-markdown";
+import { languages } from "@codemirror/language-data";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { tags as t } from "@lezer/highlight";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { indentWithTab } from "@codemirror/commands";
+import { globalState } from "@/core/state/state-manager";
+import { createMarkdownParser } from "@/core/parser/markdown-parser";
+import { ColorManager } from "@/core/theme/color-manager";
+import { getRandomFunWord } from "@/core/constants/branding";
+import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
+import { search, getSearchQuery, findNext } from "@codemirror/search";
+import { MarkdownSearchPanel } from "./markdown-search-panel";
+import { useFileDrop } from "@/hooks/use-file-drop";
 
 // Custom theme to match Inklink aesthetic
 const inklinkTheme = EditorView.theme({
-  "&": {
-    height: "100%",
-    fontSize: "14px",
-    backgroundColor: "transparent !important",
-    outline: "none !important"
-  },
-  "&.cm-focused": {
-    outline: "none !important"
-  },
-  ".cm-scroller": {
-    height: "100% !important",
-    outline: "none !important"
-  },
-  ".cm-gutters": {
-    backgroundColor: "transparent",
-    border: "none",
-    color: "#6b7280", // text-muted-foreground
-    display: "none" // Keep it clean by default
-  },
-  ".cm-content": {
-    fontFamily: "var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-    padding: "1rem"
-  },
-  "&.cm-focused .cm-cursor": {
-    borderLeftColor: "hsl(var(--primary))"
-  },
-  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
-    backgroundColor: "hsl(var(--primary) / 0.4) !important"
-  },
-  ".cm-activeLine": {
-    backgroundColor: "hsl(var(--muted) / 0.3)"
-  },
-  ".cm-searchMatch": {
-    backgroundColor: "#ffd33d66 !important", // VS Code Yellow
-    border: "1px solid #ffd33d88"
-  },
-  ".cm-searchMatch.cm-searchMatch-selected": {
-    backgroundColor: "#f97316 !important", // More amber for focus
-  }
+	"&": {
+		height: "100%",
+		fontSize: "14px",
+		backgroundColor: "transparent !important",
+		outline: "none !important",
+	},
+	"&.cm-focused": {
+		outline: "none !important",
+	},
+	".cm-scroller": {
+		height: "100% !important",
+		outline: "none !important",
+	},
+	".cm-gutters": {
+		backgroundColor: "transparent !important",
+		border: "none !important",
+		color: "#6b7280", // text-muted-foreground
+		userSelect: "none",
+	},
+	".cm-activeLineGutter": {
+		backgroundColor: "transparent !important",
+	},
+	".cm-foldGutter": {
+		padding: "0 4px",
+		opacity: "0.5",
+		transition: "opacity 0.2s",
+	},
+	".cm-foldGutter:hover": {
+		opacity: "1",
+	},
+	".cm-foldPlaceholder": {
+		backgroundColor: "transparent",
+		border: "none",
+		color: "hsl(var(--primary))",
+		padding: "0 4px",
+	},
+	".cm-content": {
+		fontFamily:
+			"var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+		padding: "0.5rem",
+	},
+	"&.cm-focused .cm-cursor": {
+		borderLeftColor: "hsl(var(--primary))",
+	},
+	"&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection":
+		{
+			backgroundColor: "hsl(var(--primary) / 0.4) !important",
+		},
+	".cm-activeLine": {
+		backgroundColor: "transparent !important",
+	},
+	".cm-searchMatch": {
+		backgroundColor: "#ffd33d66 !important", // VS Code Yellow
+		border: "1px solid #ffd33d88",
+	},
+	".cm-searchMatch.cm-searchMatch-selected": {
+		backgroundColor: "#f97316 !important", // More amber for focus
+	},
 });
 
 // Colorful light mode highlighting (OneDark inspired)
 const lightColorfulHighlightStyle = HighlightStyle.define([
-  { tag: t.heading1, color: "#e45649", fontWeight: "bold" },
-  { tag: t.heading2, color: "#d19a66", fontWeight: "bold" },
-  { tag: t.heading3, color: "#986801", fontWeight: "bold" },
-  { tag: [t.keyword, t.operator, t.typeName], color: "#a626a4" },
-  { tag: [t.string, t.meta, t.regexp], color: "#50a14f" },
-  { tag: [t.variableName, t.propertyName], color: "#4078f2" },
-  { tag: [t.className, t.constant(t.variableName)], color: "#986801" },
-  { tag: t.comment, color: "#a0a1a7", fontStyle: "italic" },
-  { tag: t.strong, fontWeight: "bold" },
-  { tag: t.emphasis, fontStyle: "italic" },
-  { tag: t.link, color: "#4078f2", textDecoration: "underline" },
-  { tag: t.url, color: "#0184bc" },
-  { tag: t.monospace, color: "#50a14f" },
+	{ tag: t.heading1, color: "#e45649", fontWeight: "bold" },
+	{ tag: t.heading2, color: "#d19a66", fontWeight: "bold" },
+	{ tag: t.heading3, color: "#986801", fontWeight: "bold" },
+	{ tag: [t.keyword, t.operator, t.typeName], color: "#a626a4" },
+	{ tag: [t.string, t.meta, t.regexp], color: "#50a14f" },
+	{ tag: [t.variableName, t.propertyName], color: "#4078f2" },
+	{ tag: [t.className, t.constant(t.variableName)], color: "#986801" },
+	{ tag: t.comment, color: "#a0a1a7", fontStyle: "italic" },
+	{ tag: t.strong, fontWeight: "bold" },
+	{ tag: t.emphasis, fontStyle: "italic" },
+	{ tag: t.link, color: "#4078f2", textDecoration: "underline" },
+	{ tag: t.url, color: "#0184bc" },
+	{ tag: t.monospace, color: "#50a14f" },
 ]);
 
 export function MarkdownEditor() {
-  const [state, setState] = React.useState(globalState.getState());
-  const [value, setValue] = React.useState(state.markdown);
-  const { resolvedTheme } = useTheme();
-  const parser = React.useMemo(() => createMarkdownParser(), []);
-  const editorRef = React.useRef<any>(null);
-  const [editorView, setEditorView] = React.useState<EditorView | null>(null);
-  const isDark = resolvedTheme === 'dark';
+	const [state, setState] = React.useState(globalState.getState());
+	const [value, setValue] = React.useState(state.markdown);
+	const { resolvedTheme } = useTheme();
+	const parser = React.useMemo(() => createMarkdownParser(), []);
+	const editorRef = React.useRef<any>(null);
+	const [editorView, setEditorView] = React.useState<EditorView | null>(null);
+	const isDark = resolvedTheme === "dark";
 
-  // Function to update search counts and index based on current editor state
-  const updateSearchStats = React.useCallback((view: EditorView) => {
-    const { state: editorState } = view;
-    const s = globalState.getState();
-    const queryStr = s.editorSearchQuery;
-    
-    if (!queryStr) {
-      globalState.setState({ editorSearchResultsCount: 0, editorSearchCurrentIndex: -1 });
-      return { count: 0, currentIndex: -1, firstMatch: null };
-    }
+	// Function to update search counts and index based on current editor state
+	const updateSearchStats = React.useCallback((view: EditorView) => {
+		const { state: editorState } = view;
+		const s = globalState.getState();
+		const queryStr = s.editorSearchQuery;
 
-    const docText = editorState.doc.toString();
-    const matches: {from: number, to: number}[] = [];
-    
-    try {
-        if (s.editorSearchRegex) {
-            const flags = s.editorSearchCaseSensitive ? 'g' : 'gi';
-            const re = new RegExp(queryStr, flags);
-            let match;
-            while ((match = re.exec(docText)) !== null) {
-                matches.push({ from: match.index, to: match.index + match[0].length });
-                if (match.index === re.lastIndex) re.lastIndex++; // Prevent infinite loops
-            }
-        } else {
-            const searchLower = s.editorSearchCaseSensitive ? queryStr : queryStr.toLowerCase();
-            const textLower = s.editorSearchCaseSensitive ? docText : docText.toLowerCase();
-            let pos = 0;
-            while ((pos = textLower.indexOf(searchLower, pos)) !== -1) {
-                matches.push({ from: pos, to: pos + searchLower.length });
-                pos += 1; // OVERLAPPING SEARCH: Only move 1 char forward
-            }
-        }
-    } catch (e) {
-        // Invalid regex, etc.
-    }
+		if (!queryStr) {
+			globalState.setState({
+				editorSearchResultsCount: 0,
+				editorSearchCurrentIndex: -1,
+			});
+			return { count: 0, currentIndex: -1, firstMatch: null };
+		}
 
-    let currentIndex = -1;
-    const selection = editorState.selection.main;
-    
-    matches.forEach((match, idx) => {
-        if (match.from === selection.from && match.to === selection.to) {
-            currentIndex = idx;
-        }
-    });
+		const docText = editorState.doc.toString();
+		const matches: { from: number; to: number }[] = [];
 
-    globalState.setState({ editorSearchResultsCount: matches.length, editorSearchCurrentIndex: currentIndex });
-    return { count: matches.length, currentIndex, firstMatch: matches[0] || null };
-  }, []);
+		try {
+			if (s.editorSearchRegex) {
+				const flags = s.editorSearchCaseSensitive ? "g" : "gi";
+				const re = new RegExp(queryStr, flags);
+				let match;
+				while ((match = re.exec(docText)) !== null) {
+					matches.push({
+						from: match.index,
+						to: match.index + match[0].length,
+					});
+					if (match.index === re.lastIndex) re.lastIndex++; // Prevent infinite loops
+				}
+			} else {
+				const searchLower = s.editorSearchCaseSensitive
+					? queryStr
+					: queryStr.toLowerCase();
+				const textLower = s.editorSearchCaseSensitive
+					? docText
+					: docText.toLowerCase();
+				let pos = 0;
+				while ((pos = textLower.indexOf(searchLower, pos)) !== -1) {
+					matches.push({ from: pos, to: pos + searchLower.length });
+					pos += 1; // OVERLAPPING SEARCH: Only move 1 char forward
+				}
+			}
+		} catch (e) {
+			// Invalid regex, etc.
+		}
 
-  // Update counts whenever editor query or modifiers change
-  React.useEffect(() => {
-    if (editorView) {
-      const { count, currentIndex, firstMatch } = updateSearchStats(editorView);
-      
-      // Auto-jump to nearest match if the current selection is no longer valid
-      if (state.isEditorSearchOpen && state.editorSearchQuery && currentIndex === -1 && count > 0 && firstMatch) {
-        editorView.dispatch({
-            selection: { anchor: firstMatch.from, head: firstMatch.to },
-            scrollIntoView: true,
-            userEvent: 'select.search'
-        });
-      }
-    }
-  }, [editorView, state.editorSearchQuery, state.editorSearchCaseSensitive, state.editorSearchWholeWord, state.editorSearchRegex, state.isEditorSearchOpen, updateSearchStats]);
+		let currentIndex = -1;
+		const selection = editorState.selection.main;
 
-  const searchHighlightStyle = Decoration.mark({ class: 'cm-searchMatch' });
+		matches.forEach((match, idx) => {
+			if (match.from === selection.from && match.to === selection.to) {
+				currentIndex = idx;
+			}
+		});
 
-  const searchHighlightPlugin = React.useMemo(() => ViewPlugin.fromClass(class {
-    decorations: DecorationSet;
+		globalState.setState({
+			editorSearchResultsCount: matches.length,
+			editorSearchCurrentIndex: currentIndex,
+		});
+		return {
+			count: matches.length,
+			currentIndex,
+			firstMatch: matches[0] || null,
+		};
+	}, []);
 
-    constructor(view: EditorView) {
-      this.decorations = this.getDecorations(view);
-    }
+	// Update counts whenever editor query or modifiers change
+	React.useEffect(() => {
+		if (editorView) {
+			const { count, currentIndex, firstMatch } = updateSearchStats(editorView);
 
-    update(update: ViewUpdate) {
-      if (update.docChanged || update.selectionSet || update.transactions.length > 0) {
-        this.decorations = this.getDecorations(update.view);
-      }
-    }
+			// Auto-jump to nearest match if the current selection is no longer valid
+			if (
+				state.isEditorSearchOpen &&
+				state.editorSearchQuery &&
+				currentIndex === -1 &&
+				count > 0 &&
+				firstMatch
+			) {
+				editorView.dispatch({
+					selection: { anchor: firstMatch.from, head: firstMatch.to },
+					scrollIntoView: true,
+					userEvent: "select.search",
+				});
+			}
+		}
+	}, [
+		editorView,
+		state.editorSearchQuery,
+		state.editorSearchCaseSensitive,
+		state.editorSearchWholeWord,
+		state.editorSearchRegex,
+		state.isEditorSearchOpen,
+		updateSearchStats,
+	]);
 
-    getDecorations(view: EditorView) {
-      const s = globalState.getState();
-      const queryStr = s.editorSearchQuery;
-      if (!queryStr) return Decoration.none;
-      
-      const docText = view.state.doc.toString();
-      const builder = new RangeSetBuilder<Decoration>();
-      const selection = view.state.selection.main;
-      
-      const addMatch = (from: number, to: number) => {
-        if (from === selection.from && to === selection.to) return;
-        builder.add(from, to, searchHighlightStyle);
-      };
+	const searchHighlightStyle = Decoration.mark({ class: "cm-searchMatch" });
 
-      try {
-        if (s.editorSearchRegex) {
-            const flags = s.editorSearchCaseSensitive ? 'g' : 'gi';
-            const re = new RegExp(queryStr, flags);
-            let match;
-            while ((match = re.exec(docText)) !== null) {
-                addMatch(match.index, match.index + match[0].length);
-                if (match.index === re.lastIndex) re.lastIndex++;
-            }
-        } else {
-            const searchLower = s.editorSearchCaseSensitive ? queryStr : queryStr.toLowerCase();
-            const textLower = s.editorSearchCaseSensitive ? docText : docText.toLowerCase();
-            let pos = 0;
-            while ((pos = textLower.indexOf(searchLower, pos)) !== -1) {
-                addMatch(pos, pos + searchLower.length);
-                pos += 1;
-            }
-        }
-      } catch (e) {}
-      
-      return builder.finish();
-    }
-  }, {
-    decorations: v => v.decorations
-  }), []);
+	const searchHighlightPlugin = React.useMemo(
+		() =>
+			ViewPlugin.fromClass(
+				class {
+					decorations: DecorationSet;
 
-  const lastSentMarkdownRef = React.useRef(state.markdown);
+					constructor(view: EditorView) {
+						this.decorations = this.getDecorations(view);
+					}
 
-  React.useEffect(() => {
-    return globalState.subscribe(s => {
-      setState(s);
-      
-      // Only sync global markdown back to local editor if it came from an EXTERNAL source 
-      // (like file load or canvas edit) and doesn't match what we already have or just sent.
-      const isFromMe = s.markdown === lastSentMarkdownRef.current;
-      
-      if (!isFromMe) {
-        const currentDoc = (editorRef.current as any)?.view?.state.doc.toString();
-        if (s.markdown !== currentDoc) {
-          setValue(s.markdown);
-          // Sync our tracking ref too so we don't trigger again
-          lastSentMarkdownRef.current = s.markdown;
-        }
-      }
-    });
-  }, []); // Remove value dependency to avoid re-subscription overhead
+					update(update: ViewUpdate) {
+						if (
+							update.docChanged ||
+							update.selectionSet ||
+							update.transactions.length > 0
+						) {
+							this.decorations = this.getDecorations(update.view);
+						}
+					}
 
-  const wasMultiRootRef = React.useRef(false);
-  const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+					getDecorations(view: EditorView) {
+						const s = globalState.getState();
+						const queryStr = s.editorSearchQuery;
+						if (!queryStr) return Decoration.none;
 
-  const processUpdate = React.useCallback((val: string) => {
-    lastSentMarkdownRef.current = val;
-    try {
-      const state = globalState.getState();
-      const effectivelyEmpty = val
-        .split('\n')
-        .map(line => line.trim().replace(/^(#+|-|\*|\+|\d+\.)\s*/, ''))
-        .join('')
-        .trim().length === 0;
+						const docText = view.state.doc.toString();
+						const builder = new RangeSetBuilder<Decoration>();
+						const selection = view.state.selection.main;
 
-      if (effectivelyEmpty) {
-        globalState.setState({ markdown: val, tree: null, isDirty: true });
-        wasMultiRootRef.current = false;
-        return;
-      }
-      
-      const fileName = state.currentFile?.name?.replace(/\.[^/.]+$/, "");
-      
-      // Peek preview of orphans count to see if we'll need a virtual root
-      // Or just parse once and see if we get a virtual_root
-      let tree = parser.parse(val, fileName || state.currentFallbackRootName);
-      const isMultiRoot = tree.id === 'virtual_root';
+						const addMatch = (from: number, to: number) => {
+							if (from === selection.from && to === selection.to) return;
+							builder.add(from, to, searchHighlightStyle);
+						};
 
-      // If we just became multi-root and have no filename, pick a NEW fun word
-      if (isMultiRoot && !wasMultiRootRef.current && !fileName) {
-        const newName = getRandomFunWord();
-        // Re-parse with the new name for immediate effect
-        tree = parser.parse(val, newName);
-        globalState.setState({ 
-          markdown: val, 
-          tree, 
-          isDirty: true, 
-          currentFallbackRootName: newName 
-        });
-      } else {
-        lastSentMarkdownRef.current = val;
-        globalState.setState({ markdown: val, tree, isDirty: true });
-      }
+						try {
+							if (s.editorSearchRegex) {
+								const flags = s.editorSearchCaseSensitive ? "g" : "gi";
+								const re = new RegExp(queryStr, flags);
+								let match;
+								while ((match = re.exec(docText)) !== null) {
+									addMatch(match.index, match.index + match[0].length);
+									if (match.index === re.lastIndex) re.lastIndex++;
+								}
+							} else {
+								const searchLower = s.editorSearchCaseSensitive
+									? queryStr
+									: queryStr.toLowerCase();
+								const textLower = s.editorSearchCaseSensitive
+									? docText
+									: docText.toLowerCase();
+								let pos = 0;
+								while ((pos = textLower.indexOf(searchLower, pos)) !== -1) {
+									addMatch(pos, pos + searchLower.length);
+									pos += 1;
+								}
+							}
+						} catch (e) {}
 
-      wasMultiRootRef.current = isMultiRoot;
-      ColorManager.assignBranchColors(tree);
-    } catch (err) {
-      globalState.setState({ markdown: val, tree: null, isDirty: true });
-      wasMultiRootRef.current = false;
-    }
-  }, [parser]);
+						return builder.finish();
+					}
+				},
+				{
+					decorations: (v) => v.decorations,
+				},
+			),
+		[],
+	);
 
-  const lastParseTimeRef = React.useRef<number>(0);
+	const lastSentMarkdownRef = React.useRef(state.markdown);
 
-  const onChange = React.useCallback((val: string) => {
-    setValue(val);
-    
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
+	React.useEffect(() => {
+		return globalState.subscribe((s) => {
+			setState(s);
 
-    const now = Date.now();
-    // Immediate parse if it's been more than 500ms since last parse (start of typing)
-    if (now - lastParseTimeRef.current > 500) {
-      processUpdate(val);
-      lastParseTimeRef.current = now;
-    } else {
-      debounceTimerRef.current = setTimeout(() => {
-        processUpdate(val);
-        lastParseTimeRef.current = Date.now();
-      }, 50); // Aggressive 50ms debounce for near real-time feel
-    }
-  }, [processUpdate]);
+			// Only sync global markdown back to local editor if it came from an EXTERNAL source
+			// (like file load or canvas edit) and doesn't match what we already have or just sent.
+			const isFromMe = s.markdown === lastSentMarkdownRef.current;
 
-  // Handle programmatic reveals (from canvas double click)
-  React.useEffect(() => {
-    const handleReveal = (e: any) => {
-      const { content, nodeId } = e.detail;
-      if (!editorRef.current?.view) return;
-      
-      const view = editorRef.current.view;
-      const state = view.state;
-      
-      // Attempt 1: If ID is in "line_N" format, jump directly to line
-      if (nodeId && nodeId.startsWith('line_')) {
-        const lineIdx = parseInt(nodeId.replace('line_', ''));
-        // CodeMirror lines are 1-based
-        const lineNum = lineIdx + 1;
-        
-        if (lineNum <= state.doc.lines) {
-          try {
-            const line = state.doc.line(lineNum);
-            // Search for content within that line or nearby
-            const findIndex = line.text.indexOf(content);
-            const anchor = findIndex !== -1 ? line.from + findIndex : line.from;
-            const head = findIndex !== -1 ? anchor + content.length : line.to;
+			if (!isFromMe) {
+				const currentDoc = (
+					editorRef.current as any
+				)?.view?.state.doc.toString();
+				if (s.markdown !== currentDoc) {
+					setValue(s.markdown);
+					// Sync our tracking ref too so we don't trigger again
+					lastSentMarkdownRef.current = s.markdown;
+				}
+			}
+		});
+	}, []); // Remove value dependency to avoid re-subscription overhead
 
-            view.dispatch({
-              selection: { anchor, head },
-              scrollIntoView: true,
-              userEvent: 'select.reveal'
-            });
-            
-            view.focus();
-            return;
-          } catch (e) {
-            console.error('Failed to jump to line by index:', e);
-          }
-        }
-      }
+	const wasMultiRootRef = React.useRef(false);
+	const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
-      // Attempt 2: Fallback to global string search if index is invalid or virtual
-      const doc = state.doc.toString();
-      const index = doc.indexOf(content);
-      if (index !== -1) {
-        view.dispatch({
-          selection: { anchor: index, head: index + content.length },
-          scrollIntoView: true,
-          userEvent: 'select.reveal'
-        });
-        view.focus();
-      }
-    };
+	/**
+	 * Helper to sync collapsed states from old tree to new tree
+	 */
+	const syncCollapsedStates = (oldTree: any, newTree: any) => {
+		if (!oldTree || !newTree) return;
 
-    window.addEventListener('inklink-editor-reveal', handleReveal);
-    return () => window.removeEventListener('inklink-editor-reveal', handleReveal);
-  }, []);
+		// 1. Build a map of existing states
+		const states = new Map<string, boolean>();
+		const traverseOld = (n: any) => {
+			states.set(n.id, n.collapsed);
+			n.children?.forEach(traverseOld);
+		};
+		traverseOld(oldTree);
 
-  // Handle "Select All Matches" (Alt+Enter) from search panel
-  React.useEffect(() => {
-    const handleSelectAll = () => {
-      if (!editorView) return;
-      const { state } = editorView;
-      const query = getSearchQuery(state);
-      if (!query || query.search === '') return;
+		// 2. Apply to new tree
+		const traverseNew = (n: any) => {
+			if (states.has(n.id)) {
+				n.collapsed = states.get(n.id);
+			}
+			n.children?.forEach(traverseNew);
+		};
+		traverseNew(newTree);
+	};
 
-      const cursor = query.getCursor(state.doc);
-      const ranges = [];
-      
-      while (true) {
-        const { done, value } = cursor.next();
-        if (done) break;
-        ranges.push(EditorSelection.range(value.from, value.to));
-      }
+	/**
+	 * Helper to ensurefocused node's path is expanded
+	 */
+	const expandPathToLine = (root: any, lineIndex: number) => {
+		const targetId = `line_${lineIndex}`;
+		const expand = (n: any): boolean => {
+			if (n.id === targetId) return true;
+			if (!n.children) return false;
 
-      if (ranges.length > 0) {
-        editorView.dispatch({
-            selection: EditorSelection.create(ranges),
-            scrollIntoView: true
-        });
-        editorView.focus();
-      }
-    };
+			let found = false;
+			for (const child of n.children) {
+				if (expand(child)) {
+					found = true;
+					break;
+				}
+			}
 
-    window.addEventListener('inklink-editor-select-all-search', handleSelectAll);
-    return () => window.removeEventListener('inklink-editor-select-all-search', handleSelectAll);
-  }, [editorView]);
+			if (found) {
+				n.collapsed = false;
+			}
+			return found;
+		};
+		expand(root);
+	};
 
-  // Clean up timer on unmount
-  React.useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
+	const processUpdate = React.useCallback(
+		(val: string) => {
+			lastSentMarkdownRef.current = val;
+			try {
+				const state = globalState.getState();
+				const effectivelyEmpty =
+					val
+						.split("\n")
+						.map((line) => line.trim().replace(/^(#+|-|\*|\+|\d+\.)\s*/, ""))
+						.join("")
+						.trim().length === 0;
 
-  // Handle clicking on the empty area of the editor to focus it
-  const handleContainerClick = () => {
-    if (editorRef.current?.view) {
-      editorRef.current.view.focus();
-    }
-  };
+				if (effectivelyEmpty) {
+					globalState.setState({ markdown: val, tree: null, isDirty: true });
+					wasMultiRootRef.current = false;
+					return;
+				}
 
-  // Keymap for "Linter Level" behaviors
-  const customKeymap = keymap.of([
-    {
-      key: "Mod-b",
-      run: (view) => {
-        const { state } = view;
-        const main = state.selection.main;
-        const text = state.sliceDoc(main.from, main.to);
-        
-        // Toggle logic
-        if (text.startsWith('**') && text.endsWith('**')) {
-          const insert = text.slice(2, -2);
-          view.dispatch({
-            changes: { from: main.from, to: main.to, insert },
-            selection: { anchor: main.from, head: main.to - 4 } // Adjust selection
-          });
-        } else {
-          const insert = `**${text}**`;
-          view.dispatch({
-            changes: { from: main.from, to: main.to, insert },
-            selection: { anchor: main.from + 2, head: main.to + 2 }
-          });
-        }
-        return true;
-      }
-    },
-    {
-      key: "Mod-i",
-      run: (view) => {
-        const { state } = view;
-        const main = state.selection.main;
-        const text = state.sliceDoc(main.from, main.to);
-        
-        // Toggle logic
-        if (text.startsWith('*') && text.endsWith('*') && !text.startsWith('**')) {
-          const insert = text.slice(1, -1);
-          view.dispatch({
-            changes: { from: main.from, to: main.to, insert },
-            selection: { anchor: main.from, head: main.to - 2 }
-          });
-        } else {
-          const insert = `*${text}*`;
-          view.dispatch({
-            changes: { from: main.from, to: main.to, insert },
-            selection: { anchor: main.from + 1, head: main.to + 1 }
-          });
-        }
-        return true;
-      }
-    },
-    {
-      key: "Mod-Shift-x",
-      run: (view) => {
-        const { state } = view;
-        const main = state.selection.main;
-        const text = state.sliceDoc(main.from, main.to);
-        
-        // Toggle logic
-        if (text.startsWith('~~') && text.endsWith('~~')) {
-          const insert = text.slice(2, -2);
-          view.dispatch({
-            changes: { from: main.from, to: main.to, insert },
-            selection: { anchor: main.from, head: main.to - 4 }
-          });
-        } else {
-          const insert = `~~${text}~~`;
-          view.dispatch({
-            changes: { from: main.from, to: main.to, insert },
-            selection: { anchor: main.from + 2, head: main.to + 2 }
-          });
-        }
-        return true;
-      }
-    },
-    {
-      key: "Shift-Enter",
-      run: (view) => {
-        const { state } = view;
-        const main = state.selection.main;
-        if (!main.empty) return false;
-        
-        const line = state.doc.lineAt(main.head);
-        const text = line.text;
-        
-        // Match markers at the START of the physical line
-        const match = /^(\s*)(?:(?:\*|-|\+|\d+\.|#+)\s+)/.exec(text);
-        let indent = "";
-        
-        if (match) {
-          // Rule: If we are on a marker line, Shift-Enter indents to the text start
-          indent = " ".repeat(match[0].length);
-        } else {
-          // Rule: If we are already on an indented line (no marker), just preserve indentation
-          const wsMatch = /^(\s*)/.exec(text);
-          indent = wsMatch ? wsMatch[0] : "";
-        }
-        
-        view.dispatch({
-          changes: { from: main.head, insert: "\n" + indent },
-          selection: { anchor: main.head + 1 + indent.length },
-          scrollIntoView: true
-        });
-        return true;
-      }
-    },
-    {
-      key: "Enter",
-      run: (view) => {
-        const { state } = view;
-        const head = state.selection.main.head;
-        const line = state.doc.lineAt(head);
-        const text = line.text;
-        
-        // 1. Match empty markers for outdenting (existing behavior)
-        const emptyMarkerMatch = text.match(/^(\s*)(\*|-|\+|\d+\.)\s*$/);
-        if (emptyMarkerMatch) {
-          const indent = emptyMarkerMatch[1];
-          if (indent.length >= 2) {
-            const newIndent = indent.substring(2);
-            const marker = emptyMarkerMatch[2];
-            view.dispatch({
-              changes: { from: line.from, to: line.to, insert: newIndent + marker + " " },
-              selection: { anchor: line.from + newIndent.length + marker.length + 1 }
-            });
-            return true;
-          } else {
-            view.dispatch({
-              changes: { from: line.from, to: line.to, insert: "" },
-              selection: { anchor: line.from }
-            });
-            return false;
-          }
-        }
+				const fileName = state.currentFile?.name?.replace(/\.[^/.]+$/, "");
 
-        // 2. Auto-continue list behavior (Direct marker on current line)
-        const continueMatch = text.match(/^(\s*)(\*|-|\+|\d+\.)\s+(.+)$/);
-        if (continueMatch) {
-          const indent = continueMatch[1];
-          let marker = continueMatch[2];
-          if (/^\d+\.$/.test(marker)) {
-            marker = (parseInt(marker) + 1) + ".";
-          }
-          const prefix = `\n${indent}${marker} `;
-          view.dispatch({
-            changes: { from: head, insert: prefix },
-            selection: { anchor: head + prefix.length }
-          });
-          return true;
-        }
+				// Parse new tree
+				let tree = parser.parse(val, fileName || state.currentFallbackRootName);
+				const isMultiRoot = tree.id === "virtual_root";
 
-        // 3. New behavior: Shift-Enter was used previously (current line is purely indented)
-        // If the current line is indented but has NO marker, we look UP to find the parent marker
-        const pureIndentMatch = /^(\s+)[^\s\*\-\+#\d]/.exec(text);
-        if (pureIndentMatch) {
-          const currentIndent = pureIndentMatch[1];
-          // Search backwards for the line that started this list item
-          for (let l = line.number - 1; l >= 1; l--) {
-            const prevLine = state.doc.line(l);
-            const prevText = prevLine.text;
-            const markerMatch = /^(\s*)(\*|-|\+|\d+\.)\s+/.exec(prevText);
-            
-            if (markerMatch) {
-              const markerIndent = markerMatch[1];
-              let marker = markerMatch[2];
-              
-              // Only continue if the indentation level matches or is smaller
-              // (indicating this was the parent list item)
-              if (currentIndent.length >= markerIndent.length + marker.length + 1) {
-                if (/^\d+\.$/.test(marker)) {
-                  marker = (parseInt(marker) + 1) + ".";
-                }
-                const prefix = `\n${markerIndent}${marker} `;
-                view.dispatch({
-                  changes: { from: head, insert: prefix },
-                  selection: { anchor: head + prefix.length }
-                });
-                return true;
-              }
-              break; // Found a marker but it doesn't match the hierarchy
-            }
-            // If we find a heading or empty line, stop searching
-            if (/^#+/.test(prevText.trim()) || prevText.trim() === "") break;
-          }
-        }
+				// PRESERVE COLLAPSED STATES
+				if (state.tree) {
+					syncCollapsedStates(state.tree, tree);
+				}
 
-        return false;
-      }
-    },
-    {
-      key: "Backspace",
-      run: (view) => {
-        const { state } = view;
-        const head = state.selection.main.head;
-        const line = state.doc.lineAt(head);
-        
-        // Only trigger if cursor is at the end of an empty-looking marker line
-        if (head !== line.to) return false;
+				// ENSURE FOCUSED NODE IS VISIBLE
+				if (editorRef.current?.view) {
+					const head = editorRef.current.view.state.selection.main.head;
+					const line = editorRef.current.view.state.doc.lineAt(head);
+					expandPathToLine(tree, line.number - 1);
+				}
 
-        const emptyMarkerMatch = line.text.match(/^(\s*)(\*|-|\+|\d+\.)\s$/);
-        const spacesMatch = line.text.match(/^(\s+)$/);
+				// If we just became multi-root and have no filename, pick a NEW fun word
+				if (isMultiRoot && !wasMultiRootRef.current && !fileName) {
+					const newName = getRandomFunWord();
+					// Re-parse with the new name for immediate effect
+					tree = parser.parse(val, newName);
 
-        if (emptyMarkerMatch) {
-          const indent = emptyMarkerMatch[1];
-          const marker = emptyMarkerMatch[2];
-          if (indent.length >= 2) {
-            // Outdent
-            const newIndent = indent.substring(2);
-            view.dispatch({
-              changes: { from: line.from, to: line.to, insert: newIndent + marker + " " },
-              selection: { anchor: line.from + newIndent.length + marker.length + 1 }
-            });
-            return true;
-          } else {
-            // Clear
-            view.dispatch({
-              changes: { from: line.from, to: line.to, insert: "" },
-              selection: { anchor: line.from }
-            });
-            return true;
-          }
-        } else if (spacesMatch) {
-          view.dispatch({
-            changes: { from: line.from, to: line.to, insert: "" },
-            selection: { anchor: line.from }
-          });
-          return true;
-        }
-        return false;
-      }
-    },
-    {
-      key: "Mod-f",
-      run: (view) => {
-        // Redirect to canvas search
-        globalState.setState({ isCanvasSearchOpen: true });
-        window.dispatchEvent(new CustomEvent('inklink-focus-canvas-search'));
-        return true;
-      }
-    },
-    {
-      key: "Mod-Shift-f",
-      run: (view) => {
-        globalState.setState({ isEditorSearchOpen: true, isEditorReplaceOpen: false });
-        window.dispatchEvent(new CustomEvent('inklink-focus-editor-search'));
-        return true;
-      }
-    },
-    {
-      key: "Mod-Shift-h",
-      run: (view) => {
-        globalState.setState({ isEditorSearchOpen: true, isEditorReplaceOpen: true });
-        window.dispatchEvent(new CustomEvent('inklink-focus-editor-search'));
-        return true;
-      }
-    }
-  ]);
+					// Re-apply states to the newly parsed multi-root tree
+					if (state.tree) syncCollapsedStates(state.tree, tree);
+					if (editorRef.current?.view) {
+						const head = editorRef.current.view.state.selection.main.head;
+						const line = editorRef.current.view.state.doc.lineAt(head);
+						expandPathToLine(tree, line.number - 1);
+					}
 
-  return (
-    <div className="flex h-full flex-col border-r bg-card relative">
-      <div className="flex h-10 items-center justify-between border-b px-4 text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
-        <span>Markdown Editor</span>
-        <div className="flex items-center gap-2">
-            <span className="text-[10px] opacity-40 font-normal normal-case">Cmd+Shift+F to Find</span>
-        </div>
-      </div>
-      
-      {/* VS Code Style Search Panel */}
-      <MarkdownSearchPanel view={editorView} />
+					globalState.setState({
+						markdown: val,
+						tree,
+						isDirty: true,
+						currentFallbackRootName: newName,
+					});
+				} else {
+					lastSentMarkdownRef.current = val;
+					globalState.setState({ markdown: val, tree, isDirty: true });
+				}
 
-      <div 
-        className="flex-1 overflow-y-auto cursor-text min-h-0 sleek-scrollbar" 
-        onClick={handleContainerClick}
-      >
-        <CodeMirror
-          ref={(ref) => {
-            editorRef.current = ref;
-            if (ref?.view && editorView !== ref.view) {
-              setEditorView(ref.view);
-            }
-          }}
-          value={value}
-          height="100%"
-          theme={isDark ? oneDark : 'light'}
-          extensions={[
-            mdLang({ codeLanguages: languages }),
-            EditorView.lineWrapping,
-            inklinkTheme,
-            !isDark ? syntaxHighlighting(lightColorfulHighlightStyle) : [],
-            Prec.highest(customKeymap),
-            keymap.of([indentWithTab]),
-            search(),
-            searchHighlightPlugin
-          ]}
-          onChange={onChange}
-          onUpdate={(update) => {
-            // Update search stats whenever selection or document changes
-            if (update.selectionSet || update.docChanged) {
-              updateSearchStats(update.view);
-            }
+				wasMultiRootRef.current = isMultiRoot;
+				ColorManager.assignBranchColors(tree);
+			} catch (err) {
+				globalState.setState({ markdown: val, tree: null, isDirty: true });
+				wasMultiRootRef.current = false;
+			}
+		},
+		[parser],
+	);
 
-            // Only trigger if selection (cursor) changed and it was an interaction
-            if (update.selectionSet && update.transactions.some(tr => tr.isUserEvent('select') || tr.isUserEvent('input'))) {
-              const head = update.state.selection.main.head;
-              const line = update.state.doc.lineAt(head);
-              const lineIndex = line.number - 1; // 0-based
-              
-              // Find the initiator line if the current line is a continuation line
-              window.dispatchEvent(new CustomEvent('inklink-canvas-focus-node', {
-                detail: { nodeId: `line_${lineIndex}` }
-              }));
-            }
-          }}
-          placeholder="# Start typing your mind map here..."
-          basicSetup={{
-            lineNumbers: false,
-            foldGutter: false,
-            dropCursor: true,
-            allowMultipleSelections: true,
-            indentOnInput: true,
-            syntaxHighlighting: true,
-            bracketMatching: true,
-            closeBrackets: true,
-            autocompletion: true,
-            rectangularSelection: true,
-            crosshairCursor: true,
-            highlightActiveLine: true,
-            highlightSelectionMatches: false,
-            tabSize: 2,
-          }}
-        />
-      </div>
-    </div>
-  );
+	const lastParseTimeRef = React.useRef<number>(0);
+
+	const onChange = React.useCallback(
+		(val: string) => {
+			setValue(val);
+
+			if (debounceTimerRef.current) {
+				clearTimeout(debounceTimerRef.current);
+			}
+
+			const now = Date.now();
+			// Immediate parse if it's been more than 500ms since last parse (start of typing)
+			if (now - lastParseTimeRef.current > 500) {
+				processUpdate(val);
+				lastParseTimeRef.current = now;
+			} else {
+				debounceTimerRef.current = setTimeout(() => {
+					processUpdate(val);
+					lastParseTimeRef.current = Date.now();
+				}, 50); // Aggressive 50ms debounce for near real-time feel
+			}
+		},
+		[processUpdate],
+	);
+
+	// Handle programmatic reveals (from canvas double click)
+	React.useEffect(() => {
+		const handleReveal = (e: any) => {
+			const { content, nodeId } = e.detail;
+			if (!editorRef.current?.view) return;
+
+			const view = editorRef.current.view;
+			const state = view.state;
+
+			// Attempt 1: If ID is in "line_N" format, jump directly to line
+			if (nodeId && nodeId.startsWith("line_")) {
+				const lineIdx = parseInt(nodeId.replace("line_", ""));
+				// CodeMirror lines are 1-based
+				const lineNum = lineIdx + 1;
+
+				if (lineNum <= state.doc.lines) {
+					try {
+						const line = state.doc.line(lineNum);
+						// Search for content within that line or nearby
+						const findIndex = line.text.indexOf(content);
+						const anchor = findIndex !== -1 ? line.from + findIndex : line.from;
+						const head = findIndex !== -1 ? anchor + content.length : line.to;
+
+						view.dispatch({
+							selection: { anchor, head },
+							scrollIntoView: true,
+							userEvent: "select.reveal",
+						});
+
+						view.focus();
+						return;
+					} catch (e) {
+						console.error("Failed to jump to line by index:", e);
+					}
+				}
+			}
+
+			// Attempt 2: Fallback to global string search if index is invalid or virtual
+			const doc = state.doc.toString();
+			const index = doc.indexOf(content);
+			if (index !== -1) {
+				view.dispatch({
+					selection: { anchor: index, head: index + content.length },
+					scrollIntoView: true,
+					userEvent: "select.reveal",
+				});
+				view.focus();
+			}
+		};
+
+		window.addEventListener("inklink-editor-reveal", handleReveal);
+		return () =>
+			window.removeEventListener("inklink-editor-reveal", handleReveal);
+	}, []);
+
+	// Handle quick-action inserts fired from the mobile markdown toolbar
+	React.useEffect(() => {
+		const handleInsert = (e: Event) => {
+			const { insert, cursorOffset } = (e as CustomEvent<{ insert: string; cursorOffset?: number }>).detail;
+			if (!editorView) return;
+
+			const { state } = editorView;
+			const main = state.selection.main;
+
+			editorView.dispatch({
+				changes: { from: main.from, to: main.to, insert },
+				selection: {
+					anchor: cursorOffset !== undefined
+						? main.from + cursorOffset
+						: main.from + insert.length,
+				},
+				scrollIntoView: true,
+			});
+			editorView.focus();
+		};
+
+		window.addEventListener('inklink-editor-insert', handleInsert);
+		return () => window.removeEventListener('inklink-editor-insert', handleInsert);
+	}, [editorView]);
+
+	// Handle "Select All Matches" (Alt+Enter) from search panel
+	React.useEffect(() => {
+		const handleSelectAll = () => {
+			if (!editorView) return;
+			const { state } = editorView;
+			const query = getSearchQuery(state);
+			if (!query || query.search === "") return;
+
+			const cursor = query.getCursor(state.doc);
+			const ranges = [];
+
+			while (true) {
+				const { done, value } = cursor.next();
+				if (done) break;
+				ranges.push(EditorSelection.range(value.from, value.to));
+			}
+
+			if (ranges.length > 0) {
+				editorView.dispatch({
+					selection: EditorSelection.create(ranges),
+					scrollIntoView: true,
+				});
+				editorView.focus();
+			}
+		};
+
+		window.addEventListener(
+			"inklink-editor-select-all-search",
+			handleSelectAll,
+		);
+		return () =>
+			window.removeEventListener(
+				"inklink-editor-select-all-search",
+				handleSelectAll,
+			);
+	}, [editorView]);
+
+	// Clean up timer on unmount
+	React.useEffect(() => {
+		return () => {
+			if (debounceTimerRef.current) {
+				clearTimeout(debounceTimerRef.current);
+			}
+		};
+	}, []);
+
+	// Handle clicking on the empty area of the editor to focus it
+	const handleContainerClick = () => {
+		if (editorRef.current?.view) {
+			editorRef.current.view.focus();
+		}
+	};
+
+	// Keymap for "Linter Level" behaviors
+	const customKeymap = keymap.of([
+		{
+			key: "Mod-b",
+			run: (view) => {
+				const { state } = view;
+				const main = state.selection.main;
+				const text = state.sliceDoc(main.from, main.to);
+
+				// Toggle logic
+				if (text.startsWith("**") && text.endsWith("**")) {
+					const insert = text.slice(2, -2);
+					view.dispatch({
+						changes: { from: main.from, to: main.to, insert },
+						selection: { anchor: main.from, head: main.to - 4 }, // Adjust selection
+					});
+				} else {
+					const insert = `**${text}**`;
+					view.dispatch({
+						changes: { from: main.from, to: main.to, insert },
+						selection: { anchor: main.from + 2, head: main.to + 2 },
+					});
+				}
+				return true;
+			},
+		},
+		{
+			key: "Mod-i",
+			run: (view) => {
+				const { state } = view;
+				const main = state.selection.main;
+				const text = state.sliceDoc(main.from, main.to);
+
+				// Toggle logic
+				if (
+					text.startsWith("*") &&
+					text.endsWith("*") &&
+					!text.startsWith("**")
+				) {
+					const insert = text.slice(1, -1);
+					view.dispatch({
+						changes: { from: main.from, to: main.to, insert },
+						selection: { anchor: main.from, head: main.to - 2 },
+					});
+				} else {
+					const insert = `*${text}*`;
+					view.dispatch({
+						changes: { from: main.from, to: main.to, insert },
+						selection: { anchor: main.from + 1, head: main.to + 1 },
+					});
+				}
+				return true;
+			},
+		},
+		{
+			key: "Mod-Shift-x",
+			run: (view) => {
+				const { state } = view;
+				const main = state.selection.main;
+				const text = state.sliceDoc(main.from, main.to);
+
+				// Toggle logic
+				if (text.startsWith("~~") && text.endsWith("~~")) {
+					const insert = text.slice(2, -2);
+					view.dispatch({
+						changes: { from: main.from, to: main.to, insert },
+						selection: { anchor: main.from, head: main.to - 4 },
+					});
+				} else {
+					const insert = `~~${text}~~`;
+					view.dispatch({
+						changes: { from: main.from, to: main.to, insert },
+						selection: { anchor: main.from + 2, head: main.to + 2 },
+					});
+				}
+				return true;
+			},
+		},
+		{
+			key: "Shift-Enter",
+			run: (view) => {
+				const { state } = view;
+				const main = state.selection.main;
+				if (!main.empty) return false;
+
+				const line = state.doc.lineAt(main.head);
+				const text = line.text;
+
+				// Match markers at the START of the physical line
+				const match = /^(\s*)(?:(?:\*|-|\+|\d+\.|#+)\s+)/.exec(text);
+				let indent = "";
+
+				if (match) {
+					// Rule: If we are on a marker line, Shift-Enter indents to the text start
+					indent = " ".repeat(match[0].length);
+				} else {
+					// Rule: If we are already on an indented line (no marker), just preserve indentation
+					const wsMatch = /^(\s*)/.exec(text);
+					indent = wsMatch ? wsMatch[0] : "";
+				}
+
+				view.dispatch({
+					changes: { from: main.head, insert: "\n" + indent },
+					selection: { anchor: main.head + 1 + indent.length },
+					scrollIntoView: true,
+				});
+				return true;
+			},
+		},
+		{
+			key: "Enter",
+			run: (view) => {
+				const { state } = view;
+				const head = state.selection.main.head;
+				const line = state.doc.lineAt(head);
+				const text = line.text;
+
+				// 1. Match empty markers for outdenting (existing behavior)
+				const emptyMarkerMatch = text.match(/^(\s*)(\*|-|\+|\d+\.)\s*$/);
+				if (emptyMarkerMatch) {
+					const indent = emptyMarkerMatch[1];
+					if (indent.length >= 2) {
+						const newIndent = indent.substring(2);
+						const marker = emptyMarkerMatch[2];
+						view.dispatch({
+							changes: {
+								from: line.from,
+								to: line.to,
+								insert: newIndent + marker + " ",
+							},
+							selection: {
+								anchor: line.from + newIndent.length + marker.length + 1,
+							},
+						});
+						return true;
+					} else {
+						view.dispatch({
+							changes: { from: line.from, to: line.to, insert: "" },
+							selection: { anchor: line.from },
+						});
+						return false;
+					}
+				}
+
+				// 2. Auto-continue list behavior (Direct marker on current line)
+				const continueMatch = text.match(/^(\s*)(\*|-|\+|\d+\.)\s+(.+)$/);
+				if (continueMatch) {
+					const indent = continueMatch[1];
+					let marker = continueMatch[2];
+					if (/^\d+\.$/.test(marker)) {
+						marker = parseInt(marker) + 1 + ".";
+					}
+					const prefix = `\n${indent}${marker} `;
+					view.dispatch({
+						changes: { from: head, insert: prefix },
+						selection: { anchor: head + prefix.length },
+					});
+					return true;
+				}
+
+				// 3. New behavior: Shift-Enter was used previously (current line is purely indented)
+				// If the current line is indented but has NO marker, we look UP to find the parent marker
+				const pureIndentMatch = /^(\s+)[^\s\*\-\+#\d]/.exec(text);
+				if (pureIndentMatch) {
+					const currentIndent = pureIndentMatch[1];
+					// Search backwards for the line that started this list item
+					for (let l = line.number - 1; l >= 1; l--) {
+						const prevLine = state.doc.line(l);
+						const prevText = prevLine.text;
+						const markerMatch = /^(\s*)(\*|-|\+|\d+\.)\s+/.exec(prevText);
+
+						if (markerMatch) {
+							const markerIndent = markerMatch[1];
+							let marker = markerMatch[2];
+
+							// Only continue if the indentation level matches or is smaller
+							// (indicating this was the parent list item)
+							if (
+								currentIndent.length >=
+								markerIndent.length + marker.length + 1
+							) {
+								if (/^\d+\.$/.test(marker)) {
+									marker = parseInt(marker) + 1 + ".";
+								}
+								const prefix = `\n${markerIndent}${marker} `;
+								view.dispatch({
+									changes: { from: head, insert: prefix },
+									selection: { anchor: head + prefix.length },
+								});
+								return true;
+							}
+							break; // Found a marker but it doesn't match the hierarchy
+						}
+						// If we find a heading or empty line, stop searching
+						if (/^#+/.test(prevText.trim()) || prevText.trim() === "") break;
+					}
+				}
+
+				return false;
+			},
+		},
+		{
+			key: "Backspace",
+			run: (view) => {
+				const { state } = view;
+				const head = state.selection.main.head;
+				const line = state.doc.lineAt(head);
+
+				// Only trigger if cursor is at the end of an empty-looking marker line
+				if (head !== line.to) return false;
+
+				const emptyMarkerMatch = line.text.match(/^(\s*)(\*|-|\+|\d+\.)\s$/);
+				const spacesMatch = line.text.match(/^(\s+)$/);
+
+				if (emptyMarkerMatch) {
+					const indent = emptyMarkerMatch[1];
+					const marker = emptyMarkerMatch[2];
+					if (indent.length >= 2) {
+						// Outdent
+						const newIndent = indent.substring(2);
+						view.dispatch({
+							changes: {
+								from: line.from,
+								to: line.to,
+								insert: newIndent + marker + " ",
+							},
+							selection: {
+								anchor: line.from + newIndent.length + marker.length + 1,
+							},
+						});
+						return true;
+					} else {
+						// Clear
+						view.dispatch({
+							changes: { from: line.from, to: line.to, insert: "" },
+							selection: { anchor: line.from },
+						});
+						return true;
+					}
+				} else if (spacesMatch) {
+					view.dispatch({
+						changes: { from: line.from, to: line.to, insert: "" },
+						selection: { anchor: line.from },
+					});
+					return true;
+				}
+				return false;
+			},
+		},
+		{
+			key: "Mod-f",
+			run: (view) => {
+				// Redirect to canvas search
+				globalState.setState({ isCanvasSearchOpen: true });
+				window.dispatchEvent(new CustomEvent("inklink-focus-canvas-search"));
+				return true;
+			},
+		},
+		{
+			key: "Mod-Shift-f",
+			run: (view) => {
+				globalState.setState({
+					isEditorSearchOpen: true,
+					isEditorReplaceOpen: false,
+				});
+				window.dispatchEvent(new CustomEvent("inklink-focus-editor-search"));
+				return true;
+			},
+		},
+		{
+			key: "Mod-Shift-h",
+			run: (view) => {
+				globalState.setState({
+					isEditorSearchOpen: true,
+					isEditorReplaceOpen: true,
+				});
+				window.dispatchEvent(new CustomEvent("inklink-focus-editor-search"));
+				return true;
+			},
+		},
+	]);
+
+	const { isDragging, handleDragOver, handleDragLeave, handleDrop } =
+		useFileDrop();
+
+	return (
+		<div
+			className={cn(
+				"flex h-full flex-col border-r bg-background relative",
+				isDragging &&
+					"ring-2 ring-primary/40 ring-inset bg-primary/5 transition-all duration-200",
+			)}
+			onDragOver={handleDragOver}
+			onDragLeave={handleDragLeave}
+			onDrop={handleDrop}
+		>
+			<div className="flex h-10 items-center justify-between border-b px-4 text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+				<span>Markdown Editor</span>
+				<div className="flex items-center gap-2">
+					<span className="text-[10px] opacity-40 font-normal normal-case">
+						{isDragging ? "Drop to open file" : ""}
+					</span>
+				</div>
+			</div>
+
+			{/* VS Code Style Search Panel */}
+			<MarkdownSearchPanel view={editorView} />
+
+			<div
+				className="flex-1 overflow-y-auto cursor-text min-h-0 sleek-scrollbar"
+				onClick={handleContainerClick}
+			>
+				<CodeMirror
+					ref={(ref) => {
+						editorRef.current = ref;
+						if (ref?.view && editorView !== ref.view) {
+							setEditorView(ref.view);
+						}
+					}}
+					value={value}
+					height="100%"
+					theme={isDark ? oneDark : "light"}
+					extensions={[
+						mdLang({ codeLanguages: languages }),
+						EditorView.lineWrapping,
+						inklinkTheme,
+						!isDark ? syntaxHighlighting(lightColorfulHighlightStyle) : [],
+						Prec.highest(customKeymap),
+						keymap.of([indentWithTab]),
+						search(),
+						searchHighlightPlugin,
+					]}
+					onChange={onChange}
+					onUpdate={(update) => {
+						// Update search stats whenever selection or document changes
+						if (update.selectionSet || update.docChanged) {
+							updateSearchStats(update.view);
+						}
+
+						// Only trigger if selection (cursor) changed and it was an interaction
+						if (
+							update.selectionSet &&
+							update.transactions.some(
+								(tr) => tr.isUserEvent("select") || tr.isUserEvent("input"),
+							)
+						) {
+							const head = update.state.selection.main.head;
+							const line = update.state.doc.lineAt(head);
+							const lineIndex = line.number - 1; // 0-based
+
+							// Find the initiator line if the current line is a continuation line
+							window.dispatchEvent(
+								new CustomEvent("inklink-canvas-focus-node", {
+									detail: { nodeId: `line_${lineIndex}` },
+								}),
+							);
+						}
+					}}
+					placeholder="# Start typing your mind map here..."
+					basicSetup={{
+						lineNumbers: false,
+						foldGutter: true,
+						dropCursor: true,
+						allowMultipleSelections: true,
+						indentOnInput: true,
+						syntaxHighlighting: true,
+						bracketMatching: true,
+						closeBrackets: true,
+						autocompletion: true,
+						rectangularSelection: true,
+						crosshairCursor: true,
+						highlightActiveLine: true,
+						highlightSelectionMatches: false,
+						tabSize: 2,
+					}}
+				/>
+			</div>
+		</div>
+	);
 }

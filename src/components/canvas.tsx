@@ -13,6 +13,8 @@ import { TreeNode } from '@/core/types';
 import { globalState } from '@/core/state/state-manager';
 import { LayoutFactory } from '@/core/layout/layout-factory';
 import { useTheme } from 'next-themes';
+import { useFileDrop } from '@/hooks/use-file-drop';
+import { cn } from '@/lib/utils';
 
 /**
  * Main application canvas
@@ -24,6 +26,8 @@ export function Canvas() {
   const [state, setState] = React.useState(globalState.getState());
   const { resolvedTheme } = useTheme();
   const internalTransform = useRef(state.transform);
+  
+  const { isDragging, handleDragOver, handleDragLeave, handleDrop } = useFileDrop();
 
   // Subscribe to changes
   useEffect(() => {
@@ -96,7 +100,6 @@ export function Canvas() {
         };
 
         if (findAndToggle(s.tree)) {
-           // We replace the tree root reference to trigger the useEffect that runs the Layout calculation
            globalState.setState({ tree: { ...s.tree } });
         }
       });
@@ -104,7 +107,7 @@ export function Canvas() {
       rendererRef.current = renderer;
     }
     
-    // Use ResizeObserver to keep canvas centered when dimensions change (e.g., opening editor)
+    // Use ResizeObserver to keep canvas centered when dimensions change
     let prevWidth = 0;
     let prevHeight = 0;
     
@@ -113,12 +116,10 @@ export function Canvas() {
         const { width, height } = entry.contentRect;
         
         if (prevWidth > 0 && prevHeight > 0 && (prevWidth !== width || prevHeight !== height)) {
-          // Adjust transform to keep the same world point in the center
           const dx = (width - prevWidth) / 2;
           const dy = (height - prevHeight) / 2;
           
           if (rendererRef.current) {
-             // 1. Get current transform directly from renderer (source of truth)
              const current = rendererRef.current.getTransform();
              const next = {
                ...current,
@@ -126,15 +127,11 @@ export function Canvas() {
                y: current.y + dy
              };
 
-             // 2. Update renderer IMMEDIATELY (prevents shakiness)
              rendererRef.current.setTransform(next);
-
-             // 3. Sync global state without waiting for re-render cycle
              internalTransform.current = next;
              globalState.setState({ transform: next });
           }
         } else if (prevWidth === 0 && prevHeight === 0) {
-          // On first render, if transform is default (0,0), center it.
           const currentTransform = globalState.getState().transform;
           if (currentTransform.x === 0 && currentTransform.y === 0) {
             globalState.setState({
@@ -152,7 +149,7 @@ export function Canvas() {
       observer.observe(containerRef.current);
     }
 
-    // Global Command Listeners for UI interaction
+
     const handleFitView = () => {
        if (rendererRef.current) (rendererRef.current as any).fitView?.();
     };
@@ -178,7 +175,6 @@ export function Canvas() {
       const s = globalState.getState();
       if (!s.tree) return;
 
-      // Expand ancestors to reveal the node
       let treeChanged = false;
       const updateTree = (node: any, targetId: string): any => {
         if (node.id === targetId) return node;
@@ -198,13 +194,11 @@ export function Canvas() {
       const newTree = updateTree(s.tree, nodeId);
       if (newTree && treeChanged) {
         globalState.setState({ tree: newTree });
-        // Give D3 a moment to layout the newly expanded nodes
         setTimeout(() => {
           (rendererRef.current as any).focusNode?.(nodeId, true);
           globalState.setState({ selectedNode: nodeId });
         }, 150);
       } else if (newTree) {
-        // Just focus
         (rendererRef.current as any).focusNode?.(nodeId, true);
         globalState.setState({ selectedNode: nodeId });
       }
@@ -225,13 +219,12 @@ export function Canvas() {
   }, []);
 
   /**
-   * Sync external transform changes (Minimap -> State -> D3)
+   * Sync external transform changes
    */
   useEffect(() => {
     if (rendererRef.current) {
         const t1 = state.transform;
         const t2 = internalTransform.current;
-        // Float precision check
         if (Math.abs(t1.x - t2.x) > 0.1 || Math.abs(t1.y - t2.y) > 0.1 || Math.abs(t1.scale - t2.scale) > 0.001) {
           rendererRef.current.setTransform(t1);
           internalTransform.current = t1;
@@ -248,16 +241,12 @@ export function Canvas() {
       
       const currentId = state.searchResults[state.currentSearchIndex];
       if (currentId) {
-        // Find if we need to expand ancestors to make the node visible
         const s = globalState.getState();
         if (s.tree) {
           let treeChanged = false;
-          
-          // Pure recursive function to return an updated tree path
           const updateTree = (node: any, targetId: string): any => {
             if (node.id === targetId) return node;
             if (!node.children) return null;
-            
             for (let i = 0; i < node.children.length; i++) {
               const result = updateTree(node.children[i], targetId);
               if (result) {
@@ -273,11 +262,10 @@ export function Canvas() {
           const newTree = updateTree(s.tree, currentId);
           if (newTree && treeChanged) {
              globalState.setState({ tree: newTree, isDirty: true });
-             return; // Wait for next render cycle
+             return;
           }
         }
 
-        // If visible/available, focus and center
         const active = document.activeElement;
         const isSearchFocused = active?.closest('#inklink-search-panel');
         (rendererRef.current as any).focusNode?.(currentId, !!isSearchFocused);
@@ -301,45 +289,40 @@ export function Canvas() {
    * Trigger Layout Calculation and Rendering
    */
   useEffect(() => {
-    const renderNodeTree = () => {
-      if (rendererRef.current && containerRef.current) {
-        if (state.tree) {
-          const { width, height } = containerRef.current.getBoundingClientRect();
-          const layout = LayoutFactory.create(state.layoutDirection);
-          const positions = layout.calculateLayout(state.tree, { width, height });
-          
-          // Update renderer
-          rendererRef.current.render(state.tree, positions, state.isDarkMode);
+    if (rendererRef.current && containerRef.current) {
+      if (state.tree) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        const layout = LayoutFactory.create(state.layoutDirection);
+        const positions = layout.calculateLayout(state.tree, { width, height });
+        
+        rendererRef.current.render(state.tree, positions, state.isDarkMode);
 
-          // Share positions with other components if changed
-          if (state.tree !== lastTreeRef.current || state.layoutDirection !== lastLayoutRef.current) {
-            globalState.setState({ layoutPositions: positions });
-            lastTreeRef.current = state.tree;
-            lastLayoutRef.current = state.layoutDirection;
-          }
-        } else {
-          // Clear the canvas if there's no tree
-          rendererRef.current.clear();
-          lastTreeRef.current = null;
+        if (state.tree !== lastTreeRef.current || state.layoutDirection !== lastLayoutRef.current) {
+          globalState.setState({ layoutPositions: positions });
+          lastTreeRef.current = state.tree;
+          lastLayoutRef.current = state.layoutDirection;
         }
+      } else {
+        rendererRef.current.clear();
+        lastTreeRef.current = null;
       }
-    };
-
-    renderNodeTree();
-    
-    return () => {};
+    }
   }, [state.tree, state.layoutDirection, state.isDarkMode]);
 
   return (
     <div 
-      className="relative h-full w-full bg-slate-50/50 outline-none focus-within:ring-1 focus-within:ring-primary/20 transition-all duration-300" 
+      className={cn(
+        "relative h-full w-full bg-slate-50/50 outline-none focus-within:ring-1 focus-within:ring-primary/20 transition-all duration-300",
+        isDragging && "bg-primary/5 ring-1 ring-primary/40 ring-inset"
+      )}
       id="inklink-mindmap-canvas-container"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       onMouseDown={() => {
-        // Ensure clicking focusing the canvas for shortcuts
         document.getElementById('inklink-mindmap-canvas')?.focus();
       }}
       onClick={() => {
-        // Only unselect if something was actually selected to avoid redundant updates
         if (globalState.getState().selectedNode) {
           globalState.setState({ selectedNode: null });
         }
@@ -353,9 +336,23 @@ export function Canvas() {
         tabIndex={0}
       />
       
+      {isDragging && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/60 backdrop-blur-[2px] animate-in fade-in zoom-in-95 duration-200">
+           <div className="p-8 border-2 border-dashed border-primary/40 rounded-2xl flex flex-col items-center gap-4 bg-background shadow-xl">
+             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+             </div>
+             <div className="text-center">
+               <p className="text-lg font-bold text-foreground">Drop Mind Map File</p>
+               <p className="text-sm text-muted-foreground">Only Markdown (.md) files are supported</p>
+             </div>
+           </div>
+        </div>
+      )}
+
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-muted-foreground opacity-50 select-none">
         {state.tree ? null : (
-           <p className="text-sm font-medium">Import or paste Markdown to start...</p>
+           <p className="text-sm font-medium">Import or drag .md file here to start...</p>
         )}
       </div>
     </div>

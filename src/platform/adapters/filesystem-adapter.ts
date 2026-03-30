@@ -10,7 +10,16 @@
 export interface FileContent {
   content: string;
   path: string;
-  handle?: FileSystemFileHandle;
+  handle?: any;
+}
+
+/**
+ * Result of a save operation
+ */
+export interface SaveResult {
+  status: 'saved' | 'deferred' | 'cancelled' | 'error';
+  file?: FileContent;
+  message?: string;
 }
 
 /**
@@ -29,8 +38,9 @@ export interface FileSystemAdapter {
    * @param content - File content to save
    * @param path - Optional file path (for "Save As")
    * @param handle - Optional file handle (for quick re-save)
+   * @returns SaveResult indicating success or status
    */
-  saveFile(content: string, path?: string, handle?: FileSystemFileHandle): Promise<void>;
+  saveFile(content: string, path?: string, handle?: any): Promise<SaveResult>;
 
   /**
    * Get list of recent files

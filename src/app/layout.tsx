@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 /**
@@ -11,8 +11,26 @@ import { WebPlatformProvider } from '@/platform/web/web-platform-context';
 import { ErrorBoundary } from '@/components/error-boundary';
 
 export const metadata: Metadata = {
-  title: 'Markdown to Mind Map Generator',
-  description: 'Transform markdown documents into interactive mind maps',
+  title: "InkLink | Minimalist Mind Mapping",
+  description: "Transform markdown into beautiful, interactive mind maps with professional precision.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    title: "InkLink",
+    statusBarStyle: "default",
+    capable: true,
+  },
+  icons: {
+    icon: "/favicon.png",
+    apple: "/favicon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1e293b",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
