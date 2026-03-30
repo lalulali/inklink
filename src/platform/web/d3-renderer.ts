@@ -772,7 +772,7 @@ export class D3Renderer implements RendererAdapter {
           if (!d.parent || d.depth === 0) return '#000000'; 
           return '#cbd5e1'; // Consistent lightgrey border for children
         }
-        if (!d.parent || d.depth === 0) return '#1e1e1e'; // Dark ring for root in dark mode
+        if (!d.parent || d.depth === 0) return '#ffffff'; // White ring for root in dark mode
         return '#444444'; // Subtle border in dark mode
       })
       .attr('fill', (d) => {

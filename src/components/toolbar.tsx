@@ -277,6 +277,40 @@ export function Toolbar({
             </TooltipTrigger>
             <TooltipContent>Save (Cmd+S)</TooltipContent>
           </Tooltip>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 focus-visible:ring-0 focus-visible:ring-offset-0">
+                <DownloadIcon className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem className="text-sm" onClick={() => handleExport('html')}>Export as HTML</DropdownMenuItem>
+              <DropdownMenuItem className="text-sm" onClick={() => handleExport('svg')}>Export as SVG</DropdownMenuItem>
+              <DropdownMenuItem className="text-sm" onClick={() => handleExport('png')}>Export as PNG</DropdownMenuItem>
+              <DropdownMenuItem className="text-sm" onClick={() => handleExport('jpg')}>Export as JPG</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Tools & Search */}
+        <div className="flex shrink-0 items-center gap-1 border-r pr-2 px-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleFind();
+                }}
+              >
+                <SearchIcon className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Find (Cmd+F)</TooltipContent>
+          </Tooltip>
         </div>
 
         {/* Layout Selector */}
@@ -329,7 +363,7 @@ export function Toolbar({
         </div>
 
         {/* Visibility Controls */}
-        <div className="flex shrink-0 items-center gap-1 border-r pr-2">
+        <div className="flex shrink-0 items-center gap-1 pr-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button 
@@ -356,44 +390,6 @@ export function Toolbar({
             </TooltipTrigger>
             <TooltipContent>Collapse All (C)</TooltipContent>
           </Tooltip>
-        </div>
-
-        {/* Tools & Search */}
-        <div className="flex shrink-0 items-center gap-1 border-r pr-2 px-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleFind();
-                }}
-              >
-                <SearchIcon className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Find (Cmd+F)</TooltipContent>
-          </Tooltip>
-        </div>
-
-        {/* Export Manager */}
-        <div className="shrink-0 px-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-2 focus-visible:ring-0 focus-visible:ring-offset-0">
-                <DownloadIcon className="h-3.5 w-3.5" />
-                <span>Export</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem className="text-sm" onClick={() => handleExport('html')}>Export as HTML</DropdownMenuItem>
-              <DropdownMenuItem className="text-sm" onClick={() => handleExport('svg')}>Export as SVG</DropdownMenuItem>
-              <DropdownMenuItem className="text-sm" onClick={() => handleExport('png')}>Export as PNG</DropdownMenuItem>
-              <DropdownMenuItem className="text-sm" onClick={() => handleExport('jpg')}>Export as JPG</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
 
         {/* Help / Theme / Status */}

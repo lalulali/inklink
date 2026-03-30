@@ -29,8 +29,46 @@ export function KeyboardHandler() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
       const target = e.target as HTMLElement;
+
+      // --- CRITICAL GLOBAL SHORTCUTS (MUST BE ABOVE GORDS) ---
       
-      // Ignore keystrokes when editing text in CodeMirror or other inputs
+      // Search (Canvas Find Node) - Cmd+F
+      if (isMod && !e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        globalState.setState({ isCanvasSearchOpen: true });
+        window.dispatchEvent(new CustomEvent('inklink-focus-canvas-search'));
+        return;
+      }
+
+      // Search (Editor Find) - Cmd+Shift+F
+      if (isMod && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        globalState.setState({ isEditorSearchOpen: true, isEditorReplaceOpen: false });
+        window.dispatchEvent(new CustomEvent('inklink-focus-editor-search'));
+        return;
+      }
+
+      // Replace (Editor) - Cmd+Shift+H
+      if (isMod && e.shiftKey && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        globalState.setState({ isEditorSearchOpen: true, isEditorReplaceOpen: true });
+        window.dispatchEvent(new CustomEvent('inklink-focus-editor-search'));
+        return;
+      }
+
+      // File Operations
+      if (isMod && e.key === 's') {
+        e.preventDefault();
+        console.debug('Command: Save');
+        return;
+      }
+      if (isMod && e.key === 'o') {
+        e.preventDefault();
+        console.debug('Command: Open');
+        return;
+      }
+      
+      // Ignore other keystrokes when editing text in CodeMirror or other inputs
       const isEditorOrInput = target.tagName === 'INPUT' || 
                               target.tagName === 'TEXTAREA' || 
                               target.isContentEditable ||
@@ -51,30 +89,6 @@ export function KeyboardHandler() {
             return;
           }
         }
-      }
-
-      /* Navigation: Arrow Keys (PAUSED per user request)
-      if (e.key.startsWith('Arrow')) {
-        // ... (preserving logic)
-      }
-      */
-
-      // Block Tab for mind map navigation
-      if (e.key === 'Tab') {
-          // If we are focused on a node, prevent tab to avoid standard focus jumping
-          if (target.closest('g.node')) {
-              e.preventDefault();
-          }
-      }
-
-      // File Operations
-      if (isMod && e.key === 's') {
-        e.preventDefault();
-        console.debug('Command: Save');
-      }
-      if (isMod && e.key === 'o') {
-        e.preventDefault();
-        console.debug('Command: Open');
       }
 
       // View Controls

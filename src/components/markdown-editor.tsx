@@ -8,7 +8,7 @@
 
 import React from 'react';
 import CodeMirror, { EditorView, keymap, Decoration, DecorationSet, ViewUpdate, ViewPlugin } from '@uiw/react-codemirror';
-import { Prec, EditorSelection } from '@codemirror/state';
+import { Prec, EditorSelection, RangeSetBuilder } from '@codemirror/state';
 import { markdown as mdLang } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -21,6 +21,8 @@ import { ColorManager } from '@/core/theme/color-manager';
 import { getRandomFunWord } from '@/core/constants/branding';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
+import { search, getSearchQuery, findNext } from '@codemirror/search';
+import { MarkdownSearchPanel } from './markdown-search-panel';
 
 // Custom theme to match Inklink aesthetic
 const inklinkTheme = EditorView.theme({
@@ -51,10 +53,17 @@ const inklinkTheme = EditorView.theme({
     borderLeftColor: "hsl(var(--primary))"
   },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
-    backgroundColor: "hsl(var(--primary) / 0.2) !important"
+    backgroundColor: "hsl(var(--primary) / 0.4) !important"
   },
   ".cm-activeLine": {
     backgroundColor: "hsl(var(--muted) / 0.3)"
+  },
+  ".cm-searchMatch": {
+    backgroundColor: "#ffd33d66 !important", // VS Code Yellow
+    border: "1px solid #ffd33d88"
+  },
+  ".cm-searchMatch.cm-searchMatch-selected": {
+    backgroundColor: "#f97316 !important", // More amber for focus
   }
 });
 
@@ -76,24 +85,160 @@ const lightColorfulHighlightStyle = HighlightStyle.define([
 ]);
 
 export function MarkdownEditor() {
-  const [value, setValue] = React.useState(globalState.getState().markdown);
+  const [state, setState] = React.useState(globalState.getState());
+  const [value, setValue] = React.useState(state.markdown);
   const { resolvedTheme } = useTheme();
   const parser = React.useMemo(() => createMarkdownParser(), []);
   const editorRef = React.useRef<any>(null);
+  const [editorView, setEditorView] = React.useState<EditorView | null>(null);
   const isDark = resolvedTheme === 'dark';
 
+  // Function to update search counts and index based on current editor state
+  const updateSearchStats = React.useCallback((view: EditorView) => {
+    const { state: editorState } = view;
+    const s = globalState.getState();
+    const queryStr = s.editorSearchQuery;
+    
+    if (!queryStr) {
+      globalState.setState({ editorSearchResultsCount: 0, editorSearchCurrentIndex: -1 });
+      return { count: 0, currentIndex: -1, firstMatch: null };
+    }
+
+    const docText = editorState.doc.toString();
+    const matches: {from: number, to: number}[] = [];
+    
+    try {
+        if (s.editorSearchRegex) {
+            const flags = s.editorSearchCaseSensitive ? 'g' : 'gi';
+            const re = new RegExp(queryStr, flags);
+            let match;
+            while ((match = re.exec(docText)) !== null) {
+                matches.push({ from: match.index, to: match.index + match[0].length });
+                if (match.index === re.lastIndex) re.lastIndex++; // Prevent infinite loops
+            }
+        } else {
+            const searchLower = s.editorSearchCaseSensitive ? queryStr : queryStr.toLowerCase();
+            const textLower = s.editorSearchCaseSensitive ? docText : docText.toLowerCase();
+            let pos = 0;
+            while ((pos = textLower.indexOf(searchLower, pos)) !== -1) {
+                matches.push({ from: pos, to: pos + searchLower.length });
+                pos += 1; // OVERLAPPING SEARCH: Only move 1 char forward
+            }
+        }
+    } catch (e) {
+        // Invalid regex, etc.
+    }
+
+    let currentIndex = -1;
+    const selection = editorState.selection.main;
+    
+    matches.forEach((match, idx) => {
+        if (match.from === selection.from && match.to === selection.to) {
+            currentIndex = idx;
+        }
+    });
+
+    globalState.setState({ editorSearchResultsCount: matches.length, editorSearchCurrentIndex: currentIndex });
+    return { count: matches.length, currentIndex, firstMatch: matches[0] || null };
+  }, []);
+
+  // Update counts whenever editor query or modifiers change
   React.useEffect(() => {
-    return globalState.subscribe(state => {
-      if (state.markdown !== value) {
-        setValue(state.markdown);
+    if (editorView) {
+      const { count, currentIndex, firstMatch } = updateSearchStats(editorView);
+      
+      // Auto-jump to nearest match if the current selection is no longer valid
+      if (state.isEditorSearchOpen && state.editorSearchQuery && currentIndex === -1 && count > 0 && firstMatch) {
+        editorView.dispatch({
+            selection: { anchor: firstMatch.from, head: firstMatch.to },
+            scrollIntoView: true,
+            userEvent: 'select.search'
+        });
+      }
+    }
+  }, [editorView, state.editorSearchQuery, state.editorSearchCaseSensitive, state.editorSearchWholeWord, state.editorSearchRegex, state.isEditorSearchOpen, updateSearchStats]);
+
+  const searchHighlightStyle = Decoration.mark({ class: 'cm-searchMatch' });
+
+  const searchHighlightPlugin = React.useMemo(() => ViewPlugin.fromClass(class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = this.getDecorations(view);
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.selectionSet || update.transactions.length > 0) {
+        this.decorations = this.getDecorations(update.view);
+      }
+    }
+
+    getDecorations(view: EditorView) {
+      const s = globalState.getState();
+      const queryStr = s.editorSearchQuery;
+      if (!queryStr) return Decoration.none;
+      
+      const docText = view.state.doc.toString();
+      const builder = new RangeSetBuilder<Decoration>();
+      const selection = view.state.selection.main;
+      
+      const addMatch = (from: number, to: number) => {
+        if (from === selection.from && to === selection.to) return;
+        builder.add(from, to, searchHighlightStyle);
+      };
+
+      try {
+        if (s.editorSearchRegex) {
+            const flags = s.editorSearchCaseSensitive ? 'g' : 'gi';
+            const re = new RegExp(queryStr, flags);
+            let match;
+            while ((match = re.exec(docText)) !== null) {
+                addMatch(match.index, match.index + match[0].length);
+                if (match.index === re.lastIndex) re.lastIndex++;
+            }
+        } else {
+            const searchLower = s.editorSearchCaseSensitive ? queryStr : queryStr.toLowerCase();
+            const textLower = s.editorSearchCaseSensitive ? docText : docText.toLowerCase();
+            let pos = 0;
+            while ((pos = textLower.indexOf(searchLower, pos)) !== -1) {
+                addMatch(pos, pos + searchLower.length);
+                pos += 1;
+            }
+        }
+      } catch (e) {}
+      
+      return builder.finish();
+    }
+  }, {
+    decorations: v => v.decorations
+  }), []);
+
+  const lastSentMarkdownRef = React.useRef(state.markdown);
+
+  React.useEffect(() => {
+    return globalState.subscribe(s => {
+      setState(s);
+      
+      // Only sync global markdown back to local editor if it came from an EXTERNAL source 
+      // (like file load or canvas edit) and doesn't match what we already have or just sent.
+      const isFromMe = s.markdown === lastSentMarkdownRef.current;
+      
+      if (!isFromMe) {
+        const currentDoc = (editorRef.current as any)?.view?.state.doc.toString();
+        if (s.markdown !== currentDoc) {
+          setValue(s.markdown);
+          // Sync our tracking ref too so we don't trigger again
+          lastSentMarkdownRef.current = s.markdown;
+        }
       }
     });
-  }, [value]);
+  }, []); // Remove value dependency to avoid re-subscription overhead
 
   const wasMultiRootRef = React.useRef(false);
   const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const processUpdate = React.useCallback((val: string) => {
+    lastSentMarkdownRef.current = val;
     try {
       const state = globalState.getState();
       const effectivelyEmpty = val
@@ -127,6 +272,7 @@ export function MarkdownEditor() {
           currentFallbackRootName: newName 
         });
       } else {
+        lastSentMarkdownRef.current = val;
         globalState.setState({ markdown: val, tree, isDirty: true });
       }
 
@@ -213,6 +359,36 @@ export function MarkdownEditor() {
     window.addEventListener('inklink-editor-reveal', handleReveal);
     return () => window.removeEventListener('inklink-editor-reveal', handleReveal);
   }, []);
+
+  // Handle "Select All Matches" (Alt+Enter) from search panel
+  React.useEffect(() => {
+    const handleSelectAll = () => {
+      if (!editorView) return;
+      const { state } = editorView;
+      const query = getSearchQuery(state);
+      if (!query || query.search === '') return;
+
+      const cursor = query.getCursor(state.doc);
+      const ranges = [];
+      
+      while (true) {
+        const { done, value } = cursor.next();
+        if (done) break;
+        ranges.push(EditorSelection.range(value.from, value.to));
+      }
+
+      if (ranges.length > 0) {
+        editorView.dispatch({
+            selection: EditorSelection.create(ranges),
+            scrollIntoView: true
+        });
+        editorView.focus();
+      }
+    };
+
+    window.addEventListener('inklink-editor-select-all-search', handleSelectAll);
+    return () => window.removeEventListener('inklink-editor-select-all-search', handleSelectAll);
+  }, [editorView]);
 
   // Clean up timer on unmount
   React.useEffect(() => {
@@ -459,20 +635,57 @@ export function MarkdownEditor() {
         }
         return false;
       }
+    },
+    {
+      key: "Mod-f",
+      run: (view) => {
+        // Redirect to canvas search
+        globalState.setState({ isCanvasSearchOpen: true });
+        window.dispatchEvent(new CustomEvent('inklink-focus-canvas-search'));
+        return true;
+      }
+    },
+    {
+      key: "Mod-Shift-f",
+      run: (view) => {
+        globalState.setState({ isEditorSearchOpen: true, isEditorReplaceOpen: false });
+        window.dispatchEvent(new CustomEvent('inklink-focus-editor-search'));
+        return true;
+      }
+    },
+    {
+      key: "Mod-Shift-h",
+      run: (view) => {
+        globalState.setState({ isEditorSearchOpen: true, isEditorReplaceOpen: true });
+        window.dispatchEvent(new CustomEvent('inklink-focus-editor-search'));
+        return true;
+      }
     }
   ]);
 
   return (
-    <div className="flex h-full flex-col border-r bg-card">
-      <div className="flex h-10 items-center border-b px-4 text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
-        Markdown Editor
+    <div className="flex h-full flex-col border-r bg-card relative">
+      <div className="flex h-10 items-center justify-between border-b px-4 text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+        <span>Markdown Editor</span>
+        <div className="flex items-center gap-2">
+            <span className="text-[10px] opacity-40 font-normal normal-case">Cmd+Shift+F to Find</span>
+        </div>
       </div>
+      
+      {/* VS Code Style Search Panel */}
+      <MarkdownSearchPanel view={editorView} />
+
       <div 
         className="flex-1 overflow-y-auto cursor-text min-h-0 sleek-scrollbar" 
         onClick={handleContainerClick}
       >
         <CodeMirror
-          ref={editorRef}
+          ref={(ref) => {
+            editorRef.current = ref;
+            if (ref?.view && editorView !== ref.view) {
+              setEditorView(ref.view);
+            }
+          }}
           value={value}
           height="100%"
           theme={isDark ? oneDark : 'light'}
@@ -482,9 +695,29 @@ export function MarkdownEditor() {
             inklinkTheme,
             !isDark ? syntaxHighlighting(lightColorfulHighlightStyle) : [],
             Prec.highest(customKeymap),
-            keymap.of([indentWithTab])
+            keymap.of([indentWithTab]),
+            search(),
+            searchHighlightPlugin
           ]}
           onChange={onChange}
+          onUpdate={(update) => {
+            // Update search stats whenever selection or document changes
+            if (update.selectionSet || update.docChanged) {
+              updateSearchStats(update.view);
+            }
+
+            // Only trigger if selection (cursor) changed and it was an interaction
+            if (update.selectionSet && update.transactions.some(tr => tr.isUserEvent('select') || tr.isUserEvent('input'))) {
+              const head = update.state.selection.main.head;
+              const line = update.state.doc.lineAt(head);
+              const lineIndex = line.number - 1; // 0-based
+              
+              // Find the initiator line if the current line is a continuation line
+              window.dispatchEvent(new CustomEvent('inklink-canvas-focus-node', {
+                detail: { nodeId: `line_${lineIndex}` }
+              }));
+            }
+          }}
           placeholder="# Start typing your mind map here..."
           basicSetup={{
             lineNumbers: false,

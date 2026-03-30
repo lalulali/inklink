@@ -34,6 +34,7 @@ export interface ApplicationState {
   searchQuery: string;
   searchResults: string[];
   currentSearchIndex: number;
+  isCanvasSearchOpen: boolean;
 
   // UI state
   loading: boolean;
@@ -43,6 +44,18 @@ export interface ApplicationState {
 
   // Stable random root name for multi-root scenarios
   currentFallbackRootName: string;
+
+  // Editor Search/Replace state
+  isEditorSearchOpen: boolean;
+  isEditorReplaceOpen: boolean;
+  editorSearchQuery: string;
+  editorReplaceQuery: string;
+  editorSearchCaseSensitive: boolean;
+  editorSearchWholeWord: boolean;
+  editorSearchRegex: boolean;
+  editorReplacePreserveCase: boolean;
+  editorSearchResultsCount: number;
+  editorSearchCurrentIndex: number;
 }
 
 /**
@@ -69,10 +82,21 @@ export function createInitialState(): ApplicationState {
     searchQuery: '',
     searchResults: [],
     currentSearchIndex: -1,
+    isCanvasSearchOpen: false,
     loading: false,
     error: null,
     notification: null,
     isDarkMode: false,
     currentFallbackRootName: getRandomFunWord(),
+    isEditorSearchOpen: false,
+    isEditorReplaceOpen: false,
+    editorSearchQuery: '',
+    editorReplaceQuery: '',
+    editorSearchCaseSensitive: false,
+    editorSearchWholeWord: false,
+    editorSearchRegex: false,
+    editorReplacePreserveCase: false,
+    editorSearchResultsCount: 0,
+    editorSearchCurrentIndex: -1,
   };
 }

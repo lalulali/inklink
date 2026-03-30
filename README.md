@@ -29,6 +29,11 @@ A web-based visualization tool that transforms markdown documents into interacti
   - Stable random root names for multi-root scenarios
   - Comprehensive error reporting with line/column information
 - **State Management**: Full undo/redo support with 50-operation history
+- **Professional Editor Search**:
+  - **VS Code Experience**: High-fidelity find and replace panel with integrated keyboard shortcuts (`Cmd+Shift+F`/`H`)
+  - **Smart Match Engine**: Supports overlapping matches (e.g., finding 2 occurrences of `lal` in `lalal`) to ensure 100% precision
+  - **Predictive Auto-Jump**: Selection instantly snaps to matches as you type, preventing "stuck" highlight bugs
+  - **Rich Modifiers**: Native support for "Match Case", "Match Whole Word", "Regex", and "Preserve Case" replacement
 - **Export Options**: Export to HTML, SVG, and PNG formats
 - **File Operations**: Full file handle support with open and save capabilities
 - **Type Safety**: Strict TypeScript implementation with runtime type guards for all core data structures

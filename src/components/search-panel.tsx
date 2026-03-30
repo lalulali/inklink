@@ -25,7 +25,6 @@ import { globalState } from '@/core/state/state-manager';
  * Search panel for finding and navigating node content
  */
 export function SearchPanel() {
-  const [isOpen, setIsOpen] = useState(false);
   const [state, setState] = useState(globalState.getState());
   const [caseSensitive, setCaseSensitive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -35,37 +34,28 @@ export function SearchPanel() {
   }, []);
 
   /**
-   * Keyboard shortcut listener for Ctrl/Cmd+F
+   * Focus handler for jumping to canvas find
+   */
+  useEffect(() => {
+    const handleFocus = () => {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    };
+    window.addEventListener('inklink-focus-canvas-search', handleFocus);
+    // Also focus when opened
+    if (state.isCanvasSearchOpen) handleFocus();
+    
+    return () => window.removeEventListener('inklink-focus-canvas-search', handleFocus);
+  }, [state.isCanvasSearchOpen]);
+
+  /**
+   * Legacy toggle listener
    */
   useEffect(() => {
     const handleToggle = () => {
-      setIsOpen(true);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      globalState.setState({ isCanvasSearchOpen: true });
     };
     window.addEventListener('inklink-toggle-search', handleToggle);
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const active = document.activeElement;
-      
-      // If we are in the editor, let CodeMirror handle its own search
-      const isInEditor = active?.closest('.cm-editor');
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-        if (isInEditor) return;
-        
-        e.preventDefault();
-        setIsOpen(true);
-        setTimeout(() => inputRef.current?.focus(), 50);
-      } else if (e.key === 'Escape') {
-        setIsOpen(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('inklink-toggle-search', handleToggle);
-    };
+    return () => window.removeEventListener('inklink-toggle-search', handleToggle);
   }, []);
 
   const handleSearch = (q: string) => {
@@ -103,13 +93,13 @@ export function SearchPanel() {
     // We'd ideally call renderer.focusNode(state.searchResults[next])
   };
 
-  if (!isOpen) return null;
+  if (!state.isCanvasSearchOpen) return null;
 
   return (
     <div 
       className={cn(
         "absolute right-6 top-6 z-40 flex items-center gap-3 rounded-full border bg-background/80 p-3 backdrop-blur-md shadow-2xl transition-all duration-300 animate-in slide-in-from-top-2 fade-in",
-        isOpen ? "scale-100 opacity-100" : "scale-95 opacity-0"
+        state.isCanvasSearchOpen ? "scale-100 opacity-100" : "scale-95 opacity-0"
       )}
       id="inklink-search-panel"
     >
@@ -133,6 +123,9 @@ export function SearchPanel() {
             } else if (e.key === 'ArrowUp') {
               e.preventDefault();
               navigateSearch('prev');
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              globalState.setState({ isCanvasSearchOpen: false });
             }
           }}
           placeholder="Find in map..." 
@@ -160,10 +153,11 @@ export function SearchPanel() {
           size="sm" 
           pressed={caseSensitive}
           onPressedChange={setCaseSensitive}
-          className="h-9 w-9 rounded-full border-none data-[state=on]:bg-primary/20 data-[state=on]:text-primary hover:bg-muted"
+          className="h-9 w-9 rounded-full border-none data-[state=on]:bg-primary/20 data-[state=on]:text-primary hover:bg-muted font-mono text-[11px] font-bold"
+          title="Match Case"
           aria-label="Match Case"
         >
-          <CaseSensitiveIcon className="h-5 w-5" />
+          Aa
         </Toggle>
         
         <div className="flex items-center gap-0.5 ml-1">
@@ -192,7 +186,7 @@ export function SearchPanel() {
           variant="ghost" 
           size="icon" 
           className="ml-1 h-9 w-9 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
-          onClick={() => setIsOpen(false)}
+          onClick={() => globalState.setState({ isCanvasSearchOpen: false })}
         >
           <XIcon className="h-5 w-5" />
         </Button>

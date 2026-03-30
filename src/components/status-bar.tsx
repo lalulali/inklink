@@ -40,6 +40,12 @@ export function StatusBar() {
         <span className="truncate max-w-[200px]">{state.filePath || 'untitled.md'}</span>
       </div>
 
+      {/* Mind Map Metrics */}
+      <div className="flex items-center gap-1.5 border-r pr-3">
+        <MapIcon className="h-3 w-3" />
+        <span>{totalNodes} Nodes</span>
+      </div>
+
       {/* Save Status - Reactive to State changes */}
       <div className="flex items-center gap-1.5 border-r pr-3">
         {isSaving ? (
@@ -58,12 +64,6 @@ export function StatusBar() {
             <span className="uppercase tracking-wider opacity-70">Saved to local</span>
           </>
         )}
-      </div>
-
-      {/* Mind Map Metrics */}
-      <div className="flex items-center gap-1.5 border-r pr-3">
-        <MapIcon className="h-3 w-3" />
-        <span>{totalNodes} Nodes</span>
       </div>
 
       {/* Viewport Info & Controls */}

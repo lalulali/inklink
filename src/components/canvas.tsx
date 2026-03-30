@@ -170,11 +170,53 @@ export function Canvas() {
 
     window.addEventListener('inklink-fit-view', handleFitView);
     window.addEventListener('inklink-reset-view', handleResetView);
+
+    const handleFocusNode = (e: any) => {
+      const { nodeId } = e.detail;
+      if (!rendererRef.current) return;
+
+      const s = globalState.getState();
+      if (!s.tree) return;
+
+      // Expand ancestors to reveal the node
+      let treeChanged = false;
+      const updateTree = (node: any, targetId: string): any => {
+        if (node.id === targetId) return node;
+        if (!node.children) return null;
+        for (let i = 0; i < node.children.length; i++) {
+          const result = updateTree(node.children[i], targetId);
+          if (result) {
+            if (node.collapsed) treeChanged = true;
+            const newChildren = [...node.children];
+            newChildren[i] = result;
+            return { ...node, children: newChildren, collapsed: false };
+          }
+        }
+        return null;
+      };
+
+      const newTree = updateTree(s.tree, nodeId);
+      if (newTree && treeChanged) {
+        globalState.setState({ tree: newTree });
+        // Give D3 a moment to layout the newly expanded nodes
+        setTimeout(() => {
+          (rendererRef.current as any).focusNode?.(nodeId, true);
+          globalState.setState({ selectedNode: nodeId });
+        }, 150);
+      } else if (newTree) {
+        // Just focus
+        (rendererRef.current as any).focusNode?.(nodeId, true);
+        globalState.setState({ selectedNode: nodeId });
+      }
+    };
+
+    window.addEventListener('inklink-canvas-focus-node', handleFocusNode);
     
     return () => {
       observer.disconnect();
       window.removeEventListener('inklink-fit-view', handleFitView);
       window.removeEventListener('inklink-reset-view', handleResetView);
+      window.removeEventListener('inklink-canvas-focus-node', handleFocusNode);
       if (renderer) {
           renderer.clear();
       }
