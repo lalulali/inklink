@@ -21,7 +21,8 @@ import { languages } from "@codemirror/language-data";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { tags as t } from "@lezer/highlight";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { indentWithTab } from "@codemirror/commands";
+import { indentWithTab, indentMore, indentLess, undoDepth, redoDepth, undo, redo } from "@codemirror/commands";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { globalState } from "@/core/state/state-manager";
 import { createMarkdownParser } from "@/core/parser/markdown-parser";
 import { ColorManager } from "@/core/theme/color-manager";
@@ -31,6 +32,7 @@ import { useTheme } from "next-themes";
 import { search, getSearchQuery, findNext } from "@codemirror/search";
 import { MarkdownSearchPanel } from "./markdown-search-panel";
 import { useFileDrop } from "@/hooks/use-file-drop";
+import { useWebPlatform } from "@/platform/web/web-platform-context";
 
 // Custom theme to match Inklink aesthetic
 const inklinkTheme = EditorView.theme({
@@ -118,6 +120,7 @@ export function MarkdownEditor() {
 	const parser = React.useMemo(() => createMarkdownParser(), []);
 	const editorRef = React.useRef<any>(null);
 	const [editorView, setEditorView] = React.useState<EditorView | null>(null);
+	const { autoSave } = useWebPlatform();
 	const isDark = resolvedTheme === "dark";
 
 	// Function to update search counts and index based on current editor state
@@ -574,6 +577,26 @@ export function MarkdownEditor() {
 			);
 	}, [editorView]);
 
+	React.useEffect(() => {
+		const handleUndo = () => {
+			if (!editorView) return;
+			undo(editorView);
+			editorView.focus();
+		};
+		const handleRedo = () => {
+			if (!editorView) return;
+			redo(editorView);
+			editorView.focus();
+		};
+
+		window.addEventListener("inklink-editor-undo", handleUndo);
+		window.addEventListener("inklink-editor-redo", handleRedo);
+		return () => {
+			window.removeEventListener("inklink-editor-undo", handleUndo);
+			window.removeEventListener("inklink-editor-redo", handleRedo);
+		};
+	}, [editorView]);
+
 	// Clean up timer on unmount
 	React.useEffect(() => {
 		return () => {
@@ -873,7 +896,7 @@ export function MarkdownEditor() {
 	]);
 
 	const { isDragging, handleDragOver, handleDragLeave, handleDrop } =
-		useFileDrop();
+		useFileDrop(autoSave);
 
 	return (
 		<div
@@ -929,6 +952,19 @@ export function MarkdownEditor() {
 							updateSearchStats(update.view);
 						}
 
+						// Update global history status for toolbar parity
+						if (update.docChanged) {
+							const canUndo = undoDepth(update.state) > 0;
+							const canRedo = redoDepth(update.state) > 0;
+							const s = globalState.getState();
+							if (canUndo !== s.editorCanUndo || canRedo !== s.editorCanRedo) {
+								globalState.setState({
+									editorCanUndo: canUndo,
+									editorCanRedo: canRedo,
+								});
+							}
+						}
+
 						// Only trigger if selection (cursor) changed and it was an interaction
 						if (
 							update.selectionSet &&
@@ -966,6 +1002,68 @@ export function MarkdownEditor() {
 						tabSize: 2,
 					}}
 				/>
+			</div>
+
+			{/* Mobile Quick-action markdown bar above the keyboard */}
+			<div className="md:hidden shrink-0 border-t bg-muted/40 px-2 py-1.5 flex items-center gap-1 overflow-x-auto no-scrollbar">
+				{/* Indent Actions */}
+				<button
+					type="button"
+					onMouseDown={(e) => {
+						e.preventDefault();
+						if (editorView) indentLess(editorView);
+					}}
+					className="shrink-0 rounded-md border border-border/60 bg-background p-1.5 text-foreground hover:bg-muted active:scale-95 transition-all outline-none"
+					aria-label="Outdent"
+				>
+					<ChevronLeft className="h-3.5 w-3.5" />
+				</button>
+				<button
+					type="button"
+					onMouseDown={(e) => {
+						e.preventDefault();
+						if (editorView) indentMore(editorView);
+					}}
+					className="shrink-0 rounded-md border border-border/60 bg-background p-1.5 text-foreground hover:bg-muted active:scale-95 transition-all outline-none"
+					aria-label="Indent"
+				>
+					<ChevronRight className="h-3.5 w-3.5" />
+				</button>
+
+				<div className="w-[1px] h-4 bg-border/60 mx-1" />
+
+				{[
+					{ label: "H1", insert: "# " },
+					{ label: "H2", insert: "## " },
+					{ label: "H3", insert: "### " },
+					{ label: "-", insert: "- " },
+					{ label: "[ ]", insert: "- [ ] " },
+					{ label: "**B**", insert: "****", cursorOffset: 2 },
+					{ label: "_I_", insert: "__", cursorOffset: 1 },
+					{ label: "`C`", insert: "``", cursorOffset: 1 },
+				].map((action) => (
+					<button
+						type="button"
+						key={action.label}
+						onMouseDown={(e) => {
+							// Prevent blur on editor before inserting
+							e.preventDefault();
+							window.dispatchEvent(
+								new CustomEvent("inklink-editor-insert", {
+									detail: { insert: action.insert, cursorOffset: action.cursorOffset },
+								})
+							);
+						}}
+						className={cn(
+							"shrink-0 rounded-md border border-border/60 bg-background px-2.5 py-1",
+							"text-xs font-mono font-medium text-foreground",
+							"hover:bg-muted active:scale-95 transition-all duration-100",
+							"min-w-[36px] text-center"
+						)}
+					>
+						{action.label}
+					</button>
+				))}
 			</div>
 		</div>
 	);

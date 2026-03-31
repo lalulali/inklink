@@ -18,15 +18,31 @@ export interface StorageAdapter {
   saveAutoSave(record: AutoSaveRecord): Promise<void>;
 
   /**
-   * Load auto-save record for crash recovery
+   * Load auto-save record
+   * @param id - Optional ID to load (defaults to 'current')
    * @returns Auto-save record or null if none exists
    */
-  loadAutoSave(): Promise<AutoSaveRecord | null>;
+  loadAutoSave(id?: string): Promise<AutoSaveRecord | null>;
 
   /**
-   * Clear auto-save record
+   * List all stored auto-save records
    */
-  clearAutoSave(): Promise<void>;
+  listAutoSaves(): Promise<AutoSaveRecord[]>;
+
+  /**
+   * Delete a specific auto-save record
+   */
+  deleteAutoSave(id: string): Promise<void>;
+
+  /**
+   * Clear all stored auto-save records (purge)
+   */
+  clearAllAutoSaves(): Promise<void>;
+
+  /**
+   * Clear all auto-saves based on age policy
+   */
+  cleanupOldAutoSaves(daysOld: number): Promise<void>;
 
   /**
    * Save user preferences

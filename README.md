@@ -61,7 +61,16 @@ Choose how your map flows: balanced two-sided, left-to-right, or right-to-left. 
 A VS Code-style find and replace panel with full keyboard shortcuts (`Cmd+Shift+F` / `Cmd+Shift+H`), overlapping match support, regex, match-case, whole-word, and preserve-case modes.
 
 ### 🗂️ File-First Workflow
-Open any `.md` file directly from the filesystem. Save changes back in place. Auto-save to local storage ensures you never lose work on a refresh.
+Open any `.md` file directly from the filesystem. Save changes back in place. Drag-and-drop a file onto the canvas to open it instantly — no dialog required. Inklink uses the modern **File System Access API** for a seamless local-first experience.
+
+### 🛡️ Local-First Data Safety
+Your work is never lost. Inklink continuously saves snapshots to **IndexedDB** in the background. If you close the tab, refresh, or crash, the **Recovery Center** detects your previous sessions on next launch and lets you browse, preview, and restore any of them — individually or all at once.
+
+### ⚙️ Configurable Settings
+Tune the experience to match your workflow:
+- **Continuous File Sync** — automatically write changes back to the opened file every 30 seconds
+- **Automatic Cleanup** — set how many days to keep local recovery snapshots before they are automatically purged (1–90 days)
+- **Snapshot Management** — review and manually purge all local snapshots from the settings panel at any time
 
 ### 📤 Export Options
 Export your mind map as SVG, PNG, or a standalone interactive HTML file — ready to embed in any documentation or share with stakeholders who do not have Inklink.
@@ -73,10 +82,10 @@ Export your mind map as SVG, PNG, or a standalone interactive HTML file — read
 Theme-aware rendering with color-coded branch hierarchies. Looks great in both modes.
 
 ### 📱 Mobile Responsive
-A fully adaptive layout — slide-in editor drawer, mobile-optimized toolbar, and quick-action markdown shortcuts — so the tool works wherever you are.
+A fully adaptive layout — persistent inline editor, mobile-optimized quick-action toolbar, and touch-friendly side drawers — so the tool remains powerful even on small screens.
 
-### 🔗 Source Access
-Direct access to the project's source code via the GitHub icon in the application toolbar.
+### ✨ Visual Excellence
+A professional, distraction-free **Flat Design System**. We have moved away from glassmorphism and translucency to provide a high-contrast, premium interface that feels solid and responsive. Every icon, including our theme-adaptive vector logo, is meticulously crafted.
 
 
 ---
@@ -165,7 +174,7 @@ Inklink renders this as a branching mind map rooted at **Product Vision**. Each 
 | `Cmd/Ctrl + F` | Find node on canvas |
 | `Cmd/Ctrl + Shift + F` | Find in editor |
 | `Cmd/Ctrl + Shift + H` | Find & replace in editor |
-| `?` | Open keyboard reference |
+| `?` | Open keyboard shortcuts drawer |
 
 ### 🗺️ Canvas
 

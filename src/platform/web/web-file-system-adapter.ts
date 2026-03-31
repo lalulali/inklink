@@ -48,10 +48,12 @@ export class WebFileSystemAdapter implements FileSystemAdapter {
    * Uses showSaveFilePicker if available, falls back to download
    */
   async saveFile(content: string, path?: string, handle?: any): Promise<SaveResult> {
+    console.debug('saveFile called', { path, hasHandle: !!handle });
+    
     if (handle && 'createWritable' in handle) {
       try {
-        // Task 14.1: Check and request permission with high-fidelity UI
         const status = await handle.queryPermission({ mode: 'readwrite' });
+        console.debug('Handle permission status:', status);
         
         if (status === 'prompt') {
           globalState.setState({ 
@@ -66,15 +68,24 @@ export class WebFileSystemAdapter implements FileSystemAdapter {
           await writable.close();
           return { status: 'saved' };
         }
-
-        // If 'denied', we'll fall back to 'Save As' below
       } catch (error) {
         console.warn('Direct save check failed:', error);
       }
     }
 
+    // If we have a handle but it failed/denied, we should NOT automatically fall back to picker 
+    // unless the handle is clearly invalid or the user cancelled the permission.
+    if (handle && !('showSaveFilePicker' in window)) {
+        // Fallback for non-FSA browsers using a handle (unlikely combination)
+        this.fallbackSaveFile(content, path || 'mindmap.md');
+        return { status: 'saved' };
+    }
+
     if ('showSaveFilePicker' in window) {
+      // If we HAD a handle but permissions were denied/failed, we might want to "Save As"
+      // but only if it's a manual save. 
       try {
+        console.debug('Opening showSaveFilePicker');
         const newHandle = await (window as any).showSaveFilePicker({
           suggestedName: path || 'mindmap.md',
           types: [{

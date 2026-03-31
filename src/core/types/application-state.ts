@@ -5,7 +5,7 @@
  */
 
 import type { TreeNode } from './tree-node';
-import type { LayoutDirection, Transform, Notification, FileHandle, Position } from './interfaces';
+import type { LayoutDirection, Transform, Notification, FileHandle, Position, AutoSaveRecord, UserPreferences } from './interfaces';
 import { getRandomFunWord } from '../constants/branding';
 
 /**
@@ -23,6 +23,8 @@ export interface ApplicationState {
   filePath: string | null;
   isDirty: boolean;
   lastSaved: Date | null;
+  lastSaveType: 'manual' | 'auto' | null;
+  isSaving: boolean;
 
   // View state
   layoutDirection: LayoutDirection;
@@ -58,11 +60,24 @@ export interface ApplicationState {
   editorSearchCurrentIndex: number;
 
   // Permission state
-  filePermissionRequest: { handle: any; path: string } | null;
+  filePermissionRequest: { handle: FileSystemFileHandle; path: string } | null;
 
   // Export state
   isExportDialogOpen: boolean;
   isHelpDialogOpen: boolean;
+  isSettingsDialogOpen: boolean;
+
+  // Recovery state
+  recoveryRecord: AutoSaveRecord | null;
+  isRecoveryDialogOpen: boolean;
+  autoSaveId: string | null;
+
+  // Editor status (history context)
+  editorCanUndo: boolean;
+  editorCanRedo: boolean;
+
+  // Preferences (Local Storage sync)
+  preferences: UserPreferences;
 }
 
 /**
@@ -78,6 +93,8 @@ export function createInitialState(): ApplicationState {
     filePath: null,
     isDirty: false,
     lastSaved: null,
+    lastSaveType: null,
+    isSaving: false,
     layoutDirection: 'two-sided',
     transform: {
       x: 0,
@@ -108,5 +125,20 @@ export function createInitialState(): ApplicationState {
     filePermissionRequest: null,
     isExportDialogOpen: false,
     isHelpDialogOpen: false,
+    isSettingsDialogOpen: false,
+    recoveryRecord: null,
+    isRecoveryDialogOpen: false,
+    autoSaveId: null,
+    editorCanUndo: false,
+    editorCanRedo: false,
+    preferences: {
+      autoSaveEnabled: true,
+      autoSaveInterval: 3000,
+      autoSaveToFileEnabled: true,
+      autoCleanupDays: 3,
+      defaultLayout: 'two-sided',
+      theme: 'dark',
+      recentFiles: [],
+    },
   };
 }

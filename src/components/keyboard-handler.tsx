@@ -58,14 +58,14 @@ export function KeyboardHandler() {
       // File: Save - Cmd/Ctrl + S
       if (isMod && key === 's') {
         e.preventDefault();
-        window.dispatchEvent(new CustomEvent('inklink-save-file'));
+        window.dispatchEvent(new CustomEvent('inklink-file-save'));
         return;
       }
 
       // File: Open - Cmd/Ctrl + O
       if (isMod && key === 'o') {
         e.preventDefault();
-        window.dispatchEvent(new CustomEvent('inklink-open-file'));
+        window.dispatchEvent(new CustomEvent('inklink-file-open'));
         return;
       }
 

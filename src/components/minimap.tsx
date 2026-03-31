@@ -187,7 +187,7 @@ export function Minimap() {
     >
       <div 
         ref={containerRef}
-        className="h-32 w-48 overflow-hidden rounded-lg border bg-background/80 shadow-lg backdrop-blur"
+        className="h-32 w-48 overflow-hidden rounded-lg border bg-background shadow-lg"
       >
          <svg ref={svgRef} className="h-full w-full" />
       </div>

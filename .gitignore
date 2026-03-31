@@ -46,6 +46,8 @@ next-env.d.ts
 # Testing outputs
 test-results/
 
+markmap-reference
+
 # AI IDE
 .kiro
 .agents

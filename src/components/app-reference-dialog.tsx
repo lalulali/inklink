@@ -8,12 +8,12 @@
 
 import React from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { globalState } from '@/core/state/state-manager';
 import { Command, Keyboard } from 'lucide-react';
 
@@ -53,19 +53,19 @@ export function AppReferenceDialog() {
   );
 
   return (
-    <Dialog open={isOpen} onOpenChange={isOpen => globalState.setState({ isHelpDialogOpen: isOpen })}>
-      <DialogContent className="max-w-lg overflow-hidden border-border/40 sm:rounded-2xl shadow-2xl backdrop-blur-xl bg-background/95">
-        <DialogHeader className="mb-4">
+    <Sheet open={isOpen} onOpenChange={isOpen => globalState.setState({ isHelpDialogOpen: isOpen })}>
+      <SheetContent side="right" className="w-[400px] sm:w-[540px] sm:max-w-md overflow-hidden bg-background max-h-screen flex flex-col p-6 border-l border-border">
+        <SheetHeader className="mb-4 shrink-0 px-2">
           <div className="flex items-center gap-2 text-primary mb-1">
             <Keyboard className="h-5 w-5" />
-            <DialogTitle className="text-xl font-bold tracking-tight">Keyboard Reference</DialogTitle>
+            <SheetTitle className="text-xl font-bold tracking-tight">Keyboard Shortcut</SheetTitle>
           </div>
-          <DialogDescription className="text-sm text-muted-foreground">
+          <SheetDescription className="text-sm text-muted-foreground">
             Boost your productivity with professional-grade keyboard shortcuts.
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
-        <div className="max-h-[60vh] overflow-y-auto pr-4 -mr-4 no-scrollbar scroll-smooth">
+        <div className="flex-1 overflow-y-auto pr-4 no-scrollbar scroll-smooth">
           <div className="space-y-2">
             <ShortcutGroup 
               title="Canvas Interactions" 
@@ -110,7 +110,7 @@ export function AppReferenceDialog() {
           </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/10">
+        <div className="mt-6 shrink-0 flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/10">
           <div className="flex items-center gap-3">
              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                 <Command className="h-4 w-4" />
@@ -121,13 +121,14 @@ export function AppReferenceDialog() {
              </div>
           </div>
           <button 
+            type="button"
             onClick={close}
             className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest px-3 py-1.5 rounded-lg hover:bg-muted"
           >
             Got it
           </button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

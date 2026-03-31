@@ -13,6 +13,7 @@ import { TreeNode } from '@/core/types';
 import { globalState } from '@/core/state/state-manager';
 import { LayoutFactory } from '@/core/layout/layout-factory';
 import { useTheme } from 'next-themes';
+import { useWebPlatform } from '@/platform/web/web-platform-context';
 import { useFileDrop } from '@/hooks/use-file-drop';
 import { cn } from '@/lib/utils';
 
@@ -27,7 +28,9 @@ export function Canvas() {
   const { resolvedTheme } = useTheme();
   const internalTransform = useRef(state.transform);
   
-  const { isDragging, handleDragOver, handleDragLeave, handleDrop } = useFileDrop();
+  const { autoSave } = useWebPlatform();
+
+  const { isDragging, handleDragOver, handleDragLeave, handleDrop } = useFileDrop(autoSave);
 
   // Subscribe to changes
   useEffect(() => {
@@ -337,7 +340,7 @@ export function Canvas() {
       />
       
       {isDragging && (
-        <div className="pointer-events-none absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/60 backdrop-blur-[2px] animate-in fade-in zoom-in-95 duration-200">
+        <div className="pointer-events-none absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80 animate-in fade-in zoom-in-95 duration-200">
            <div className="p-8 border-2 border-dashed border-primary/40 rounded-2xl flex flex-col items-center gap-4 bg-background shadow-xl">
              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>

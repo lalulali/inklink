@@ -14,7 +14,7 @@ const customJestConfig = {
     '^@/components/(.*)$': '<rootDir>/src/components/$1',
     '^@/lib/(.*)$': '<rootDir>/src/lib/$1',
   },
-  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
+  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/', '<rootDir>/markmap-reference/'],
   testMatch: ['**/*.pbt.test.ts', '**/*.pbt.test.tsx'],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',

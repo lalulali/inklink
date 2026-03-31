@@ -54,8 +54,9 @@ export class WebStorageAdapter implements StorageAdapter {
       return new Promise((resolve, reject) => {
         const transaction = db.transaction(AUTO_SAVE_STORE, 'readwrite');
         const store = transaction.objectStore(AUTO_SAVE_STORE);
-        // We only keep one current auto-save record for recovery
-        const request = store.put({ ...record, id: 'current' });
+        // Use provided id or default to 'current'
+        const id = record.id || 'current';
+        const request = store.put({ ...record, id });
         
         request.onerror = () => reject(new Error('Failed to save auto-save record'));
         request.onsuccess = () => resolve();
@@ -69,13 +70,13 @@ export class WebStorageAdapter implements StorageAdapter {
   /**
    * Load auto-save record from IndexedDB
    */
-  async loadAutoSave(): Promise<AutoSaveRecord | null> {
+  async loadAutoSave(id: string = 'current'): Promise<AutoSaveRecord | null> {
     try {
       const db = await this.getDB();
       return new Promise((resolve, reject) => {
         const transaction = db.transaction(AUTO_SAVE_STORE, 'readonly');
         const store = transaction.objectStore(AUTO_SAVE_STORE);
-        const request = store.get('current');
+        const request = store.get(id);
         
         request.onerror = () => reject(new Error('Failed to load auto-save record'));
         request.onsuccess = () => resolve(request.result || null);
@@ -87,22 +88,138 @@ export class WebStorageAdapter implements StorageAdapter {
   }
 
   /**
-   * Clear auto-save record from IndexedDB
+   * List all auto-save records
    */
-  async clearAutoSave(): Promise<void> {
+  async listAutoSaves(): Promise<AutoSaveRecord[]> {
+    try {
+      const db = await this.getDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(AUTO_SAVE_STORE, 'readonly');
+        const store = transaction.objectStore(AUTO_SAVE_STORE);
+        const request = store.getAll();
+        
+        request.onerror = () => reject(new Error('Failed to list auto-save records'));
+        request.onsuccess = () => resolve(request.result || []);
+      });
+    } catch (error) {
+      console.error('Storage Error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Find a record matching a handle or path
+   * This is used to reuse session IDs for the same file
+   */
+  async findMatchingRecord(handle?: FileSystemFileHandle, filePath?: string | null): Promise<AutoSaveRecord | null> {
+    try {
+      const records = await this.listAutoSaves();
+      
+      // First pass: Try handle matching (most precise)
+      if (handle) {
+         for (const record of records) {
+           if (record.fileHandle) {
+             try {
+               if (await (handle as any).isSameEntry(record.fileHandle)) {
+                 console.debug('Found record by handle match:', record.id);
+                 return record;
+               }
+             } catch {
+               // ignore comparison errors
+             }
+           }
+         }
+      }
+
+      // Second pass: Fallback to path matching (works for non-native drops or legacy records)
+      if (filePath) {
+        for (const record of records) {
+          // STRICT ISOLATION: 
+          // If a record has a handle, it is "pinned" to a specific physical file.
+          // It should ONLY match if Pass 1 (handle comparison) already succeeded.
+          // Since we are in Pass 2, it means it didn't match via handle.
+          // Therefore, if either the record OR the current drop has a handle, 
+          // they are NOT the same file (effectively different "folders" or identities).
+          if (record.fileHandle || handle) {
+            continue;
+          }
+
+          // Both have NO handles (e.g. mobile, Firefox, or non-native drop)
+          // Fall back to filename matching as last resort
+          if (record.filePath === filePath) {
+            console.debug('Found record by path match (both no-handle):', record.id);
+            return record;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Matching failed:', err);
+    }
+    return null;
+  }
+
+  /**
+   * Delete a specific auto-save record
+   */
+  async deleteAutoSave(id: string): Promise<void> {
     try {
       const db = await this.getDB();
       return new Promise((resolve, reject) => {
         const transaction = db.transaction(AUTO_SAVE_STORE, 'readwrite');
         const store = transaction.objectStore(AUTO_SAVE_STORE);
-        const request = store.delete('current');
+        const request = store.delete(id);
         
-        request.onerror = () => reject(new Error('Failed to clear auto-save record'));
+        request.onerror = () => reject(new Error(`Failed to delete auto-save record: ${id}`));
         request.onsuccess = () => resolve();
       });
     } catch (error) {
       console.error('Storage Error:', error);
     }
+  }
+
+  /**
+   * Clear all auto-save records (cleansing)
+   */
+  async clearAllAutoSaves(): Promise<void> {
+    try {
+      const db = await this.getDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(AUTO_SAVE_STORE, 'readwrite');
+        const store = transaction.objectStore(AUTO_SAVE_STORE);
+        const request = store.clear();
+        
+        request.onerror = () => reject(new Error('Failed to clear auto-save store'));
+        request.onsuccess = () => resolve();
+      });
+    } catch (error) {
+      console.error('Storage Error:', error);
+    }
+  }
+
+  /**
+   * Cleanup old auto-save records
+   */
+  async cleanupOldAutoSaves(days: number): Promise<void> {
+    try {
+      const records = await this.listAutoSaves();
+      const now = new Date();
+      const cutoff = new Date(now.getTime() - (days * 24 * 60 * 60 * 1000));
+
+      for (const record of records) {
+        if (record.id !== 'current' && new Date(record.timestamp) < cutoff) {
+          await this.deleteAutoSave(record.id!);
+        }
+      }
+    } catch (error) {
+      console.error('Storage Error during cleanup:', error);
+    }
+  }
+
+  /**
+   * Clear auto-save record from IndexedDB
+   */
+  async clearAutoSave(id: string = 'current'): Promise<void> {
+    return this.deleteAutoSave(id);
   }
 
   /**
@@ -141,7 +258,9 @@ export class WebStorageAdapter implements StorageAdapter {
   private getDefaultPreferences(): UserPreferences {
     return {
       autoSaveEnabled: true,
-      autoSaveInterval: 30000,
+      autoSaveInterval: 3000,
+      autoSaveToFileEnabled: false,
+      autoCleanupDays: 30,
       defaultLayout: 'two-sided',
       theme: 'light',
       recentFiles: [],

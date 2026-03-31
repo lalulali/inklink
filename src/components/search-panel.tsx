@@ -98,7 +98,7 @@ export function SearchPanel() {
   return (
     <div 
       className={cn(
-        "absolute right-6 top-6 z-40 flex items-center gap-3 rounded-full border bg-background/80 p-3 backdrop-blur-md shadow-2xl transition-all duration-300 animate-in slide-in-from-top-2 fade-in",
+        "absolute right-6 top-6 z-40 flex items-center gap-3 rounded-full border bg-background p-3 shadow-2xl transition-all duration-300 animate-in slide-in-from-top-2 fade-in",
         state.isCanvasSearchOpen ? "scale-100 opacity-100" : "scale-95 opacity-0"
       )}
       id="inklink-search-panel"

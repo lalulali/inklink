@@ -9,7 +9,7 @@ import { createMarkdownParser } from '@/core/parser/markdown-parser';
 import { ColorManager } from '@/core/theme/color-manager';
 import { useNotification } from '@/platform/web/web-notification-manager';
 
-export function useFileDrop() {
+export function useFileDrop(autoSave?: any) {
   const { showSuccess, showError, showInfo } = useNotification();
   const [isDragging, setIsDragging] = useState(false);
 
@@ -49,36 +49,57 @@ export function useFileDrop() {
     try {
       showInfo('Reading dropped file...');
 
-      // Try to get a FileSystemHandle if supported (allows re-saving)
-      let handle: any = null;
+      // Try to get a FileSystemHandle if supported (allows re-saving and session matching)
+      let handle: FileSystemFileHandle | null = null;
       if ('getAsFileSystemHandle' in DataTransferItem.prototype) {
         const item = Array.from(e.dataTransfer.items).find(i => i.kind === 'file');
         if (item) {
-          handle = await (item as any).getAsFileSystemHandle();
+          try {
+            handle = await (item as any).getAsFileSystemHandle();
+            console.debug('Dropped file handle acquired:', handle);
+          } catch (hErr) {
+            console.warn('Failed to get handle from drop item:', hErr);
+          }
         }
+      }
+      
+      // Need storage to check for existing session
+      const storage = autoSave?.storage;
+      let existingRecord = null;
+      if (storage) {
+        existingRecord = await storage.findMatchingRecord(handle || undefined, mdFile.name);
       }
 
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         const content = event.target?.result as string;
         if (typeof content !== 'string') return;
 
         const parser = createMarkdownParser();
         const tree = parser.parse(content);
         ColorManager.assignBranchColors(tree);
+        const autoSaveId = existingRecord?.id || crypto.randomUUID();
 
         globalState.setState({
           markdown: content,
-          tree,
+          filePath: mdFile.name,
+          autoSaveId: autoSaveId,
           currentFile: {
-            handle,
+            handle: handle || undefined,
             path: mdFile.name,
             name: mdFile.name
           },
-          filePath: mdFile.name,
+          tree,
           isDirty: false,
-          lastSaved: new Date()
+          lastSaved: new Date(),
+          lastSaveType: 'manual'
         });
+
+        // Trigger immediate local storage save for recovery
+        if (autoSave) {
+           await autoSave.forceSave(tree, mdFile.name, autoSaveId);
+           console.debug('Drop: Local snapshot updated/created');
+        }
 
         showSuccess('File loaded', `Successfully opened ${mdFile.name}`);
       };
@@ -91,7 +112,7 @@ export function useFileDrop() {
     } catch (err: any) {
       showError('Drop failed', err.message || 'Unknown error');
     }
-  }, [showSuccess, showError, showInfo]);
+  }, [showSuccess, showError, showInfo, autoSave]);
 
   return {
     isDragging,

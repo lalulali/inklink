@@ -5,7 +5,7 @@
  * - Req 6: Full undo/redo functionality
  */
 
-import { Command } from './command-interface';
+import type { Command } from './command-interface';
 
 /**
  * Orchestrates the execution of state commands and their lifetime in a history stack
@@ -35,6 +35,8 @@ export class CommandManager {
     if (this.undoStack.length > this.maxStackSize) {
       this.undoStack.shift();
     }
+    
+    this.notify();
   }
   
   /**
@@ -45,6 +47,7 @@ export class CommandManager {
     if (cmd) {
       cmd.undo();
       this.redoStack.push(cmd);
+      this.notify();
     }
   }
   
@@ -56,6 +59,7 @@ export class CommandManager {
     if (cmd) {
       cmd.execute();
       this.undoStack.push(cmd);
+      this.notify();
     }
   }
 
@@ -65,6 +69,19 @@ export class CommandManager {
   clear(): void {
     this.undoStack = [];
     this.redoStack = [];
+    this.notify();
+  }
+
+  // --- Reactive UI Support ---
+  private listeners: Set<() => void> = new Set();
+  
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notify(): void {
+    this.listeners.forEach(l => l());
   }
   
   /**

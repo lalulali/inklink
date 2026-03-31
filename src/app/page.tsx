@@ -16,10 +16,11 @@ import { KeyboardHandler } from "@/components/keyboard-handler";
 import { StatusBar } from "@/components/status-bar";
 import { Toaster } from "@/components/ui/toaster";
 import { MarkdownEditor } from "@/components/markdown-editor";
-import { MobileEditorDrawer } from "@/components/mobile-editor-drawer";
 import { FilePermissionDialog } from "@/components/file-permission-dialog";
 import { ExportDialog } from "@/components/export-dialog";
 import { AppReferenceDialog } from "@/components/app-reference-dialog";
+import { RecoveryDialog } from "@/components/recovery-dialog";
+import { SettingsDialog } from "@/components/settings-dialog";
 
 /**
  * Root Application Component
@@ -52,15 +53,15 @@ export default function Home() {
 
   // Initial load — editor hidden by default on mobile
   React.useEffect(() => {
-    const mobile = window.matchMedia('(max-width: 767px)').matches;
-    if (mobile) {
-      setEditorVisible(false);
-      return;
-    }
     const savedWidth = localStorage.getItem('inklink_editor_width');
     const minWidth = window.innerWidth * 0.25;
     const initialWidth = savedWidth ? Math.max(minWidth, parseInt(savedWidth)) : minWidth;
     setEditorWidth(initialWidth);
+    
+    const isInitialMobile = window.matchMedia('(max-width: 767px)').matches;
+    if (isInitialMobile) {
+      setEditorVisible(false);
+    }
   }, []);
 
   // Resize handling (desktop only)
@@ -179,14 +180,17 @@ export default function Home() {
       <ExportDialog />
       {/* Branded modal for file permission explanation */}
       <FilePermissionDialog />
+      <RecoveryDialog />
+      <SettingsDialog />
       {/* Persistent global notification layer */}
       <Toaster />
 
-      {/* ── MOBILE: Slide-in drawer editor ───────────────────────────────── */}
-      <MobileEditorDrawer
-        open={isMobile && editorVisible}
-        onClose={() => setEditorVisible(false)}
-      />
+      {/* ── MOBILE: Inline Editor below toolbar ── */}
+      {isMobile && editorVisible && (
+        <div className="md:hidden w-full h-[45vh] shrink-0 border-b overflow-hidden bg-background">
+          <MarkdownEditor />
+        </div>
+      )}
     </main>
   );
 }

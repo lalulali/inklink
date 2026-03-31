@@ -59,7 +59,7 @@ export function MobileEditorDrawer({ open, onClose }: MobileEditorDrawerProps) {
       {/* Backdrop */}
       <div
         className={cn(
-          "md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300",
+          "md:hidden fixed inset-0 z-40 bg-black/60 transition-opacity duration-300",
           open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         )}
         onClick={onClose}

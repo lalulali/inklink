@@ -26,7 +26,6 @@ export function StatusBar() {
   const totalNodes = state.tree ? calculateSubtreeSizes(state.tree).size : 0;
   
   // Status logic
-  const isSaving = state.loading;
   const isDirty = state.isDirty;
 
   return (
@@ -48,20 +47,34 @@ export function StatusBar() {
 
       {/* Save Status - Reactive to State changes */}
       <div className="flex items-center gap-1.5 border-r pr-3">
-        {isSaving ? (
+        {state.isSaving ? (
           <>
             <Loader2Icon className="h-3 w-3 animate-spin text-blue-500" />
-            <span className="uppercase tracking-wider opacity-70">Auto-saving...</span>
+            <span className="uppercase tracking-wider text-blue-500 font-bold">Saving...</span>
           </>
         ) : isDirty ? (
           <>
             <CircleIcon className="h-3 w-3 text-amber-500 fill-amber-500/20" />
             <span className="uppercase tracking-wider text-amber-600 font-bold">Unsaved Changes</span>
           </>
+        ) : state.lastSaved ? (
+          <>
+            {state.lastSaveType === 'manual' ? (
+              <>
+                <CheckCircle2Icon className="h-3 w-3 text-green-500" />
+                <span className="uppercase tracking-wider opacity-70">Saved to computer</span>
+              </>
+            ) : (
+              <>
+                <RefreshCcwIcon className="h-3 w-3 text-blue-400 animate-pulse" />
+                <span className="uppercase tracking-wider opacity-70">Saved to browser</span>
+              </>
+            )}
+          </>
         ) : (
           <>
-            <CheckCircle2Icon className="h-3 w-3 text-green-500" />
-            <span className="uppercase tracking-wider opacity-70">Saved to local</span>
+            <CircleIcon className="h-3 w-3 opacity-20" />
+            <span className="uppercase tracking-wider opacity-40">Ready</span>
           </>
         )}
       </div>

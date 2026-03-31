@@ -104,8 +104,10 @@ export type ExportFormat = 'html' | 'svg' | 'png' | 'jpg';
  * Auto-save record for crash recovery
  */
 export interface AutoSaveRecord {
+  id?: string;
   markdown: string;
   filePath: string | null;
+  fileHandle?: FileSystemFileHandle;
   layoutDirection: LayoutDirection;
   timestamp: Date;
 }
@@ -116,6 +118,8 @@ export interface AutoSaveRecord {
 export interface UserPreferences {
   autoSaveEnabled: boolean;
   autoSaveInterval: number;
+  autoSaveToFileEnabled: boolean;
+  autoCleanupDays: number;
   defaultLayout: LayoutDirection;
   theme: 'light' | 'dark';
   recentFiles: string[];

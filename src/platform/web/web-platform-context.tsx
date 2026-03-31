@@ -10,6 +10,7 @@ import React, { createContext, useContext, useMemo } from 'react';
 import { PlatformFactory } from '@/platform';
 import { WebExportManager } from './web-export-manager';
 import { WebAutoSaveManager } from './web-auto-save-manager';
+import { WebFileSystemAdapter } from './web-file-system-adapter';
 import { StateManager, globalState } from '@/core/state/state-manager';
 import { CommandManager } from '@/core/state/command-manager';
 import { WebKeyboardHandler } from './web-keyboard-handler';
@@ -23,6 +24,7 @@ export interface WebPlatformServices {
   export: WebExportManager;
   autoSave: WebAutoSaveManager;
   keyboard: WebKeyboardHandler;
+  fs: WebFileSystemAdapter;
   factory: PlatformFactory;
 }
 
@@ -39,6 +41,7 @@ export function WebPlatformProvider({ children }: { children: React.ReactNode })
     const exportMgr = new WebExportManager();
     const autoSaveMgr = new WebAutoSaveManager();
     const keyboardHandler = new WebKeyboardHandler(commands);
+    const fs = factory.createFileSystemAdapter() as WebFileSystemAdapter;
     
     return {
       state,
@@ -46,13 +49,38 @@ export function WebPlatformProvider({ children }: { children: React.ReactNode })
       export: exportMgr,
       autoSave: autoSaveMgr,
       keyboard: keyboardHandler,
+      fs, // Expose fs in services
       factory
     };
   }, []);
 
   React.useEffect(() => {
+    // 1. Initialize keyboard handler
     services.keyboard.initialize();
-    return () => services.keyboard.dispose();
+
+    // 2. Perform daily cleanup
+    services.autoSave.performCleanup();
+
+    // 3. Start background sync
+    services.autoSave.start(services.state, services.fs);
+
+    // 4. Check for recovery data
+    async function initRecovery() {
+      const record = await services.autoSave.checkRecovery();
+      if (record) {
+        services.state.setState({ 
+          recoveryRecord: record, 
+          isRecoveryDialogOpen: true 
+        });
+      }
+    }
+    
+    initRecovery();
+
+    return () => {
+      services.keyboard.dispose();
+      services.autoSave.stop();
+    };
   }, [services]);
 
   return (
