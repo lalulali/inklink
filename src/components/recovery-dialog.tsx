@@ -140,10 +140,10 @@ export function RecoveryDialog() {
             {/* PINNED: Latest Activity */}
             {latestRecord && (
               <div className="mb-6 animate-in slide-in-from-top-4 duration-300">
-                <p className="text-[10px] uppercase font-black tracking-widest text-primary/70 mb-3 px-1 ml-1 flex items-center gap-2">
+                <div className="text-[10px] uppercase font-black tracking-widest text-primary/70 mb-3 px-1 ml-1 flex items-center gap-2">
                    <div className="h-1 w-1 rounded-full bg-primary animate-pulse" />
                    Latest Activity
-                </p>
+                </div>
                 {(() => {
                     const id = latestRecord.id || 'current';
                     const isSelected = selectedId === id;
