@@ -8,6 +8,7 @@
 
 import React from "react";
 import { useWebPlatform } from "@/platform/web/web-platform-context";
+import { PlatformType } from "@/platform";
 import { useNotification } from "@/platform/web/web-notification-manager";
 import { globalState } from "@/core/state/state-manager";
 import { ChangeLayoutCommand } from "@/core/state/commands/change-layout-command";
@@ -32,6 +33,7 @@ import {
 	Undo2 as UndoIcon,
 	Redo2 as RedoIcon,
 	Map as MapIcon,
+	Coffee as CoffeeIcon,
 } from "lucide-react";
 import {
 	DropdownMenu,
@@ -128,6 +130,7 @@ export function Toolbar({
 		autoSave: autoSaveMgr,
 		commands,
 	} = useWebPlatform();
+    const isVsCode = factory.getPlatform() === PlatformType.VSCode;
 	const { showSuccess, showError, showInfo } = useNotification();
 	const [state, setState] = React.useState(globalState.getState());
 	const [isMobile, setIsMobile] = React.useState(false);
@@ -406,74 +409,97 @@ export function Toolbar({
 				</div>
 
 				{/* File Operations */}
-				<div className="flex shrink-0 items-center gap-1 border-r pr-2">
-					<DropdownMenu>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<DropdownMenuTrigger asChild>
-									<Button variant="ghost" size="icon" className="h-8 w-8">
-										<FolderOpenIcon className="h-4 w-4" />
-									</Button>
-								</DropdownMenuTrigger>
-							</TooltipTrigger>
-							<TooltipContent>Open File (Cmd+O)</TooltipContent>
-						</Tooltip>
-						<DropdownMenuContent
-							align="start"
-							className="w-56 border-border bg-background"
-						>
-							<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
-								Source Selection
-							</div>
-							<DropdownMenuItem
-								onClick={handleOpen}
-								className="gap-2 cursor-pointer"
-							>
-								<FolderOpenIcon className="h-4 w-4" />
-								<span>From Computer...</span>
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								onClick={() =>
-									globalState.setState({ isRecoveryDialogOpen: true })
-								}
-								className="gap-2 cursor-pointer"
-							>
-								<HistoryIcon className="h-4 w-4" />
-								<span>From Local Storage...</span>
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
+				{!isVsCode && (
+                    <div className="flex shrink-0 items-center gap-1 border-r pr-2">
+                        <DropdownMenu>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                            <FolderOpenIcon className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>Open File (Cmd+O)</TooltipContent>
+                            </Tooltip>
+                            <DropdownMenuContent
+                                align="start"
+                                className="w-56 border-border bg-background"
+                            >
+                                <div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+                                    Source Selection
+                                </div>
+                                <DropdownMenuItem
+                                    onClick={handleOpen}
+                                    className="gap-2 cursor-pointer"
+                                >
+                                    <FolderOpenIcon className="h-4 w-4" />
+                                    <span>From Computer...</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    onClick={() =>
+                                        globalState.setState({ isRecoveryDialogOpen: true })
+                                    }
+                                    className="gap-2 cursor-pointer"
+                                >
+                                    <HistoryIcon className="h-4 w-4" />
+                                    <span>From Local Storage...</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8"
-								onClick={handleSave}
-							>
-								<SaveIcon className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Save (Cmd+S)</TooltipContent>
-					</Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={handleSave}
+                                >
+                                    <SaveIcon className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Save (Cmd+S)</TooltipContent>
+                        </Tooltip>
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 focus-visible:ring-0 focus-visible:ring-offset-0"
-								onClick={() =>
-									globalState.setState({ isExportDialogOpen: true })
-								}
-							>
-								<DownloadIcon className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Export Mind Map...</TooltipContent>
-					</Tooltip>
-				</div>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+                                    onClick={() =>
+                                        globalState.setState({ isExportDialogOpen: true })
+                                    }
+                                >
+                                    <DownloadIcon className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Export Mind Map...</TooltipContent>
+                        </Tooltip>
+                    </div>
+                )}
+
+                {/* VS Code specific File Actions (just Export) */}
+                {isVsCode && (
+                    <div className="flex shrink-0 items-center gap-1 border-r pr-2">
+                         <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+                                    onClick={() =>
+                                        globalState.setState({ isExportDialogOpen: true })
+                                    }
+                                >
+                                    <DownloadIcon className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Export Mind Map...</TooltipContent>
+                        </Tooltip>
+                    </div>
+                )}
 
 				{/* Undo/Redo & Search */}
 				<div className="flex shrink-0 items-center gap-1 border-r pr-2">
@@ -661,6 +687,20 @@ export function Toolbar({
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>GitHub</TooltipContent>
+					</Tooltip>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button variant="ghost" size="icon" className="h-8 w-8 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10" asChild>
+								<a
+									href="https://buymeacoffee.com/christianh5"
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									<CoffeeIcon className="h-4 w-4" />
+								</a>
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>Buy me a coffee ☕</TooltipContent>
 					</Tooltip>
 					<ModeToggle />
 					<Tooltip>

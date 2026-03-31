@@ -4,6 +4,7 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-☕-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/christianh5)
 
 > **Visualize your thinking. Navigate your knowledge. All in Markdown.**
 
@@ -223,6 +224,14 @@ Inklink renders this as a branching mind map rooted at **Product Vision**. Each 
 ## Inspiration & References
 
 This project was inspired by [Markmap](https://github.com/markmap/markmap), which was studied as a reference implementation for D3.js rendering patterns, pan/zoom interaction, and SVG export techniques. Inklink's markdown parser, layout algorithms, state management, and file operations are fully custom implementations.
+
+---
+
+## Support
+
+If Inklink has saved you time or helped you think more clearly, consider buying me a coffee. It keeps the project alive and motivates continued development.
+
+[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/christianh5)
 
 ---
 
