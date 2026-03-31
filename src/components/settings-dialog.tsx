@@ -22,7 +22,8 @@ import {
     Settings as SettingsIcon,
     Shield as ShieldIcon,
     Clock as ClockIcon,
-    Trash2 as Trash2Icon
+    Trash2 as Trash2Icon,
+    Github as GithubIcon
 } from "lucide-react";
 import { globalState } from "@/core/state/state-manager";
 import { useWebPlatform } from "@/platform/web/web-platform-context";
@@ -199,7 +200,13 @@ export function SettingsDialog() {
 					</div>
 				</div>
 
-				<div className="flex justify-end pt-2">
+				<div className="flex justify-between items-center pt-6 mt-4 border-t border-border/50">
+                    <Button variant="ghost" size="sm" className="h-9 gap-2 text-muted-foreground hover:text-primary transition-colors font-bold text-[10px] uppercase tracking-widest" asChild>
+                        <a href="https://github.com/lalulali/inklink" target="_blank" rel="noopener noreferrer">
+                            <GithubIcon className="h-4 w-4" />
+                            Source Code
+                        </a>
+                    </Button>
 					<Button 
                         onClick={handleClose} 
                         variant="secondary" 

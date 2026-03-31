@@ -678,20 +678,6 @@ export function Toolbar({
 						<TooltipTrigger asChild>
 							<Button variant="ghost" size="icon" className="h-8 w-8" asChild>
 								<a
-									href="https://github.com/lalulali/inklink"
-									target="_blank"
-									rel="noopener noreferrer"
-								>
-									<GithubIcon className="h-4 w-4" />
-								</a>
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>GitHub</TooltipContent>
-					</Tooltip>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button variant="ghost" size="icon" className="h-8 w-8 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10" asChild>
-								<a
 									href="https://buymeacoffee.com/christianh5"
 									target="_blank"
 									rel="noopener noreferrer"
