@@ -128,7 +128,7 @@ export function createInitialState(): ApplicationState {
     isSettingsDialogOpen: false,
     recoveryRecord: null,
     isRecoveryDialogOpen: false,
-    autoSaveId: null,
+    autoSaveId: typeof crypto !== 'undefined' ? crypto.randomUUID() : null,
     editorCanUndo: false,
     editorCanRedo: false,
     preferences: {

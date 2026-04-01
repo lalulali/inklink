@@ -26,12 +26,16 @@ export class ToggleAllVisibilityCommand implements Command {
     if (!s.tree) return;
 
     const newTree = this.cloneTree(s.tree);
-    const recursiveSet = (node: TreeNode) => {
-      node.collapsed = this.collapsed;
-      if (node.children) node.children.forEach(recursiveSet);
+    const recursiveSet = (node: TreeNode, level: number) => {
+      if (this.collapsed) {
+        node.collapsed = level >= 1;
+      } else {
+        node.collapsed = false;
+      }
+      if (node.children) node.children.forEach(child => recursiveSet(child, level + 1));
     };
 
-    recursiveSet(newTree);
+    recursiveSet(newTree, 0);
     this.stateManager.setState({ tree: newTree, isDirty: true });
   }
 

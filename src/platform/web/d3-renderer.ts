@@ -9,6 +9,7 @@ import { RendererAdapter } from '../adapters/renderer-adapter';
 import { TreeNode, Position, NodeChange, Transform } from '@/core/types';
 import { ViewportCuller } from './viewport-culler';
 import { ColorManager } from '@/core/theme/color-manager';
+import { LAYOUT_CONFIG } from '@/core/layout/layout-config';
 
 /**
  * Web implementation of RendererAdapter using D3.js
@@ -36,7 +37,7 @@ export class D3Renderer implements RendererAdapter {
   private readonly config = {
     padding: { 
       x: 12 * 0.75, // 9
-      y: 6 * 0.75   // 4.5
+      y: 8 * 0.75   // 6 (increased from 6)
     },
     margin: { 
       x: 40 * 0.75, // 30
@@ -260,13 +261,16 @@ export class D3Renderer implements RendererAdapter {
       const fontSize = this.getFontSize(depth);
       const fontWeight = this.getFontWeight(depth);
       const lineHeight = this.getLineHeight(depth);
+      const rootMaxW = (depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH : Infinity) - (this.config.padding.x * 2);
       
       if (ctx) ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
 
       // Always re-measure to ensure tidy appearance
-      const lines = node.content.split('\n');
+      const rawLines = node.content.split('\n');
       let maxWidth = 0;
-      lines.forEach(line => {
+      let wrappedLineCount = 0;
+
+      rawLines.forEach(line => {
         const segments = this.parseMarkdownLine(line);
         let lineWidth = 0;
         segments.forEach(seg => {
@@ -277,10 +281,17 @@ export class D3Renderer implements RendererAdapter {
             lineWidth += seg.text.length * (fontSize * 0.6);
           }
         });
-        maxWidth = Math.max(maxWidth, lineWidth);
+
+        if (depth === 0 && lineWidth > rootMaxW) {
+          maxWidth = Math.max(maxWidth, rootMaxW);
+          wrappedLineCount += Math.ceil(lineWidth / rootMaxW);
+        } else {
+          maxWidth = Math.max(maxWidth, lineWidth);
+          wrappedLineCount += 1;
+        }
       });
       node.metadata.width = maxWidth + (this.config.padding.x * 2);
-      node.metadata.height = (lines.length * lineHeight) + (this.config.padding.y * 2);
+      node.metadata.height = (wrappedLineCount * lineHeight) + (this.config.padding.y * 2) + 4; // Extra breathing room for wrapped text
     });
 
     // Temporarily disabled culling to ensure reliable initial render
@@ -595,29 +606,69 @@ export class D3Renderer implements RendererAdapter {
     update.select('text')
       .each(function(d) {
         const textElement = d3.select(this);
-        const lines = d.content.split('\n');
-        
+        const rawLines = d.content.split('\n');
+        const depth = d.depth || 0;
+        const fontSize = thisRenderer.getFontSize(depth);
+        const fontWeight = thisRenderer.getFontWeight(depth);
+        const rootMaxW = (depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH : Infinity) - (thisRenderer.config.padding.x * 2);
+
+        // Helper for measuring text inside the closure
+        const measure = (txt: string) => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
+            return ctx.measureText(txt).width;
+          }
+          return txt.length * (fontSize * 0.6);
+        };
+
+        let displayLines = rawLines;
+        if (depth === 0) {
+          const wrapped: string[] = [];
+          rawLines.forEach(line => {
+            const words = line.split(' ');
+            let currentLine = '';
+            words.forEach(word => {
+              const testLine = currentLine ? `${currentLine} ${word}` : word;
+              if (measure(testLine) > rootMaxW && currentLine) {
+                wrapped.push(currentLine);
+                currentLine = word;
+              } else {
+                currentLine = testLine;
+              }
+            });
+            if (currentLine) wrapped.push(currentLine);
+          });
+          displayLines = wrapped;
+        }
+
         // Calculate the target x (same as the .attr('x') logic below)
         const width = (d as any).metadata?.width || 0;
         let x: number;
         if (thisRenderer.isVertical) {
-            x = -width / 2 + thisRenderer.config.padding.x;
+          x = -width / 2 + thisRenderer.config.padding.x;
         } else {
-            const pos = positions.get(d.id) || { x: 0, y: 0 };
-            const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
-            if (!parentPos) x = -width / 2 + thisRenderer.config.padding.x;
-            else if (pos.x < parentPos.x) x = -width + thisRenderer.config.padding.x;
-            else x = thisRenderer.config.padding.x;
+          const pos = positions.get(d.id) || { x: 0, y: 0 };
+          const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
+          if (!parentPos) x = -width / 2 + thisRenderer.config.padding.x;
+          else if (pos.x < parentPos.x) x = -width + thisRenderer.config.padding.x;
+          else x = thisRenderer.config.padding.x;
         }
 
         // Clean up previous tspans
         textElement.selectAll('tspan').remove();
         
+        // Final line count for vertical centering
+        const totalLines = displayLines.length;
+        const lineHeight = thisRenderer.getLineHeight(depth);
+
         // Add new tspans for each line
-        lines.forEach((line, i) => {
+        displayLines.forEach((line, i) => {
           const tspan = textElement.append('tspan')
             .attr('x', x)
-            .attr('dy', i === 0 ? '0.35em' : '1.25em');
+            // dy for first line is based on total lines to center the block vertically
+            .attr('dy', i === 0 ? `${0.35 - (totalLines - 1) * 0.6}em` : '1.25em');
             
           const segments = thisRenderer.parseMarkdownLine(line);
           segments.forEach(seg => {
@@ -625,7 +676,7 @@ export class D3Renderer implements RendererAdapter {
               .text(seg.text);
             
             if (seg.bold) span.style('font-weight', 'bold');
-            else span.style('font-weight', thisRenderer.getFontWeight(d.depth));
+            else span.style('font-weight', thisRenderer.getFontWeight(depth));
             
             if (seg.italic) span.style('font-style', 'italic');
             if (seg.strikethrough) span.style('text-decoration', 'line-through');
@@ -653,14 +704,8 @@ export class D3Renderer implements RendererAdapter {
         if (!parentPos) return -width / 2 + thisRenderer.config.padding.x;
         if (pos.x < parentPos.x) return -width + thisRenderer.config.padding.x;
         return thisRenderer.config.padding.x;
-      })
-      .attr('y', (d) => {
-        const lines = d.content.split('\n');
-        const fontSize = thisRenderer.getFontSize(d.depth);
-        const lineHeight = thisRenderer.getLineHeight(d.depth);
-        // Shift up by half the total extra height to center vertically
-        return -((lines.length - 1) * lineHeight) / 2;
       });
+      // Vertically centered via 'dy' on first tspan instead of 'y' on text element
 
     update.select('rect')
       .transition()

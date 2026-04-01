@@ -1,0 +1,104 @@
+{
+  "name": "inklink-vscode",
+  "displayName": "Inklink — Markdown Mind Map Visualizer",
+  "description": "Visualize any Markdown file as a live, interactive mind map. Real-time rendering, bidirectional navigation, dark mode, export to PNG/SVG/HTML.",
+  "version": "0.1.0",
+  "publisher": "inklink",
+  "icon": "assets/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lalulali/inklink"
+  },
+  "homepage": "https://inklink.bychris.me",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "markdown",
+    "mindmap",
+    "mind map",
+    "visualization",
+    "markdown preview",
+    "markdown visualizer",
+    "markdown mind map",
+    "markmap",
+    "diagram",
+    "tree",
+    "outline",
+    "knowledge map",
+    "document structure",
+    "markdown tree",
+    "interactive map"
+  ],
+  "activationEvents": [
+    "onCommand:inklink.open",
+    "onLanguage:markdown"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "inklink.open",
+        "title": "Open Mindmap",
+        "category": "Inklink",
+        "icon": {
+          "light": "assets/icon-light.svg",
+          "dark": "assets/icon-dark.svg"
+        }
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "inklink.open",
+          "group": "navigation",
+          "when": "resourceExtname == .md"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "inklink.open",
+          "group": "navigation",
+          "when": "resourceExtname == .md"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "build": "npm run build:webview && npm run build:extension",
+    "dev:extension": "tsc -watch -p ./",
+    "dev:webview": "vite",
+    "build:webview": "vite build",
+    "build:extension": "tsc -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.1",
+    "@typescript-eslint/parser": "^6.19.1",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.56.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12",
+    "vite-plugin-singlefile": "^0.13.5"
+  },
+  "dependencies": {
+    "d3": "^7.8.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

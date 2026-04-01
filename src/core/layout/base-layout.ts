@@ -40,6 +40,9 @@ export abstract class BaseLayout implements LayoutAlgorithm {
     const fontSize = (depth === 0 ? 22 : depth === 1 ? 17 : depth === 2 ? 14 : 12) * scale;
     const fontWeight = depth === 0 ? '700' : depth === 1 ? '600' : '500';
     
+    // Check for hard-coded root max width constraint
+    const maxWidthLimit = depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH : Infinity;
+    
     // Exact synchronization with d3-renderer dimensions
     let textWidth = (node.content?.length || 0) * (fontSize * 0.6);
     if (typeof document !== 'undefined') {
@@ -47,18 +50,27 @@ export abstract class BaseLayout implements LayoutAlgorithm {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         const lines = (node.content || '').split('\n');
-        let maxWidth = 0;
+        let totalMaxWidth = 0;
         lines.forEach(line => {
           // Strip basic inline markdown to measure only visible text
           const cleanLine = line.replace(/(\*\*\*|\*\*|\*|~~)/g, '');
           ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
-          maxWidth = Math.max(maxWidth, ctx.measureText(cleanLine).width);
+          
+          const lineWidth = ctx.measureText(cleanLine).width;
+          
+          // If we are at the root and exceed the limit, we'll wrap (heuristic)
+          if (depth === 0 && lineWidth > maxWidthLimit - (24 * scale)) {
+             totalMaxWidth = Math.max(totalMaxWidth, maxWidthLimit - (24 * scale));
+          } else {
+             totalMaxWidth = Math.max(totalMaxWidth, lineWidth);
+          }
         });
-        textWidth = maxWidth;
+        textWidth = totalMaxWidth;
       }
     }
     
-    return textWidth + (24 * scale); // padding.x * 2 (12 * 0.75 * 2 = 18)
+    const res = textWidth + (24 * scale); // padding.x * 2 (12 * 0.75 * 2 = 18)
+    return Math.min(res, maxWidthLimit);
   }
 
   /**
@@ -69,8 +81,42 @@ export abstract class BaseLayout implements LayoutAlgorithm {
     const depth = node.depth || 0;
     const fontSize = (depth === 0 ? 22 : depth === 1 ? 17 : depth === 2 ? 14 : 12) * scale;
     const lineHeight = Math.round(fontSize * 1.25);
-    const lines = (node.content || '').split('\n').length;
-    return (lines * lineHeight) + (12 * scale); // padding.y * 2 (6 * 0.75 * 2 = 9)
+    
+    let rawLines = (node.content || '').split('\n');
+    let lineCount = 0;
+
+    // Root node wrapping heuristic for height calculation
+    if (depth === 0 && typeof document !== 'undefined') {
+       const canvas = document.createElement('canvas');
+       const ctx = canvas.getContext('2d');
+       if (ctx) {
+         const maxWidthLimit = LAYOUT_CONFIG.ROOT_MAX_WIDTH - (24 * scale);
+         const fontWeight = '700';
+         ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
+
+         rawLines.forEach(line => {
+           const words = line.split(' ');
+           let currentLine = '';
+           words.forEach(word => {
+             const testLine = currentLine ? `${currentLine} ${word}` : word;
+             const width = ctx.measureText(testLine.replace(/(\*\*\*|\*\*|\*|~~)/g, '')).width;
+             if (width > maxWidthLimit && currentLine) {
+               lineCount += 1;
+               currentLine = word;
+             } else {
+               currentLine = testLine;
+             }
+           });
+           if (currentLine) lineCount += 1;
+         });
+       } else {
+         lineCount = rawLines.length;
+       }
+    } else {
+       lineCount = rawLines.length;
+    }
+
+    return (lineCount * lineHeight) + (16 * scale); // increased padding.y
   }
 
   /**

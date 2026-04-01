@@ -5,7 +5,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -19,16 +19,13 @@ import { globalState } from '@/core/state/state-manager';
 import { useWebPlatform } from "@/platform/web/web-platform-context";
 import { useNotification } from "@/platform/web/web-notification-manager";
 import { 
-  FileCode, 
   Image as ImageIcon, 
   Check, 
-  Globe, 
-  Download,
+  Globe,
   Settings2,
   Paintbrush
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useTheme } from 'next-themes';
 
 type ExportFormatType = 'html' | 'png' | 'svg';
 type PNGBackground = 'transparent' | 'white' | 'dark';
@@ -40,7 +37,6 @@ export function ExportDialog() {
   const [exporting, setExporting] = useState(false);
   const { export: exportMgr } = useWebPlatform();
   const { showSuccess, showError, showInfo } = useNotification();
-  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     return globalState.subscribe(s => setOpen(s.isExportDialogOpen));
@@ -98,13 +94,6 @@ export function ExportDialog() {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && close()}>
       <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden bg-background border-border/60 shadow-2xl">
-        <div className="relative h-24 bg-primary/5 border-b border-border/40 overflow-hidden flex items-center justify-center">
-            <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:20px_20px]" />
-            <div className="z-10 w-12 h-12 rounded-2xl bg-background border shadow-sm flex items-center justify-center text-primary">
-                <Download className="w-6 h-6" />
-            </div>
-        </div>
-
         <div className="p-6 space-y-6">
             <DialogHeader>
                 <DialogTitle className="text-xl font-bold tracking-tight">Export Mind Map</DialogTitle>

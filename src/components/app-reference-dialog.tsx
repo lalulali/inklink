@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sheet";
 import { globalState } from '@/core/state/state-manager';
 import { Command, Keyboard } from 'lucide-react';
+import { PlatformFactory, PlatformType } from '@/platform';
 
 export function AppReferenceDialog() {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -67,46 +68,63 @@ export function AppReferenceDialog() {
 
         <div className="flex-1 overflow-y-auto pr-4 no-scrollbar scroll-smooth">
           <div className="space-y-2">
-            <ShortcutGroup 
-              title="Canvas Interactions" 
-              shortcuts={[
-                { key: 'E', label: 'Show/Hide Markdown Editor' },
-                { key: 'X', label: 'Expand Branch / Expand All' },
-                { key: 'C', label: 'Collapse Branch / Collapse All' },
-                { key: 'Enter', label: 'Toggle Selected Node' },
-                { key: 'F', label: 'Fit Map to Screen' },
-                { key: 'R', label: 'Reset Zoom to 100%' },
-                { key: 'Esc', label: 'Deselect Node / Close Panel' },
-              ]}
-            />
+            {(() => {
+                const factory = PlatformFactory.getInstance();
+                const isVsCode = factory.getPlatform() === PlatformType.VSCode;
 
-            <ShortcutGroup 
-              title="File & System" 
-              shortcuts={[
-                { key: 'Cmd+S', label: 'Save Changes' },
-                { key: 'Cmd+O', label: 'Open Markdown File' },
-                { key: 'Cmd+E', label: 'Export to HTML/PNG' },
-                { key: 'Shift+/', label: 'Show this Help Reference' },
-              ]}
-            />
+                return (
+                    <>
+                        <ShortcutGroup 
+                            title="Canvas Interactions" 
+                            shortcuts={[
+                                { key: 'E', label: isVsCode ? 'Focus Source in Editor' : 'Show/Hide Markdown Editor' },
+                                { key: 'X', label: 'Expand Branch / Expand All' },
+                                { key: 'C', label: 'Collapse Branch / Collapse All' },
+                                { key: 'Enter', label: 'Toggle Selected Node' },
+                                { key: 'F', label: 'Fit Map to Screen' },
+                                { key: 'R', label: 'Reset Zoom to 100%' },
+                                { key: 'Esc', label: 'Deselect Node / Close Panel' },
+                            ]}
+                        />
 
-            <ShortcutGroup 
-              title="Layout & View" 
-              shortcuts={[
-                { key: 'Cmd+←', label: 'Switch to Right-To-Left layout' },
-                { key: 'Cmd+→', label: 'Switch to Left-To-Right layout' },
-                { key: 'Cmd+↕', label: 'Switch to Two-Sided layout' },
-              ]}
-            />
+                        <ShortcutGroup 
+                            title="File & System" 
+                            shortcuts={[
+                                { key: 'Cmd+S', label: 'Focus Source in Editor' },
+                                { key: 'Cmd+O', label: 'Open Markdown File' },
+                                { key: 'Cmd+E', label: 'Export to HTML/PNG' },
+                                { key: 'Shift+/', label: 'Show this Help Reference' },
+                            ].filter(s => {
+                                if (!isVsCode) return true;
+                                // Remove these for VS Code help
+                                return s.key !== 'Cmd+S' && s.key !== 'Cmd+O';
+                            })}
+                        />
 
-            <ShortcutGroup 
-              title="Search & Replace" 
-              shortcuts={[
-                { key: 'Cmd+F', label: 'Search Mind Map Nodes' },
-                { key: 'Cmd+Shift+F', label: 'Search in Editor' },
-                { key: 'Cmd+Shift+H', label: 'Replace in Editor' },
-              ]}
-            />
+                        <ShortcutGroup 
+                            title="Layout & View" 
+                            shortcuts={[
+                                { key: 'Cmd+←', label: 'Switch to Right-To-Left layout' },
+                                { key: 'Cmd+→', label: 'Switch to Left-To-Right layout' },
+                                { key: 'Cmd+↕', label: 'Switch to Two-Sided layout' },
+                            ]}
+                        />
+
+                        <ShortcutGroup 
+                            title="Search & Replace" 
+                            shortcuts={[
+                                { key: 'Cmd+F', label: 'Search Mind Map Nodes' },
+                                { key: 'Cmd+Shift+F', label: 'Search in Editor' },
+                                { key: 'Cmd+Shift+H', label: 'Replace in Editor' },
+                            ].filter(s => {
+                                if (!isVsCode) return true;
+                                // Remove search/replace in editor as VS Code handles it
+                                return s.key !== 'Cmd+Shift+F' && s.key !== 'Cmd+Shift+H';
+                            })}
+                        />
+                    </>
+                );
+            })()}
           </div>
         </div>
 

@@ -7,6 +7,8 @@
 import { StorageAdapter, FileSystemAdapter, RendererAdapter } from './adapters';
 import { WebStorageAdapter, WebFileSystemAdapter, D3Renderer } from './web';
 
+import { VSCodeStorageAdapter, VSCodeFileSystemAdapter } from './vscode';
+
 /**
  * Platform environment detection
  */
@@ -24,9 +26,18 @@ export class PlatformFactory {
 
   private constructor() {
     // Detect platform at runtime
-    if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_PLATFORM === 'vscode') {
+    if (typeof window !== 'undefined' && (window as any).acquireVsCodeApi) {
+      this.currentPlatform = PlatformType.VSCode;
+    } else if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_PLATFORM === 'vscode') {
       this.currentPlatform = PlatformType.VSCode;
     }
+  }
+
+  /**
+   * Get current platform type
+   */
+  public getPlatform(): PlatformType {
+    return this.currentPlatform;
   }
 
   /**
@@ -47,8 +58,7 @@ export class PlatformFactory {
       case PlatformType.Web:
         return new WebStorageAdapter();
       case PlatformType.VSCode:
-        // VSCodeStorageAdapter not yet implemented
-        throw new Error('VSCodeStorageAdapter not yet implemented');
+        return new VSCodeStorageAdapter();
       default:
         return new WebStorageAdapter();
     }
@@ -62,8 +72,7 @@ export class PlatformFactory {
       case PlatformType.Web:
         return new WebFileSystemAdapter();
       case PlatformType.VSCode:
-        // VSCodeFileSystemAdapter not yet implemented
-        throw new Error('VSCodeFileSystemAdapter not yet implemented');
+        return new VSCodeFileSystemAdapter();
       default:
         return new WebFileSystemAdapter();
     }

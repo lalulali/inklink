@@ -125,12 +125,8 @@ export function Toolbar({
 	onToggleEditor: () => void;
 	editorVisible: boolean;
 }) {
-	const {
-		factory,
-		autoSave: autoSaveMgr,
-		commands,
-	} = useWebPlatform();
-    const isVsCode = factory.getPlatform() === PlatformType.VSCode;
+	const { factory, autoSave: autoSaveMgr, commands } = useWebPlatform();
+	const isVsCode = factory.getPlatform() === PlatformType.VSCode;
 	const { showSuccess, showError, showInfo } = useNotification();
 	const [state, setState] = React.useState(globalState.getState());
 	const [isMobile, setIsMobile] = React.useState(false);
@@ -347,7 +343,7 @@ export function Toolbar({
 			id="inklink-toolbar"
 		>
 			<TooltipProvider delayDuration={isMobile ? 999999 : 400}>
-				{/* App Branding & Editor Toggle */}
+				{/* App Branding */}
 				<div className="flex shrink-0 items-center gap-2 border-r pr-4">
 					<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
 						<svg
@@ -360,7 +356,11 @@ export function Toolbar({
 						>
 							<title>Inklink Logo</title>
 							<desc>The official logo for the Inklink application.</desc>
-							<path d="M 197 171.932 C 187.543 174.831, 178.392 182.797, 174.170 191.804 L 171.500 197.500 171.500 462.500 C 171.500 714.562, 171.588 727.915, 173.312 736 C 181.720 775.433, 203.238 807.089, 237.029 829.736 C 247.592 836.815, 257.460 841.559, 270.879 846.007 C 293.528 853.515, 278.387 853.100, 517 852.748 C 716.638 852.454, 730.971 852.319, 737.748 850.676 C 794.031 837.027, 834.469 798.079, 849.330 743.207 L 852.500 731.500 852.500 464.500 L 852.500 197.500 849.591 191.200 C 846.310 184.093, 839.862 177.640, 832.280 173.874 L 827.500 171.500 513.500 171.333 C 340.800 171.241, 198.375 171.510, 197 171.932 M 327 398.965 C 322.325 399.968, 316.250 401.559, 313.500 402.500 C 260.564 420.616, 227.651 475.134, 236.544 529.973 C 243.509 572.921, 272.810 607.386, 314.500 621.667 C 324.707 625.163, 336.745 627.001, 349.381 626.992 C 362.608 626.983, 370.699 625.822, 381.500 622.382 C 420.076 610.096, 448.732 580.859, 459.264 543.043 L 461.500 535.015 512.171 535.008 L 562.841 535 563.490 538.250 C 564.982 545.715, 568.569 555.142, 573.739 565.188 C 593.292 603.177, 632.303 627.020, 674.860 626.992 C 689.445 626.983, 696.673 625.824, 710.259 621.319 C 768.591 601.975, 801.403 539.547, 784.422 480.219 C 781.324 469.397, 772.589 451.464, 766.537 443.500 C 755.154 428.522, 741.167 416.777, 725.500 409.042 C 706.025 399.426, 692.161 396.495, 670 397.306 C 652.237 397.957, 641.599 400.610, 625.500 408.407 C 595.287 423.040, 573.693 448.800, 564.761 480.867 L 562.500 488.985 512 488.985 L 461.500 488.985 459.264 480.957 C 455.864 468.748, 451.519 459.140, 444.742 448.842 C 437.754 438.225, 424.678 424.612, 414.812 417.684 C 401.223 408.141, 382.878 400.647, 366.668 398.016 C 356.790 396.413, 336.646 396.895, 327 398.965 M 334 444.496 C 320.587 447.499, 305.713 456.836, 296.335 468.141 C 275.974 492.684, 276.150 531.501, 296.733 556.226 C 331.443 597.920, 397.570 584.618, 414.677 532.500 C 416.873 525.809, 417.312 522.618, 417.358 513 C 417.424 499.264, 415.773 492.031, 409.885 480.266 C 402.139 464.789, 387.534 452.136, 370.976 446.560 C 360.556 443.051, 344.466 442.153, 334 444.496 M 658.500 444.964 C 644.025 448.797, 634.013 454.814, 624.094 465.639 C 604.113 487.444, 600.655 521.064, 615.724 547 C 627.554 567.362, 651.295 580.965, 675 580.965 C 695.654 580.965, 716.421 570.792, 728.585 554.716 C 738.245 541.948, 742.949 528.057, 742.983 512.197 C 743.063 473.647, 712.575 442.825, 674.590 443.055 C 669.094 443.088, 662.732 443.843, 658.500 444.964" fillRule="evenodd" clipRule="evenodd" />
+							<path
+								d="M 197 171.932 C 187.543 174.831, 178.392 182.797, 174.170 191.804 L 171.500 197.500 171.500 462.500 C 171.500 714.562, 171.588 727.915, 173.312 736 C 181.720 775.433, 203.238 807.089, 237.029 829.736 C 247.592 836.815, 257.460 841.559, 270.879 846.007 C 293.528 853.515, 278.387 853.100, 517 852.748 C 716.638 852.454, 730.971 852.319, 737.748 850.676 C 794.031 837.027, 834.469 798.079, 849.330 743.207 L 852.500 731.500 852.500 464.500 L 852.500 197.500 849.591 191.200 C 846.310 184.093, 839.862 177.640, 832.280 173.874 L 827.500 171.500 513.500 171.333 C 340.800 171.241, 198.375 171.510, 197 171.932 M 327 398.965 C 322.325 399.968, 316.250 401.559, 313.500 402.500 C 260.564 420.616, 227.651 475.134, 236.544 529.973 C 243.509 572.921, 272.810 607.386, 314.500 621.667 C 324.707 625.163, 336.745 627.001, 349.381 626.992 C 362.608 626.983, 370.699 625.822, 381.500 622.382 C 420.076 610.096, 448.732 580.859, 459.264 543.043 L 461.500 535.015 512.171 535.008 L 562.841 535 563.490 538.250 C 564.982 545.715, 568.569 555.142, 573.739 565.188 C 593.292 603.177, 632.303 627.020, 674.860 626.992 C 689.445 626.983, 696.673 625.824, 710.259 621.319 C 768.591 601.975, 801.403 539.547, 784.422 480.219 C 781.324 469.397, 772.589 451.464, 766.537 443.500 C 755.154 428.522, 741.167 416.777, 725.500 409.042 C 706.025 399.426, 692.161 396.495, 670 397.306 C 652.237 397.957, 641.599 400.610, 625.500 408.407 C 595.287 423.040, 573.693 448.800, 564.761 480.867 L 562.500 488.985 512 488.985 L 461.500 488.985 459.264 480.957 C 455.864 468.748, 451.519 459.140, 444.742 448.842 C 437.754 438.225, 424.678 424.612, 414.812 417.684 C 401.223 408.141, 382.878 400.647, 366.668 398.016 C 356.790 396.413, 336.646 396.895, 327 398.965 M 334 444.496 C 320.587 447.499, 305.713 456.836, 296.335 468.141 C 275.974 492.684, 276.150 531.501, 296.733 556.226 C 331.443 597.920, 397.570 584.618, 414.677 532.500 C 416.873 525.809, 417.312 522.618, 417.358 513 C 417.424 499.264, 415.773 492.031, 409.885 480.266 C 402.139 464.789, 387.534 452.136, 370.976 446.560 C 360.556 443.051, 344.466 442.153, 334 444.496 M 658.500 444.964 C 644.025 448.797, 634.013 454.814, 624.094 465.639 C 604.113 487.444, 600.655 521.064, 615.724 547 C 627.554 567.362, 651.295 580.965, 675 580.965 C 695.654 580.965, 716.421 570.792, 728.585 554.716 C 738.245 541.948, 742.949 528.057, 742.983 512.197 C 743.063 473.647, 712.575 442.825, 674.590 443.055 C 669.094 443.088, 662.732 443.843, 658.500 444.964"
+								fillRule="evenodd"
+								clipRule="evenodd"
+							/>
 						</svg>
 					</div>
 					<div className="hidden flex-col md:flex">
@@ -371,137 +371,104 @@ export function Toolbar({
 							Studio
 						</span>
 					</div>
-
-					<div className="ml-2 flex items-center gap-1">
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant={editorVisible ? "secondary" : "ghost"}
-									size="icon"
-									className="h-8 w-8"
-									onClick={handleToggleEditor}
-								>
-									<FileTextIcon className="h-4 w-4" />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>
-								{editorVisible ? "Hide Editor" : "Show Editor"} (Cmd+\)
-							</TooltipContent>
-						</Tooltip>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant={!state.minimapVisible ? "ghost" : "secondary"}
-									size="icon"
-									className="h-8 w-8"
-									onClick={() =>
-										globalState.setState({
-											minimapVisible: !state.minimapVisible,
-										})
-									}
-								>
-									<MapIcon className="h-4 w-4" />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>Toggle Minimap (M)</TooltipContent>
-						</Tooltip>
-					</div>
 				</div>
 
-				{/* File Operations */}
-				{!isVsCode && (
-                    <div className="flex shrink-0 items-center gap-1 border-r pr-2">
-                        <DropdownMenu>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                                            <FolderOpenIcon className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                </TooltipTrigger>
-                                <TooltipContent>Open File (Cmd+O)</TooltipContent>
-                            </Tooltip>
-                            <DropdownMenuContent
-                                align="start"
-                                className="w-56 border-border bg-background"
-                            >
-                                <div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
-                                    Source Selection
-                                </div>
-                                <DropdownMenuItem
-                                    onClick={handleOpen}
-                                    className="gap-2 cursor-pointer"
-                                >
-                                    <FolderOpenIcon className="h-4 w-4" />
-                                    <span>From Computer...</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    onClick={() =>
-                                        globalState.setState({ isRecoveryDialogOpen: true })
-                                    }
-                                    className="gap-2 cursor-pointer"
-                                >
-                                    <HistoryIcon className="h-4 w-4" />
-                                    <span>From Local Storage...</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+				{/* Section 1: Editor & File */}
+				<div className="flex shrink-0 items-center gap-1 border-r pr-2">
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant={editorVisible ? "secondary" : "ghost"}
+								size="icon"
+								className="h-8 w-8"
+								onClick={handleToggleEditor}
+							>
+								<FileTextIcon className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							{isVsCode
+								? "Show Source in Editor"
+								: editorVisible
+									? "Hide Editor"
+									: "Show Editor"}{" "}
+							(Cmd+\)
+						</TooltipContent>
+					</Tooltip>
 
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={handleSave}
-                                >
-                                    <SaveIcon className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Save (Cmd+S)</TooltipContent>
-                        </Tooltip>
+					{!isVsCode && (
+						<>
+							<DropdownMenu>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<DropdownMenuTrigger asChild>
+											<Button variant="ghost" size="icon" className="h-8 w-8">
+												<FolderOpenIcon className="h-4 w-4" />
+											</Button>
+										</DropdownMenuTrigger>
+									</TooltipTrigger>
+									<TooltipContent>Open File (Cmd+O)</TooltipContent>
+								</Tooltip>
+								<DropdownMenuContent
+									align="start"
+									className="w-56 border-border bg-background"
+								>
+									<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+										Source Selection
+									</div>
+									<DropdownMenuItem
+										onClick={handleOpen}
+										className="gap-2 cursor-pointer"
+									>
+										<FolderOpenIcon className="h-4 w-4" />
+										<span>From Computer...</span>
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										onClick={() =>
+											globalState.setState({ isRecoveryDialogOpen: true })
+										}
+										className="gap-2 cursor-pointer"
+									>
+										<HistoryIcon className="h-4 w-4" />
+										<span>From Local Storage...</span>
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
 
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 focus-visible:ring-0 focus-visible:ring-offset-0"
-                                    onClick={() =>
-                                        globalState.setState({ isExportDialogOpen: true })
-                                    }
-                                >
-                                    <DownloadIcon className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Export Mind Map...</TooltipContent>
-                        </Tooltip>
-                    </div>
-                )}
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8"
+										onClick={handleSave}
+									>
+										<SaveIcon className="h-4 w-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>Save (Cmd+S)</TooltipContent>
+							</Tooltip>
+						</>
+					)}
 
-                {/* VS Code specific File Actions (just Export) */}
-                {isVsCode && (
-                    <div className="flex shrink-0 items-center gap-1 border-r pr-2">
-                         <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 focus-visible:ring-0 focus-visible:ring-offset-0"
-                                    onClick={() =>
-                                        globalState.setState({ isExportDialogOpen: true })
-                                    }
-                                >
-                                    <DownloadIcon className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Export Mind Map...</TooltipContent>
-                        </Tooltip>
-                    </div>
-                )}
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+								onClick={() =>
+									globalState.setState({ isExportDialogOpen: true })
+								}
+							>
+								<DownloadIcon className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>Export Mind Map...</TooltipContent>
+					</Tooltip>
+				</div>
 
-				{/* Undo/Redo & Search */}
+				{/* Section 2: History & Search */}
 				<div className="flex shrink-0 items-center gap-1 border-r pr-2">
 					<Tooltip>
 						<TooltipTrigger asChild>
@@ -550,23 +517,8 @@ export function Toolbar({
 					</Tooltip>
 				</div>
 
-				{/* Layout Controls */}
+				{/* Section 3: Layout */}
 				<div className="hidden md:flex shrink-0 items-center gap-1 border-r pr-2 px-1">
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant={
-									state.layoutDirection === "two-sided" ? "secondary" : "ghost"
-								}
-								size="icon"
-								className="h-8 w-8"
-								onClick={() => handleLayoutChange("two-sided")}
-							>
-								<TwoSidedLayoutIcon className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Two-Sided Layout</TooltipContent>
-					</Tooltip>
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
@@ -582,7 +534,22 @@ export function Toolbar({
 								<LTRLayoutIcon className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Left to Right Layout</TooltipContent>
+						<TooltipContent>Left to Right</TooltipContent>
+					</Tooltip>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant={
+									state.layoutDirection === "two-sided" ? "secondary" : "ghost"
+								}
+								size="icon"
+								className="h-8 w-8"
+								onClick={() => handleLayoutChange("two-sided")}
+							>
+								<TwoSidedLayoutIcon className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>Balance</TooltipContent>
 					</Tooltip>
 					<Tooltip>
 						<TooltipTrigger asChild>
@@ -599,12 +566,29 @@ export function Toolbar({
 								<RTLLayoutIcon className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Right to Left Layout</TooltipContent>
+						<TooltipContent>Right to Left</TooltipContent>
 					</Tooltip>
 				</div>
 
-				{/* Visibility Controls */}
+				{/* Section 4: View & Visibility */}
 				<div className="hidden md:flex shrink-0 items-center gap-1 pr-2">
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant={!state.minimapVisible ? "ghost" : "secondary"}
+								size="icon"
+								className="h-8 w-8"
+								onClick={() =>
+									globalState.setState({
+										minimapVisible: !state.minimapVisible,
+									})
+								}
+							>
+								<MapIcon className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>Toggle Minimap (M)</TooltipContent>
+					</Tooltip>
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
@@ -616,7 +600,7 @@ export function Toolbar({
 								<MaximizeIcon className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Expand All (E)</TooltipContent>
+						<TooltipContent>Expand All (X)</TooltipContent>
 					</Tooltip>
 					<Tooltip>
 						<TooltipTrigger asChild>
@@ -634,7 +618,7 @@ export function Toolbar({
 				</div>
 
 				{/* Mobile More Menu */}
-				<div className="flex md:hidden shrink-0 items-center border-r pr-2">
+				<div className="flex md:hidden shrink-0 items-center">
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button variant="ghost" size="icon" className="h-8 w-8">
@@ -642,21 +626,37 @@ export function Toolbar({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-52">
-							<DropdownMenuItem onClick={() => handleLayoutChange("two-sided")}>
-								<TwoSidedLayoutIcon className="h-4 w-4 mr-2" />
-								Two-Sided Layout
-							</DropdownMenuItem>
+							<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+								Layout
+							</div>
 							<DropdownMenuItem
 								onClick={() => handleLayoutChange("left-to-right")}
 							>
 								<LTRLayoutIcon className="h-4 w-4 mr-2" />
 								Left to Right
 							</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => handleLayoutChange("two-sided")}>
+								<TwoSidedLayoutIcon className="h-4 w-4 mr-2" />
+								Balance
+							</DropdownMenuItem>
 							<DropdownMenuItem
 								onClick={() => handleLayoutChange("right-to-left")}
 							>
 								<RTLLayoutIcon className="h-4 w-4 mr-2" />
 								Right to Left
+							</DropdownMenuItem>
+							<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-2 border-t">
+								View
+							</div>
+							<DropdownMenuItem
+								onClick={() =>
+									globalState.setState({
+										minimapVisible: !state.minimapVisible,
+									})
+								}
+							>
+								<MapIcon className="h-4 w-4 mr-2" />
+								{state.minimapVisible ? "Hide Minimap" : "Show Minimap"}
 							</DropdownMenuItem>
 							<DropdownMenuItem
 								onClick={() => handleToggleAllVisibility(false)}
@@ -689,21 +689,23 @@ export function Toolbar({
 						<TooltipContent>Buy me a coffee ☕</TooltipContent>
 					</Tooltip>
 					<ModeToggle />
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8"
-								onClick={() =>
-									globalState.setState({ isSettingsDialogOpen: true })
-								}
-							>
-								<SettingsIcon className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Settings</TooltipContent>
-					</Tooltip>
+					{!isVsCode && (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8"
+									onClick={() =>
+										globalState.setState({ isSettingsDialogOpen: true })
+									}
+								>
+									<SettingsIcon className="h-4 w-4" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Settings</TooltipContent>
+						</Tooltip>
+					)}
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button

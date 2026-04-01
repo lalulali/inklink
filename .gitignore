@@ -39,6 +39,7 @@ next-env.d.ts
 .vscode/
 *.swp
 *.swo
+*.vsix
 
 # Jest
 .jest/
@@ -52,4 +53,3 @@ markmap-reference
 .kiro
 .agents
 .artifacts
-.swc

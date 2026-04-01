@@ -9,6 +9,7 @@
 import { useEffect } from 'react';
 import { globalState } from '@/core/state/state-manager';
 import { TreeNode } from '@/core/types';
+import { PlatformFactory, PlatformType } from '@/platform';
 
 /**
  * Global keyboard event listener
@@ -55,15 +56,30 @@ export function KeyboardHandler() {
         return;
       }
 
-      // File: Save - Cmd/Ctrl + S
+      // File: Save / Open Editor (VS Code) - Cmd/Ctrl + S
       if (isMod && key === 's') {
+        const factory = PlatformFactory.getInstance();
+        const isVsCode = factory.getPlatform() === PlatformType.VSCode;
+        
         e.preventDefault();
-        window.dispatchEvent(new CustomEvent('inklink-file-save'));
+        if (isVsCode) {
+            window.dispatchEvent(new CustomEvent('inklink-editor-toggle'));
+        } else {
+            window.dispatchEvent(new CustomEvent('inklink-file-save'));
+        }
         return;
       }
 
       // File: Open - Cmd/Ctrl + O
       if (isMod && key === 'o') {
+        const factory = PlatformFactory.getInstance();
+        const isVsCode = factory.getPlatform() === PlatformType.VSCode;
+        
+        if (isVsCode) {
+            // Let VS Code handle native Open
+            return;
+        }
+        
         e.preventDefault();
         window.dispatchEvent(new CustomEvent('inklink-file-open'));
         return;

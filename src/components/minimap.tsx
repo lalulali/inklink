@@ -66,26 +66,29 @@ export function Minimap() {
     if (nodes.length === 0) {
       minX = 0; maxX = width; minY = 0; maxY = height;
     } else {
-      // Dynamic padding: use at least 1500px or 50% of content width to ensure center nodes have breathing room
+      // Improved dynamic padding: use a percentage of content size with a reasonable cap
       const contentW = maxX - minX;
       const contentH = maxY - minY;
-      const paddingX = Math.max(1500, contentW * 0.5);
-      const paddingY = Math.max(1000, contentH * 0.5);
+      const paddingX = Math.min(1000, Math.max(200, contentW * 0.2));
+      const paddingY = Math.min(800, Math.max(150, contentH * 0.2));
       minX -= paddingX; maxX += paddingX; minY -= paddingY; maxY += paddingY;
     }
 
     const mapW = maxX - minX;
     const mapH = maxY - minY;
-    const scale = Math.min(width / mapW, height / mapH);
-    const offsetX = (width - mapW * scale) / 2;
-    const offsetY = (height - mapH * scale) / 2;
+    let minimapScale = Math.min(width / mapW, height / mapH);
+    // Safety check for scale
+    if (!Number.isFinite(minimapScale) || minimapScale <= 0) minimapScale = 1;
 
-    const scaleX = (x: number) => ((x - minX) * scale) + offsetX;
-    const scaleY = (y: number) => ((y - minY) * scale) + offsetY;
-    const invertX = (mx: number) => ((mx - offsetX) / scale) + minX;
-    const invertY = (my: number) => ((my - offsetY) / scale) + minY;
+    const offsetX = (width - mapW * minimapScale) / 2;
+    const offsetY = (height - mapH * minimapScale) / 2;
 
-    // --- NODE DOTS (Persistent) ---
+    const scaleX = (x: number) => ((x - minX) * minimapScale) + offsetX;
+    const scaleY = (y: number) => ((y - minY) * minimapScale) + offsetY;
+    const invertX = (mx: number) => ((mx - offsetX) / minimapScale) + minX;
+    const invertY = (my: number) => ((my - offsetY) / minimapScale) + minY;
+
+    // --- NODE DOTS ---
     let nodesContainer = svg.select<SVGGElement>('g.nodes-dots');
     if (nodesContainer.empty()) nodesContainer = svg.append('g').attr('class', 'nodes-dots');
 
@@ -96,19 +99,30 @@ export function Minimap() {
     nodeDots.enter()
       .append('circle')
       .attr('class', 'node-dot')
-      .attr('r', 1.5)
+      .attr('r', 1.2)
       .merge(nodeDots as any)
       .attr('fill', d => ColorManager.getThemeShade(d.color, state.isDarkMode) || '#94a3b8')
+      .attr('opacity', nodes.length > 50 ? 0.6 : 0.9) // Lower opacity for high density
       .attr('cx', d => scaleX(d.x))
       .attr('cy', d => scaleY(d.y));
+
+    // --- LIGHTHOUSE OVERLAY (Dimm everything except viewport) ---
+    let overlay = svg.select<SVGPathElement>('path.minimap-overlay');
+    if (overlay.empty()) {
+      overlay = svg.append('path')
+        .attr('class', 'minimap-overlay')
+        .attr('fill', state.isDarkMode ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.15)')
+        .attr('fill-rule', 'evenodd')
+        .attr('pointer-events', 'none'); 
+    }
 
     // --- VIEWPORT RECT (Persistent) ---
     let viewport = svg.select<SVGRectElement>('rect.viewport-rect');
     if (viewport.empty()) {
       viewport = svg.append('rect')
         .attr('class', 'viewport-rect')
-        .attr('fill', 'rgba(59, 130, 246, 0.15)')
-        .attr('stroke', 'rgba(59, 130, 246, 0.6)')
+        .attr('fill', 'rgba(59, 130, 246, 0.1)')
+        .attr('stroke', '#3b82f6')
         .attr('stroke-width', 1.5)
         .attr('cursor', 'move');
     }
@@ -119,23 +133,64 @@ export function Minimap() {
     const canvasH = canvasRect?.height || window.innerHeight;
     const currentScale = state.transform.scale;
 
+    // Dimensions in world space
+    const lx = (0 - state.transform.x) / currentScale;
+    const ly = (0 - state.transform.y) / currentScale;
+    const rw = canvasW / currentScale;
+    const rh = canvasH / currentScale;
+
+    // Dimensions in minimap space with MINIMUM SIZES for visibility
+    const rawVW = rw * minimapScale;
+    const rawVH = rh * minimapScale;
+    const vw = Math.max(12, rawVW);
+    const vh = Math.max(12, rawVH);
+    
+    // Centers
+    const vx = scaleX(lx) - (vw - rawVW) / 2;
+    const vy = scaleY(ly) - (vh - rawVH) / 2;
+
+    // Update overlay path (Rect with hole)
+    overlay.attr('d', `M 0 0 H ${width} V ${height} H 0 Z M ${vx} ${vy} V ${vy + vh} H ${vx + vw} V ${vy} Z`);
+
+    // Update viewport rect
+    viewport
+      .attr('x', vx)
+      .attr('y', vy)
+      .attr('width', vw)
+      .attr('height', vh);
+
+    // --- CENTER GRABBER HANDLE ---
+    let handle = svg.select<SVGCircleElement>('circle.viewport-handle');
+    if (handle.empty()) {
+      handle = svg.append('circle')
+        .attr('class', 'viewport-handle')
+        .attr('r', 3)
+        .attr('fill', '#3b82f6')
+        .attr('stroke', 'white')
+        .attr('stroke-width', 1)
+        .attr('pointer-events', 'none');
+    }
+    handle
+      .attr('cx', vx + vw / 2)
+      .attr('cy', vy + vh / 2)
+      .attr('opacity', vw < 20 ? 1 : 0.5); // More prominent when viewport is small
+
     // --- DRAG BEHAVIOR ---
     const drag = d3.drag<SVGRectElement, unknown>()
       .subject(() => {
-        // Use current rect position as the subject to maintain absolute pointer tracking
         return {
           x: parseFloat(viewport.attr('x')) || 0,
           y: parseFloat(viewport.attr('y')) || 0
         };
       })
       .on('drag', (event) => {
-        // event.x/y are now the adjusted top-left coordinates in minimap space
-        const worldX = invertX(event.x);
-        const worldY = invertY(event.y);
+        // Correct for the min-size offset if any
+        const adjustedX = event.x + (vw - rawVW) / 2;
+        const adjustedY = event.y + (vh - rawVH) / 2;
+        const worldX = invertX(adjustedX);
+        const worldY = invertY(adjustedY);
         
-        // Use latest state to avoid stale closure issues during rapid updates
         const currentTransform = globalState.getState().transform;
-
         globalState.setState({
           transform: {
             ...currentTransform,
@@ -146,18 +201,6 @@ export function Minimap() {
       });
 
     viewport.call(drag as any);
-
-    // --- UPDATE VIEWPORT DIMENSIONS ---
-    const lx = (0 - state.transform.x) / currentScale;
-    const ly = (0 - state.transform.y) / currentScale;
-    const rw = canvasW / currentScale;
-    const rh = canvasH / currentScale;
-
-    viewport
-      .attr('x', scaleX(lx))
-      .attr('y', scaleY(ly))
-      .attr('width', rw * scale)
-      .attr('height', rh * scale);
 
     // --- CLICK TO JUMP ---
     svg.on('click', (event) => {

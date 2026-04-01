@@ -1,9 +1,11 @@
 # Inklink
 
-![Status](https://img.shields.io/badge/status-MVP-brightgreen)
+![Status](https://img.shields.io/badge/status-Active-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
+[![VS Code Extension](https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=inklink)
+[![Open VSX](https://img.shields.io/open-vsx/v/inklink/inklink-vscode?color=purple&logo=open-vsx&logoColor=white)](https://open-vsx.org/extension/inklink/inklink-vscode)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-☕-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/christianh5)
 
 > **Visualize your thinking. Navigate your knowledge. All in Markdown.**
@@ -35,6 +37,8 @@ There is no conversion step. No import format. No special syntax to learn. Just 
 
 **Write on the left. Think on the right.**
 
+And now, with the **VS Code extension**, you can think right inside your editor — without breaking your flow.
+
 ---
 
 ## Who is it for?
@@ -50,13 +54,16 @@ There is no conversion step. No import format. No special syntax to learn. Just 
 ## Core Features
 
 ### 🗺️ Real-time Mind Map Rendering
-Your markdown becomes a mind map as you type. Headers and indented lists translate directly to nodes and branches — no configuration required.
+Your markdown becomes a mind map as you type. Headers and indented lists translate directly to nodes and branches — no configuration required. Root nodes respect a maximum width constraint so large titles wrap cleanly without distorting the layout.
 
 ### 🔗 Bidirectional Navigation
 **Double-click any node** to jump directly to the corresponding source line in the editor. The connection between visual and text is always live — edit the markdown, the map updates; navigate the map, the editor follows.
 
 ### 🧭 Multiple Layout Directions
 Choose how your map flows: balanced two-sided, left-to-right, or right-to-left. Each layout uses a height-based algorithm for clean, non-overlapping node spacing.
+
+### 🔭 Lighthouse Minimap
+A purpose-built **navigation minimap** in the bottom-right corner keeps you oriented even on the largest mind maps. The active viewport is highlighted using an inverted overlay — the rest of the map is dimmed, so your position is always unmistakable. A center grab handle and a guaranteed minimum viewport size ensure the minimap is always interactive, no matter how far you are zoomed out.
 
 ### 🔍 Professional Search & Replace
 A VS Code-style find and replace panel with full keyboard shortcuts (`Cmd+Shift+F` / `Cmd+Shift+H`), overlapping match support, regex, match-case, whole-word, and preserve-case modes.
@@ -86,8 +93,31 @@ Theme-aware rendering with color-coded branch hierarchies. Looks great in both m
 A fully adaptive layout — persistent inline editor, mobile-optimized quick-action toolbar, and touch-friendly side drawers — so the tool remains powerful even on small screens.
 
 ### ✨ Visual Excellence
-A professional, distraction-free **Flat Design System**. We have moved away from glassmorphism and translucency to provide a high-contrast, premium interface that feels solid and responsive. Every icon, including our theme-adaptive vector logo, is meticulously crafted.
+A professional, distraction-free **Flat Design System**. Inklink uses no glassmorphism, no translucency, and no visual noise — just a solid, high-contrast, premium interface that feels alive and responsive. Every icon, including our theme-adaptive vector logo, is meticulously crafted.
 
+---
+
+## VS Code Extension
+
+Inklink is available as a **VS Code extension**, bringing the same mind map experience directly into your editor panel — no browser required.
+
+### Platform-Aware Design
+The extension is not just a web view in a frame. It is a first-class VS Code experience:
+- **Compact toolbar** — scaled down to conserve precious screen real estate inside the IDE
+- **Deep dark background** — integrates naturally with VS Code's dark theme palette
+- **Hidden redundant shortcuts** — open, save, search, and replace are handled natively by VS Code; the Inklink toolbar surfaces only what the IDE cannot provide
+- **Shared design tokens** — despite the compact layout, the color palette, node shapes, and typography remain pixel-perfect with the web version
+
+### Installing the Extension
+The extension is built from the `vscode-extension/` directory in this repository. To build and install locally:
+
+```bash
+cd vscode-extension
+npm install
+npm run build
+```
+
+Then install the generated `.vsix` package via **Extensions > Install from VSIX...** in VS Code.
 
 ---
 
@@ -163,19 +193,21 @@ Inklink renders this as a branching mind map rooted at **Product Vision**. Each 
 
 ## Keyboard Shortcuts
 
-### 🌐 Global
+### 🌐 Global (Web only)
 
 | Shortcut | Action |
 |---|---|
 | `Cmd/Ctrl + O` | Open file |
 | `Cmd/Ctrl + S` | Save file |
-| `Cmd/Ctrl + Z` | Undo |
-| `Cmd/Ctrl + Shift + Z` | Redo |
-| `Cmd/Ctrl + E` | Open export dialog |
 | `Cmd/Ctrl + F` | Find node on canvas |
 | `Cmd/Ctrl + Shift + F` | Find in editor |
 | `Cmd/Ctrl + Shift + H` | Find & replace in editor |
+| `Cmd/Ctrl + Z` | Undo |
+| `Cmd/Ctrl + Shift + Z` | Redo |
+| `Cmd/Ctrl + E` | Open export dialog |
 | `?` | Open keyboard shortcuts drawer |
+
+> **VS Code note:** Open, save, search, and replace are handled natively by VS Code. The Inklink toolbar in the extension only surfaces canvas-level and view-level actions.
 
 ### 🗺️ Canvas
 
@@ -187,6 +219,7 @@ Inklink renders this as a branching mind map rooted at **Product Vision**. Each 
 | `Enter` | Toggle collapse on selected node |
 | `F` | Fit map to screen |
 | `R` | Reset zoom to 100% |
+| `M` | Toggle minimap |
 | `Escape` | Deselect node / close canvas search |
 | `Cmd/Ctrl + ←` | Switch to right-to-left layout |
 | `Cmd/Ctrl + →` | Switch to left-to-right layout |
@@ -217,6 +250,7 @@ Inklink renders this as a branching mind map rooted at **Product Vision**. Each 
 | Language | TypeScript (strict mode) |
 | Rendering | D3.js (SVG-based) |
 | Styling | Tailwind CSS + shadcn/ui |
+| VS Code Integration | VS Code Extension API + Webview |
 | Testing | Jest + fast-check (property-based) |
 
 ---

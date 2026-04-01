@@ -6,6 +6,7 @@
 
 import { CommandManager } from '@/core/state/command-manager';
 import { globalState } from '@/core/state/state-manager';
+import { PlatformFactory, PlatformType } from '@/platform';
 
 /**
  * Handles global keyboard events and maps them to commands
@@ -45,19 +46,8 @@ export class WebKeyboardHandler {
       return;
     }
 
-    // Save
-    if (isMod && e.key.toLowerCase() === 's') {
-      e.preventDefault();
-      window.dispatchEvent(new CustomEvent('inklink-file-save'));
-      return;
-    }
-
-    // Open
-    if (isMod && e.key.toLowerCase() === 'o') {
-      e.preventDefault();
-      window.dispatchEvent(new CustomEvent('inklink-file-open'));
-      return;
-    }
+    // Save / Open / Search etc. are handled by the KeyboardHandler React component
+    // to avoid duplicate event dispatching.
 
     // Search
     if (isMod && e.key.toLowerCase() === 'f') {

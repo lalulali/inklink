@@ -7,7 +7,7 @@
 "use client";
 
 import React, { createContext, useContext, useMemo } from 'react';
-import { PlatformFactory } from '@/platform';
+import { PlatformFactory, PlatformType } from '@/platform';
 import { WebExportManager } from './web-export-manager';
 import { WebAutoSaveManager } from './web-auto-save-manager';
 import { WebFileSystemAdapter } from './web-file-system-adapter';
@@ -58,8 +58,12 @@ export function WebPlatformProvider({ children }: { children: React.ReactNode })
     // 1. Initialize keyboard handler
     services.keyboard.initialize();
 
-    // 2. Perform daily cleanup
-    services.autoSave.performCleanup();
+    // 2. Perform daily cleanup or wipe snapshots (VS Code)
+    if (services.factory.getPlatform() !== PlatformType.VSCode) {
+        services.autoSave.performCleanup();
+    } else {
+        services.autoSave.storage.clearAllAutoSaves();
+    }
 
     // 3. Start background sync
     services.autoSave.start(services.state, services.fs);
@@ -75,7 +79,9 @@ export function WebPlatformProvider({ children }: { children: React.ReactNode })
       }
     }
     
-    initRecovery();
+    if (services.factory.getPlatform() !== PlatformType.VSCode) {
+        initRecovery();
+    }
 
     return () => {
       services.keyboard.dispose();

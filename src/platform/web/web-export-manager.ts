@@ -84,15 +84,14 @@ export class WebExportManager {
             align-items: center;
             gap: 12px;
             padding: 10px 16px;
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
+            background: #fff;
             border: 1px solid var(--border);
             border-radius: 12px;
             box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
             z-index: 1000;
         }
         @media (prefers-color-scheme: dark) {
-            .nav-container { background: rgba(30, 30, 30, 0.85); }
+            .nav-container { background: #2d2d2d; }
         }
         
         .btn-group { display: flex; gap: 4px; }

@@ -1,0 +1,166 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98.5%;
+    --foreground: 215 16% 28%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 16% 28%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 16% 28%;
+    --primary: 215 16% 24%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 215 16% 24%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 215 16% 24%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 215 16% 28%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 12%;
+    --foreground: 0 0% 80%;
+    --card: 240 1% 15%;
+    --card-foreground: 0 0% 80%;
+    --popover: 240 1% 15%;
+    --popover-foreground: 0 0% 80%;
+    --primary: 204 100% 40%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 0% 22%;
+    --secondary-foreground: 0 0% 80%;
+    --muted: 240 0% 20%;
+    --muted-foreground: 0 0% 64%;
+    --accent: 240 2% 25%;
+    --accent-foreground: 0 0% 80%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 2% 25%;
+    --input: 240 2% 25%;
+    --ring: 204 100% 40%;
+  }
+}
+
+@layer components {
+  /* Mind Map Styling */
+  .inklink-canvas {
+    background-color: hsl(var(--background));
+  }
+  
+  .inklink-node-rect {
+    fill: hsl(var(--card));
+    stroke: hsl(var(--border));
+  }
+
+  .inklink-node-text {
+    fill: hsl(var(--foreground));
+  }
+
+  .inklink-indicator-circle {
+    fill: hsl(var(--card));
+    stroke: hsl(var(--border));
+  }
+
+  .inklink-indicator-circle.collapsed {
+    fill: hsl(var(--primary));
+    stroke: hsl(var(--primary));
+  }
+
+  .inklink-link {
+    stroke: hsl(var(--muted-foreground));
+    stroke-opacity: 0.4;
+  }
+}
+
+/* VS Code Specific Styles (Targeted via .vscode-webview) */
+.vscode-webview #inklink-toolbar {
+    height: 44px !important; /* Compact fixed height */
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    gap: 0.375rem !important;
+    background-color: hsl(var(--background)) !important;
+    border-bottom: 1px solid hsl(var(--border) / 0.3) !important;
+}
+
+/* Compact Branding */
+.vscode-webview #inklink-toolbar .flex.shrink-0.items-center.gap-2.border-r.pr-4 {
+    padding-right: 0.75rem !important;
+    gap: 0.375rem !important;
+    border-right-color: hsl(var(--border) / 0.5) !important;
+}
+
+.vscode-webview #inklink-toolbar .flex.h-8.w-8.items-center.justify-center.rounded-lg.bg-primary {
+    height: 1.6rem !important;
+    width: 1.6rem !important;
+    border-radius: 6px !important;
+}
+
+.vscode-webview #inklink-toolbar svg.h-5.w-5 {
+    width: 1rem !important;
+    height: 1rem !important;
+}
+
+.vscode-webview #inklink-toolbar .text-sm.font-bold {
+    font-size: 0.75rem !important;
+}
+
+.vscode-webview #inklink-toolbar .text-\[10px\] {
+    font-size: 8px !important;
+    letter-spacing: -0.2px !important;
+}
+
+/* Compact Buttons and Icons */
+.vscode-webview #inklink-toolbar button {
+    height: 1.875rem !important; /* Reduced from 2rem (h-8) */
+    width: 1.875rem !important;
+}
+
+.vscode-webview #inklink-toolbar button svg {
+    height: 0.9rem !important; /* Consistently smaller icons */
+    width: 0.9rem !important;
+}
+
+/* Section Dividers */
+.vscode-webview #inklink-toolbar .border-r {
+    border-right-color: hsl(var(--border) / 0.3) !important;
+}
+
+/* Section Gaps */
+.vscode-webview #inklink-toolbar .gap-1 {
+    gap: 0.125rem !important;
+}
+
+/* Canvas Background Synchronization with Minimap */
+.vscode-webview #inklink-mindmap-canvas-container {
+    background-color: hsl(var(--background)) !important;
+    background-image: none !important;
+}
+
+/* Dark Mode Specific Tweaks for Image 1 look */
+.dark .vscode-webview #inklink-mindmap-canvas-container {
+    background-color: hsl(0 0% 10%) !important;
+}
+
+.dark .vscode-webview #inklink-toolbar {
+    background-color: hsl(0 0% 11%) !important;
+}
+
+.dark .vscode-webview #inklink-minimap-container div.bg-background {
+    background-color: hsl(0 0% 10%) !important;
+    backdrop-filter: none !important;
+    border-color: hsl(var(--border) / 0.4) !important;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
