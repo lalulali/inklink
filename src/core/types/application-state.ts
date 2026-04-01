@@ -78,6 +78,8 @@ export interface ApplicationState {
 
   // Preferences (Local Storage sync)
   preferences: UserPreferences;
+  // Layout State
+  isResizing: boolean;
 }
 
 /**
@@ -131,6 +133,7 @@ export function createInitialState(): ApplicationState {
     autoSaveId: typeof crypto !== 'undefined' ? crypto.randomUUID() : null,
     editorCanUndo: false,
     editorCanRedo: false,
+    isResizing: false,
     preferences: {
       autoSaveEnabled: true,
       autoSaveInterval: 3000,

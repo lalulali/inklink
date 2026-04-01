@@ -20,8 +20,25 @@ export function StatusBar() {
   const [state, setState] = React.useState(globalState.getState());
 
   useEffect(() => {
-    return globalState.subscribe(s => setState(s));
-  }, []);
+    return globalState.subscribe(nextState => {
+      const relevantFields = [
+        'filePath',
+        'isDirty',
+        'isSaving',
+        'lastSaved',
+        'lastSaveType',
+        'tree',
+        'transform', // Keep for zoom % display
+        'layoutDirection'
+      ] as const;
+
+      const hasChanged = relevantFields.some(field => nextState[field] !== state[field]);
+      
+      if (hasChanged) {
+        setState(nextState);
+      }
+    });
+  }, [state]);
 
   const totalNodes = state.tree ? calculateSubtreeSizes(state.tree).size : 0;
   

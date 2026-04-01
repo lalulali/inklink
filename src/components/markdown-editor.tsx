@@ -292,25 +292,39 @@ export function MarkdownEditor() {
 	const lastSentMarkdownRef = React.useRef(state.markdown);
 
 	React.useEffect(() => {
-		return globalState.subscribe((s) => {
-			setState(s);
+		return globalState.subscribe((nextState) => {
+			// Sub-select only relevant state to avoid re-rendering on transform/canvas changes
+			const relevantFields = [
+				"markdown",
+				"editorSearchQuery",
+				"editorSearchCaseSensitive",
+				"editorSearchWholeWord",
+				"editorSearchRegex",
+				"isEditorSearchOpen",
+				"isEditorReplaceOpen",
+				"editorSearchCurrentIndex",
+				"editorSearchResultsCount",
+			] as const;
 
-			// Only sync global markdown back to local editor if it came from an EXTERNAL source
-			// (like file load or canvas edit) and doesn't match what we already have or just sent.
-			const isFromMe = s.markdown === lastSentMarkdownRef.current;
+			const hasChanged = relevantFields.some(
+				(field) => nextState[field] !== state[field],
+			);
 
+			if (hasChanged) {
+				setState(nextState);
+			}
+
+			// Independent logic for external markdown sync
+			const isFromMe = nextState.markdown === lastSentMarkdownRef.current;
 			if (!isFromMe) {
-				const currentDoc = (
-					editorRef.current as any
-				)?.view?.state.doc.toString();
-				if (s.markdown !== currentDoc) {
-					setValue(s.markdown);
-					// Sync our tracking ref too so we don't trigger again
-					lastSentMarkdownRef.current = s.markdown;
+				const currentDoc = (editorRef.current as any)?.view?.state.doc.toString();
+				if (nextState.markdown !== currentDoc) {
+					setValue(nextState.markdown);
+					lastSentMarkdownRef.current = nextState.markdown;
 				}
 			}
 		});
-	}, []); // Remove value dependency to avoid re-subscription overhead
+	}, [state]); // Include state in deps for comparison
 
 	const wasMultiRootRef = React.useRef(false);
 	const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);

@@ -21,6 +21,7 @@ import { ExportDialog } from "@/components/export-dialog";
 import { AppReferenceDialog } from "@/components/app-reference-dialog";
 import { RecoveryDialog } from "@/components/recovery-dialog";
 import { SettingsDialog } from "@/components/settings-dialog";
+import { cn } from "@/lib/utils";
 
 /**
  * Root Application Component
@@ -64,6 +65,8 @@ export default function Home() {
     }
   }, []);
 
+  const [isResizing, setIsResizing] = React.useState(false);
+
   // Resize handling (desktop only)
   React.useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -77,6 +80,8 @@ export default function Home() {
     const handleMouseUp = () => {
       if (isResizingRef.current) {
         isResizingRef.current = false;
+        setIsResizing(false);
+        globalState.setState({ isResizing: false });
         document.body.style.cursor = 'default';
         localStorage.setItem('inklink_editor_width', widthRef.current.toString());
       }
@@ -139,7 +144,10 @@ export default function Home() {
         {!isMobile && editorVisible && editorWidth > 0 && (
           <>
             <div
-              className="hidden h-full shrink-0 border-r bg-background md:block relative group overflow-hidden transition-[width] duration-300 ease-in-out"
+              className={cn(
+                "hidden h-full shrink-0 border-r bg-background md:block relative group overflow-hidden",
+                !isResizing && "transition-[width] duration-300 ease-in-out"
+              )}
               style={{ width: editorWidth }}
             >
               <MarkdownEditor />
@@ -151,6 +159,8 @@ export default function Home() {
               onMouseDown={(e) => {
                 e.preventDefault();
                 isResizingRef.current = true;
+                setIsResizing(true);
+                globalState.setState({ isResizing: true });
                 document.body.style.cursor = 'col-resize';
               }}
             >
