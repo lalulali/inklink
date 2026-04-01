@@ -50,6 +50,6 @@ test-results/
 markmap-reference
 
 # AI IDE
-.kiro
-.agents
-.artifacts
+.kiro/
+.agents/
+.artifacts/
