@@ -23,7 +23,8 @@ import {
     Shield as ShieldIcon,
     Clock as ClockIcon,
     Trash2 as Trash2Icon,
-    Github as GithubIcon
+    Github as GithubIcon,
+    Monitor as MonitorIcon
 } from "lucide-react";
 import { globalState } from "@/core/state/state-manager";
 import { useWebPlatform } from "@/platform/web/web-platform-context";
@@ -135,11 +136,10 @@ export function SettingsDialog() {
 							onCheckedChange={(val: boolean) => updatePreference("autoSaveToFileEnabled", val)}
 						/>
 					</div>
-
 					{/* Cleanup Policy */}
-					<div className="flex flex-col gap-3 p-4 rounded-xl bg-muted/30 border border-border/50">
+					<div className="flex flex-col gap-3 p-4 rounded-xl bg-muted/30 border border-border/50 transition-colors hover:border-amber-500/20 group">
 						<div className="flex items-center gap-2">
-							<ClockIcon className="w-4 h-4 text-amber-500" />
+							<ClockIcon className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
 							<Label htmlFor="cleanup-days" className="text-sm font-bold tracking-tight">
 								Automatic Cleanup
 							</Label>
@@ -157,6 +157,34 @@ export function SettingsDialog() {
 							<span className="text-xs text-muted-foreground leading-relaxed">
 								Days to keep local recovery data before automatic deletion.
 							</span>
+						</div>
+					</div>
+
+					{/* VS Code Extension Section */}
+					<div className="flex flex-col gap-4 p-5 rounded-2xl bg-primary/5 border border-primary/10 transition-all hover:bg-primary/[0.08] group/ext">
+						<div className="flex items-center gap-3">
+							<div className="bg-primary/10 p-2 rounded-lg group-hover/ext:bg-primary/20 transition-colors">
+								<MonitorIcon className="w-4 h-4 text-primary" />
+							</div>
+							<div className="flex flex-col">
+								<h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">VS Code Extension</h3>
+								<span className="text-[9px] text-muted-foreground font-medium">Available now for v0.1.1</span>
+							</div>
+						</div>
+						<p className="text-xs text-muted-foreground leading-relaxed">
+							Visualize your Markdown files directly inside your favorite editor with the **Inklink extension**.
+						</p>
+						<div className="grid grid-cols-2 gap-3 mt-1">
+							<Button variant="outline" size="sm" className="h-9 gap-2 text-[10px] font-black uppercase tracking-widest border-primary/20 bg-background/50 hover:bg-primary/10 hover:border-primary/40 transition-all shadow-sm" asChild>
+								<a href="https://marketplace.visualstudio.com/items?itemName=ChrisHadi.inklink" target="_blank" rel="noopener noreferrer">
+									Marketplace
+								</a>
+							</Button>
+							<Button variant="outline" size="sm" className="h-9 gap-2 text-[10px] font-black uppercase tracking-widest border-primary/20 bg-background/50 hover:bg-primary/10 hover:border-primary/40 transition-all shadow-sm" asChild>
+								<a href="https://open-vsx.org/extension/ChrisHadi/inklink" target="_blank" rel="noopener noreferrer">
+									Open VSX
+								</a>
+							</Button>
 						</div>
 					</div>
 

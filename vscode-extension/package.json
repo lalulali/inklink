@@ -1,8 +1,8 @@
 {
-  "name": "inklink-vscode",
-  "displayName": "Inklink — Markdown Mind Map Visualizer",
-  "description": "Visualize any Markdown file as a live, interactive mind map. Real-time rendering, bidirectional navigation, dark mode, export to PNG/SVG/HTML.",
-  "version": "0.1.0",
+  "name": "inklink",
+  "displayName": "Inklink",
+  "description": "Instantly visualize any Markdown file as a live, interactive mindmap. Features bidirectional navigation, multiple layouts, and professional export options.",
+  "version": "0.1.2",
   "license": "MIT",
   "publisher": "ChrisHadi",
   "author": {

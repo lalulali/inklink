@@ -28,16 +28,16 @@ export class ColorManager {
 
   // Mapping from light mode shades (500) to more visible dark mode shades (400 hex)
   private static readonly DARK_SHADES: Record<string, string> = {
-    '#6366f1': '#818cf8', // Indigo 400
-    '#8b5cf6': '#a78bfa', // Violet 400
-    '#f43f5e': '#fb7185', // Rose 400
-    '#f59e0b': '#fbbf24', // Amber 400
-    '#10b981': '#34d399', // Emerald 400
-    '#0ea5e9': '#38bdf8', // Sky 400
-    '#ec4899': '#f472b6', // Pink 400
-    '#f97316': '#fb923c', // Orange 400
-    '#14b8a6': '#2dd4bf', // Teal 400
-    '#64748b': '#94a3b8', // Slate 400
+    '#6366f1': '#6366f1', // Indigo 400
+    '#8b5cf6': '#8b5cf6', // Violet 400
+    '#f43f5e': '#f43f5e', // Rose 400
+    '#f59e0b': '#f59e0b', // Amber 400
+    '#10b981': '#10b981', // Emerald 400
+    '#0ea5e9': '#0ea5e9', // Sky 400
+    '#ec4899': '#ec4899', // Pink 400
+    '#f97316': '#f97316', // Orange 400
+    '#14b8a6': '#14b8a6', // Teal 400
+    '#64748b': '#64748b', // Slate 400
   };
 
   /**
@@ -84,10 +84,10 @@ export class ColorManager {
   public static getContrastRatio(hex1: string, hex2: string): number {
     const l1 = this.getRelativeLuminance(hex1);
     const l2 = this.getRelativeLuminance(hex2);
-    
+
     const lighter = Math.max(l1, l2);
     const darker = Math.min(l1, l2);
-    
+
     return (lighter + 0.05) / (darker + 0.05);
   }
 

@@ -1,7 +1,7 @@
 # Inklink — Markdown Mind Map Visualizer
 
-[![VS Code Extension](https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=inklink)
-[![Open VSX](https://img.shields.io/open-vsx/v/inklink/inklink-vscode?color=purple&logo=open-vsx&logoColor=white)](https://open-vsx.org/extension/inklink/inklink-vscode)
+[![VS Code Extension](https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=ChrisHadi.inklink)
+[![Open VSX](https://img.shields.io/open-vsx/v/ChrisHadi/inklink?color=purple&logo=open-vsx&logoColor=white)](https://open-vsx.org/extension/ChrisHadi/inklink)
 
 > **Turn any Markdown file into a live, interactive mind map — right inside VS Code.**
 
@@ -169,6 +169,12 @@ The VS Code extension and the web app share the same rendering engine, layout al
 ---
 
 ## 📋 Changelog
+
+### 0.1.2
+- Update dark mode branch colors for better visibility
+
+### 0.1.1
+- Update VS Code Marketplace and Open VSX repository URLs
 
 ### 0.1.0 — Initial Release
 - Real-time Markdown-to-mind-map rendering

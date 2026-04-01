@@ -1,0 +1,29 @@
+# Source and Build Config
+src/**
+webview/**
+tsconfig.json
+vite.config.ts
+postcss.config.js
+tailwind.config.js
+
+# Git and OS metadata
+.git/**
+.DS_Store
+**/.DS_Store
+
+# Local Testing / IDE
+.vscode/**
+.kiro/**
+*.vsix
+npm-debug.log*
+
+# Dependencies (vsce handles this, but it's good for clarity)
+# node_modules/**
+
+# Keep only the production build
+!dist/**
+!assets/**
+!package.json
+!README.md
+!CHANGELOG.md
+!LICENSE.md
