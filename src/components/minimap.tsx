@@ -99,10 +99,10 @@ export function Minimap() {
     nodeDots.enter()
       .append('circle')
       .attr('class', 'node-dot')
-      .attr('r', 1.2)
+      .attr('r', 1.6) // Increased from 1.2
       .merge(nodeDots as any)
       .attr('fill', d => ColorManager.getThemeShade(d.color, state.isDarkMode) || '#94a3b8')
-      .attr('opacity', nodes.length > 50 ? 0.6 : 0.9) // Lower opacity for high density
+      .attr('opacity', nodes.length > 50 ? 0.8 : 1.0) // Increased visibility
       .attr('cx', d => scaleX(d.x))
       .attr('cy', d => scaleY(d.y));
 
@@ -111,7 +111,7 @@ export function Minimap() {
     if (overlay.empty()) {
       overlay = svg.append('path')
         .attr('class', 'minimap-overlay')
-        .attr('fill', state.isDarkMode ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.15)')
+        .attr('fill', state.isDarkMode ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)') // Reduced darkness
         .attr('fill-rule', 'evenodd')
         .attr('pointer-events', 'none'); 
     }

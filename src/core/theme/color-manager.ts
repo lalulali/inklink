@@ -26,18 +26,18 @@ export class ColorManager {
     '#64748b', // Slate 500
   ];
 
-  // Mapping from light mode shades (500) to darker mode shades (700 hex)
+  // Mapping from light mode shades (500) to more visible dark mode shades (400 hex)
   private static readonly DARK_SHADES: Record<string, string> = {
-    '#6366f1': '#4338ca', // Indigo 700
-    '#8b5cf6': '#6d28d9', // Violet 700
-    '#f43f5e': '#be123c', // Rose 700
-    '#f59e0b': '#b45309', // Amber 700
-    '#10b981': '#047857', // Emerald 700
-    '#0ea5e9': '#0369a1', // Sky 700
-    '#ec4899': '#be185d', // Pink 700
-    '#f97316': '#c2410c', // Orange 700
-    '#14b8a6': '#0f766e', // Teal 700
-    '#64748b': '#334155', // Slate 700
+    '#6366f1': '#818cf8', // Indigo 400
+    '#8b5cf6': '#a78bfa', // Violet 400
+    '#f43f5e': '#fb7185', // Rose 400
+    '#f59e0b': '#fbbf24', // Amber 400
+    '#10b981': '#34d399', // Emerald 400
+    '#0ea5e9': '#38bdf8', // Sky 400
+    '#ec4899': '#f472b6', // Pink 400
+    '#f97316': '#fb923c', // Orange 400
+    '#14b8a6': '#2dd4bf', // Teal 400
+    '#64748b': '#94a3b8', // Slate 400
   };
 
   /**
