@@ -99,10 +99,10 @@ export function Minimap() {
     nodeDots.enter()
       .append('circle')
       .attr('class', 'node-dot')
-      .attr('r', 1.6) // Increased from 1.2
+      .attr('r', 2)
       .merge(nodeDots as any)
-      .attr('fill', d => ColorManager.getThemeShade(d.color, state.isDarkMode) || '#94a3b8')
-      .attr('opacity', nodes.length > 50 ? 0.8 : 1.0) // Increased visibility
+      .attr('fill', d => state.isDarkMode ? (d.color || '#94a3b8') : (ColorManager.getThemeShade(d.color, state.isDarkMode) || '#94a3b8'))
+      .attr('opacity', nodes.length > 50 ? 0.8 : 1.0) 
       .attr('cx', d => scaleX(d.x))
       .attr('cy', d => scaleY(d.y));
 
@@ -111,7 +111,7 @@ export function Minimap() {
     if (overlay.empty()) {
       overlay = svg.append('path')
         .attr('class', 'minimap-overlay')
-        .attr('fill', state.isDarkMode ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)') // Reduced darkness
+        .attr('fill', state.isDarkMode ? 'rgba(0, 0, 0, 0.25)' : 'rgba(0, 0, 0, 0.15)')
         .attr('fill-rule', 'evenodd')
         .attr('pointer-events', 'none'); 
     }
@@ -231,6 +231,7 @@ export function Minimap() {
       <div 
         ref={containerRef}
         className="h-32 w-48 overflow-hidden rounded-lg border bg-background shadow-lg"
+        style={{ backgroundColor: state.isDarkMode ? '#1E1E1E' : undefined }}
       >
          <svg ref={svgRef} className="h-full w-full" />
       </div>
