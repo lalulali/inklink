@@ -205,7 +205,8 @@ export function SettingsDialog() {
 					</div>
 
 					{/* VS Code Extension Section */}
-					<div className="flex flex-col gap-4 p-5 rounded-2xl bg-primary/5 border border-primary/10 transition-all hover:bg-primary/[0.08] group/ext shadow-sm hover:shadow-md">
+					<div className="mt-2 pt-6 border-t border-border">
+						<div className="flex flex-col gap-4 p-5 rounded-2xl bg-primary/5 border border-primary/10 transition-all hover:bg-primary/[0.08] group/ext shadow-sm hover:shadow-md">
 						<div className="flex items-center gap-3">
 							<div className="bg-primary/10 p-2.5 rounded-xl group-hover/ext:bg-primary/20 transition-all group-hover/ext:scale-110">
 								<MonitorIcon className="w-5 h-5 text-primary" />
@@ -225,7 +226,12 @@ export function SettingsDialog() {
 							</div>
 						</div>
 						<p className="text-xs text-muted-foreground leading-relaxed pr-2">
-							Think faster, navigate deeper. Bring the power of **Inklink visualization** directly into your favorite IDE (VS Code, Cursor, Windsurf, etc.).
+							Think faster, navigate deeper. Bring the power of{" "}
+							<b>
+								<em>Inklink visualization</em>
+							</b>{" "}
+							directly into your favorite IDE (Antigravity, Cursor, Kiro, VS
+							Code, Windsurf, etc.).
 						</p>
 						<div className="grid grid-cols-2 gap-3 mt-1">
 							<Button
@@ -258,6 +264,7 @@ export function SettingsDialog() {
 							</Button>
 						</div>
 					</div>
+				</div>
 
 					{/* Danger Zone */}
 					<div className="mt-2 pt-6 border-t border-border">
