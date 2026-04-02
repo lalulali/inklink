@@ -98,15 +98,16 @@ export function SearchPanel() {
   return (
     <div 
       className={cn(
-        "absolute right-6 top-6 z-40 flex items-center gap-3 rounded-full border bg-background p-3 shadow-2xl transition-all duration-300 animate-in slide-in-from-top-2 fade-in",
+        "absolute z-40 flex items-center gap-1.5 md:gap-3 rounded-full border bg-background p-1.5 md:p-3 shadow-2xl transition-all duration-300 animate-in slide-in-from-top-2 fade-in",
+        "left-4 right-4 top-4 md:left-auto md:right-6 md:top-6",
         state.isCanvasSearchOpen ? "scale-100 opacity-100" : "scale-95 opacity-0"
       )}
       id="inklink-search-panel"
     >
       {/* Search Input Area */}
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <SearchIcon className="h-5 w-5" />
+      <div className="flex flex-1 items-center gap-2 md:gap-3 min-w-0">
+        <div className="hidden sm:flex h-8 w-8 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <SearchIcon className="h-4 w-4 md:h-5 md:w-5" />
         </div>
         <Input 
           ref={inputRef}
@@ -129,12 +130,12 @@ export function SearchPanel() {
             }
           }}
           placeholder="Find in map..." 
-          className="h-8 w-44 border-none bg-transparent px-0 text-base font-medium placeholder:text-muted-foreground/50 focus-visible:ring-0 shadow-none"
+          className="h-8 flex-1 min-w-[80px] md:w-44 border-none bg-transparent pl-3 md:pl-0 pr-2 text-sm md:text-base font-medium placeholder:text-muted-foreground/50 focus-visible:ring-0 shadow-none transition-all"
         />
       </div>
 
       {/* Result Status Indicator */}
-      <div className="flex items-center justify-center w-24 rounded-md bg-muted/30 px-2 py-1 text-xs font-bold tracking-widest text-muted-foreground transition-all duration-300">
+      <div className="flex items-center justify-center w-auto min-w-[45px] md:w-24 rounded-md bg-muted/30 px-2 py-1 text-[10px] md:text-xs font-bold tracking-tight md:tracking-widest text-muted-foreground transition-all duration-300">
         {state.searchQuery && state.searchResults.length === 0 ? (
           <span className="text-destructive/80 animate-pulse">NO MATCH</span>
         ) : (

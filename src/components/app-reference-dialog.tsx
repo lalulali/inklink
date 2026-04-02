@@ -15,7 +15,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { globalState } from '@/core/state/state-manager';
-import { Command, Keyboard } from 'lucide-react';
+import { Command, Keyboard, X as XIcon } from 'lucide-react';
 import { PlatformFactory, PlatformType } from '@/platform';
 
 export function AppReferenceDialog() {
@@ -31,18 +31,18 @@ export function AppReferenceDialog() {
 
   const close = () => globalState.setState({ isHelpDialogOpen: false });
 
-  const ShortcutGroup = ({ title, shortcuts }: { title: string, shortcuts: { key: string, label: string }[] }) => (
-    <div className="mb-6 last:mb-0">
-      <h3 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">
+  const ShortcutGroup = ({ title, shortcuts, isFirst = false }: { title: string, shortcuts: { key: string, label: string }[], isFirst?: boolean }) => (
+    <div className={`py-4 ${!isFirst ? 'border-t border-border/40' : ''}`}>
+      <h3 className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.25em] text-primary/80">
         {title}
       </h3>
-      <div className="grid grid-cols-1 gap-2">
-        {shortcuts.map((s, i) => (
-          <div key={i} className="flex items-center justify-between group">
-            <span className="text-xs text-foreground/80 group-hover:text-foreground transition-colors">{s.label}</span>
-            <div className="flex items-center gap-1">
+      <div className="grid grid-cols-1 gap-2.5">
+        {shortcuts.map((s) => (
+          <div key={`${title}-${s.label}`} className="flex items-center justify-between group py-0.5">
+            <span className="text-xs text-muted-foreground group-hover:text-foreground transition-all duration-200 font-medium">{s.label}</span>
+            <div className="flex items-center gap-1.5 translate-y-[1px]">
               {s.key.split('+').map((k, j) => (
-                <kbd key={j} className="min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded border bg-muted font-mono text-[10px] font-medium shadow-sm">
+                <kbd key={`${title}-${s.label}-${k}-${j}`} className="min-w-[26px] h-6 px-2 flex items-center justify-center rounded-lg border border-border/60 bg-muted/30 font-mono text-[9px] font-black shadow-[0_1px_1px_rgba(0,0,0,0.1)] group-hover:border-primary/40 group-hover:bg-primary/5 transition-all duration-200">
                   {k === 'Cmd' ? (navigator.platform.includes('Mac') ? '⌘' : 'Ctrl') : k}
                 </kbd>
               ))}
@@ -55,19 +55,57 @@ export function AppReferenceDialog() {
 
   return (
     <Sheet open={isOpen} onOpenChange={isOpen => globalState.setState({ isHelpDialogOpen: isOpen })}>
-      <SheetContent side="right" className="w-[400px] sm:w-[540px] sm:max-w-md overflow-hidden bg-background max-h-screen flex flex-col p-6 border-l border-border">
-        <SheetHeader className="mb-4 shrink-0 px-2">
-          <div className="flex items-center gap-2 text-primary mb-1">
-            <Keyboard className="h-5 w-5" />
-            <SheetTitle className="text-xl font-bold tracking-tight">Keyboard Shortcut</SheetTitle>
+      <SheetContent 
+        id="app-reference-root"
+        side="right" 
+        className="w-[400px] sm:w-[540px] sm:max-w-md p-0 bg-background flex flex-col border-l border-border transition-all duration-300"
+      >
+        <style jsx global>{`
+          #app-reference-root .sleek-scrollbar::-webkit-scrollbar {
+            width: 12px !important;
+            height: 12px !important;
+          }
+          #app-reference-root .sleek-scrollbar::-webkit-scrollbar-track {
+            background-color: transparent !important;
+          }
+          #app-reference-root .sleek-scrollbar::-webkit-scrollbar-thumb {
+            background-color: hsl(var(--muted-foreground) / 0.05) !important;
+            border-radius: 10px !important;
+            border: 4px solid transparent !important;
+            background-clip: content-box !important;
+            cursor: pointer !important;
+          }
+          #app-reference-root:hover .sleek-scrollbar::-webkit-scrollbar-thumb {
+            background-color: hsl(var(--muted-foreground) / 0.25) !important;
+            border-width: 2.5px !important;
+          }
+          #app-reference-root .sleek-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: hsl(var(--muted-foreground) / 0.45) !important;
+            border-width: 1.5px !important;
+          }
+        `}</style>
+        <SheetHeader className="p-6 border-b border-border/50 bg-background sticky top-0 z-10 flex flex-row items-start justify-between space-y-0">
+          <div className="flex flex-col gap-1.5 flex-1 text-left">
+            <SheetTitle className="flex items-center gap-2 text-xl font-bold tracking-tight">
+              <Keyboard className="w-5 h-5 text-primary" />
+              Keyboard Shortcuts
+            </SheetTitle>
+            <SheetDescription className="text-muted-foreground text-left leading-relaxed">
+              Boost your productivity with professional-grade keyboard shortcuts.
+            </SheetDescription>
           </div>
-          <SheetDescription className="text-sm text-muted-foreground">
-            Boost your productivity with professional-grade keyboard shortcuts.
-          </SheetDescription>
+          <button 
+            type="button"
+            onClick={close}
+            className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-muted transition-all duration-200 -mt-1 -mr-2"
+          >
+            <XIcon className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
+            <span className="sr-only">Close</span>
+          </button>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto pr-4 no-scrollbar scroll-smooth">
-          <div className="space-y-2">
+        <div className="flex-1 overflow-y-auto px-6 sleek-scrollbar scroll-smooth">
+          <div className="space-y-0">
             {(() => {
                 const factory = PlatformFactory.getInstance();
                 const isVsCode = factory.getPlatform() === PlatformType.VSCode;
@@ -76,6 +114,7 @@ export function AppReferenceDialog() {
                     <>
                         <ShortcutGroup 
                             title="Canvas Interactions" 
+                            isFirst={true}
                             shortcuts={[
                                 { key: 'E', label: isVsCode ? 'Focus Source in Editor' : 'Show/Hide Markdown Editor' },
                                 { key: 'X', label: 'Expand Branch / Expand All' },
@@ -90,7 +129,7 @@ export function AppReferenceDialog() {
                         <ShortcutGroup 
                             title="File & System" 
                             shortcuts={[
-                                { key: 'Cmd+S', label: 'Focus Source in Editor' },
+                                { key: 'Cmd+S', label: 'Refresh Visualization' },
                                 { key: 'Cmd+O', label: 'Open Markdown File' },
                                 { key: 'Cmd+E', label: 'Export to HTML/PNG' },
                                 { key: 'Shift+/', label: 'Show this Help Reference' },
@@ -128,23 +167,16 @@ export function AppReferenceDialog() {
           </div>
         </div>
 
-        <div className="mt-6 shrink-0 flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/10">
-          <div className="flex items-center gap-3">
-             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                <Command className="h-4 w-4" />
+        <div className="m-6 shrink-0 flex items-center justify-between p-5 rounded-2xl bg-primary/5 border border-primary/10 hover:bg-primary/[0.08] transition-all group/tip">
+          <div className="flex items-center gap-4">
+             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover/tip:scale-110 transition-transform">
+                <Command className="h-5 w-5" />
              </div>
-             <div>
-                <p className="text-xs font-bold text-primary">Pro Tip</p>
-                <p className="text-[10px] text-muted-foreground font-medium">Double-click any node to reveal it in the Markdown editor.</p>
+             <div className="flex flex-col gap-0.5">
+                <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Mind Map Tip</p>
+                <p className="text-[11px] text-muted-foreground font-medium leading-tight">Double-click any node to reveal its location in source.</p>
              </div>
           </div>
-          <button 
-            type="button"
-            onClick={close}
-            className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest px-3 py-1.5 rounded-lg hover:bg-muted"
-          >
-            Got it
-          </button>
         </div>
       </SheetContent>
     </Sheet>

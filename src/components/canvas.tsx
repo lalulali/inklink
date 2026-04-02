@@ -329,6 +329,8 @@ export function Canvas() {
       onClick={() => {
         if (globalState.getState().selectedNode) {
           globalState.setState({ selectedNode: null });
+          // Clear highlight in editor as well
+          window.dispatchEvent(new CustomEvent('inklink-editor-clear-highlight'));
         }
       }}
     >

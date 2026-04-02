@@ -664,9 +664,38 @@ export function Toolbar({
 								<MaximizeIcon className="h-4 w-4 mr-2" />
 								Expand All
 							</DropdownMenuItem>
-							<DropdownMenuItem onClick={() => handleToggleAllVisibility(true)}>
-								<MinimizeIcon className="h-4 w-4 mr-2" />
-								Collapse All
+							<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-2 border-t">
+								Support & Help
+							</div>
+							<DropdownMenuItem asChild>
+								<a
+									href="https://buymeacoffee.com/christianh5"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="flex items-center w-full"
+								>
+									<CoffeeIcon className="h-4 w-4 mr-2" />
+									Buy me a coffee ☕
+								</a>
+							</DropdownMenuItem>
+							{isVsCode && (
+								<DropdownMenuItem asChild>
+									<a
+										href="https://github.com/ChrisHadi/inklink"
+										target="_blank"
+										rel="noopener noreferrer"
+										className="flex items-center w-full"
+									>
+										<GithubIcon className="h-4 w-4 mr-2" />
+										Star on GitHub ⭐
+									</a>
+								</DropdownMenuItem>
+							)}
+							<DropdownMenuItem
+								onClick={() => globalState.setState({ isHelpDialogOpen: true })}
+							>
+								<KeyboardIcon className="h-4 w-4 mr-2" />
+								Keyboard Shortcuts
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
@@ -674,20 +703,40 @@ export function Toolbar({
 
 				{/* Info & Settings */}
 				<div className="ml-auto flex shrink-0 items-center gap-2">
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-								<a
-									href="https://buymeacoffee.com/christianh5"
-									target="_blank"
-									rel="noopener noreferrer"
-								>
-									<CoffeeIcon className="h-4 w-4" />
-								</a>
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Buy me a coffee ☕</TooltipContent>
-					</Tooltip>
+					<div className="hidden md:flex items-center gap-2">
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+									<a
+										href="https://buymeacoffee.com/christianh5"
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										<CoffeeIcon className="h-4 w-4" />
+									</a>
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Buy me a coffee ☕</TooltipContent>
+						</Tooltip>
+
+						{isVsCode && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+										<a
+											href="https://github.com/ChrisHadi/inklink"
+											target="_blank"
+											rel="noopener noreferrer"
+										>
+											<GithubIcon className="h-4 w-4" />
+										</a>
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>Star on GitHub ⭐</TooltipContent>
+							</Tooltip>
+						)}
+					</div>
+
 					<ModeToggle />
 					{!isVsCode && (
 						<Tooltip>
@@ -706,19 +755,21 @@ export function Toolbar({
 							<TooltipContent>Settings</TooltipContent>
 						</Tooltip>
 					)}
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8"
-								onClick={() => globalState.setState({ isHelpDialogOpen: true })}
-							>
-								<KeyboardIcon className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Keyboard Shortcut</TooltipContent>
-					</Tooltip>
+					<div className="hidden md:flex items-center gap-2">
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8"
+									onClick={() => globalState.setState({ isHelpDialogOpen: true })}
+								>
+									<KeyboardIcon className="h-4 w-4" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Keyboard Shortcut</TooltipContent>
+						</Tooltip>
+					</div>
 				</div>
 			</TooltipProvider>
 		</div>

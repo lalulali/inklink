@@ -57,7 +57,7 @@ And now, with the **VS Code extension**, you can think right inside your editor 
 Your markdown becomes a mind map as you type. Headers and indented lists translate directly to nodes and branches — no configuration required. Root nodes respect a maximum width constraint so large titles wrap cleanly without distorting the layout.
 
 ### 🔗 Bidirectional Navigation
-**Double-click any node** to jump directly to the corresponding source line in the editor. The connection between visual and text is always live — edit the markdown, the map updates; navigate the map, the editor follows.
+**Double-click any node** to jump directly to the corresponding source line in the editor, temporarily highlighting the text. The connection between visual and text is always live — edit the markdown, the map updates; navigate the map, the editor follows.
 
 ### 🧭 Multiple Layout Directions
 Choose how your map flows: balanced two-sided, left-to-right, or right-to-left. Each layout uses a height-based algorithm for clean, non-overlapping node spacing.
@@ -76,6 +76,7 @@ Your work is never lost. Inklink continuously saves snapshots to **IndexedDB** i
 
 ### ⚙️ Configurable Settings
 Tune the experience to match your workflow:
+- **Maintenance Center** — a dedicated panel to manage local synchronization and data cleanup policy
 - **Continuous File Sync** — automatically write changes back to the opened file every 30 seconds
 - **Automatic Cleanup** — set how many days to keep local recovery snapshots before they are automatically purged (1–90 days)
 - **Snapshot Management** — review and manually purge all local snapshots from the settings panel at any time
@@ -93,7 +94,11 @@ Theme-aware rendering with color-coded branch hierarchies. Connectors now mainta
 A fully adaptive layout — persistent inline editor, mobile-optimized quick-action toolbar, and touch-friendly side drawers — so the tool remains powerful even on small screens.
 
 ### ✨ Visual Excellence
-A professional, distraction-free **Flat Design System**. Inklink uses no glassmorphism, no translucency, and no visual noise — just a solid, high-contrast, premium interface that feels alive and responsive. Every icon, including our theme-adaptive vector logo, is meticulously crafted.
+A professional, high-end **Solid Flat Design System**:
+- **Modern Overlays** — side-sheet drawers and dialogs now feature **persistent headers** with integrated close controls and `backdrop-blur` foundations
+- **Clean Aesthetic** — zero glassmorphism and zero translucency on primary UI elements for maximum contrast and readability
+- **Standardized UI** — a cohesive design language across all overlays, from the recovery center to the keyboard shortcut reference
+- **Living Response** — micro-animations and hover-reactive elements (like the expanding scrollbars) make the interface feel alive and premium
 
 ---
 

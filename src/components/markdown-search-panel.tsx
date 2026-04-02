@@ -292,6 +292,7 @@ export function MarkdownSearchPanel({ view }: MarkdownSearchPanelProps) {
           size="icon" 
           className="h-6 w-6 shrink-0 hover:bg-muted"
           onClick={handleToggleReplace}
+          title={state.isEditorReplaceOpen ? "Hide Replace" : "Show Replace"}
         >
           {state.isEditorReplaceOpen ? (
             <ChevronDownIcon className="h-4 w-4" />
@@ -300,7 +301,7 @@ export function MarkdownSearchPanel({ view }: MarkdownSearchPanelProps) {
           )}
         </Button>
 
-        <div className="relative w-[240px] group">
+        <div className="relative flex-[2] min-w-0 md:max-w-[300px] group">
           <Input 
             ref={findInputRef}
             autoFocus
@@ -312,8 +313,6 @@ export function MarkdownSearchPanel({ view }: MarkdownSearchPanelProps) {
                     if (e.shiftKey) {
                         onFindPrev();
                     } else if (e.altKey) {
-                        // VS Code style: Alt+Enter selects all matches
-                        // This requires a custom implementation or specific extension
                         view && window.dispatchEvent(new CustomEvent('inklink-editor-select-all-search'));
                     } else {
                         onFindNext();
@@ -345,25 +344,35 @@ export function MarkdownSearchPanel({ view }: MarkdownSearchPanelProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-1 px-1 text-[10px] text-muted-foreground whitespace-nowrap min-w-[50px] justify-center">
+        <div className="flex items-center gap-1.5 px-1 md:px-2 text-[10px] text-muted-foreground whitespace-nowrap min-w-fit md:min-w-[70px] justify-center">
             {state.editorSearchResultsCount > 0 ? (
-                <span>{state.editorSearchCurrentIndex + 1} of {state.editorSearchResultsCount}</span>
+                <>
+                  <span className="md:inline hidden">{state.editorSearchCurrentIndex + 1} of {state.editorSearchResultsCount}</span>
+                  <span className="md:hidden inline">{state.editorSearchCurrentIndex + 1}/{state.editorSearchResultsCount}</span>
+                </>
             ) : (
-                <span className="opacity-50">No results</span>
+                <span className="opacity-50 italic">No results</span>
             )}
         </div>
 
-        <div className="flex items-center gap-1 ml-auto">
-          <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-muted" onClick={onFindPrev}>
+        <div className="flex items-center gap-0.5">
+          <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-muted" onClick={onFindPrev} title="Previous Match (Shift+Enter)">
             <ChevronUpIcon className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-muted" onClick={onFindNext}>
+          <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-muted" onClick={onFindNext} title="Next Match (Enter)">
             <ChevronDownIcon className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-destructive/10 hover:text-destructive" onClick={handleClose}>
-            <XIcon className="h-4 w-4" />
-          </Button>
         </div>
+
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-6 w-6 ml-auto hover:bg-destructive/10 hover:text-destructive transition-colors" 
+          onClick={handleClose}
+          title="Close (Escape)"
+        >
+          <XIcon className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Row 2: Replace */}
@@ -371,7 +380,7 @@ export function MarkdownSearchPanel({ view }: MarkdownSearchPanelProps) {
         <div className="flex items-center gap-1 animate-in fade-in duration-200">
           <div className="w-6 shrink-0" /> {/* Aligner */}
           
-          <div className="relative w-[240px] group">
+          <div className="relative flex-[2] min-w-0 md:max-w-[300px] group">
             <Input 
               ref={replaceInputRef}
               value={state.editorReplaceQuery}
@@ -389,7 +398,7 @@ export function MarkdownSearchPanel({ view }: MarkdownSearchPanelProps) {
               placeholder="Replace"
               className="h-7 w-full border-border/50 bg-background/50 pl-2 pr-10 text-xs focus-visible:ring-1 focus-visible:ring-primary shadow-none rounded-sm"
             />
-            <div className="absolute right-1 top-[2px] flex items-center gap-0.5 opacity-0 group-focus-within:opacity-100 transition-opacity">
+            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-focus-within:opacity-100 transition-opacity">
               <SearchModifierButton 
                 label={<span className="font-mono text-[9px] font-bold leading-none">AB</span>} 
                 active={state.editorReplacePreserveCase} 

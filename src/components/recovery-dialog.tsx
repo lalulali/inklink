@@ -126,7 +126,35 @@ export function RecoveryDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={open => globalState.setState({ isRecoveryDialogOpen: open })}>
-      <DialogContent className="sm:max-w-3xl p-0 overflow-hidden bg-background border-border/60 shadow-2xl flex flex-col max-h-[90vh]">
+      <DialogContent id="recovery-dialog-root" className="sm:max-w-3xl p-0 overflow-hidden bg-background border-border/60 shadow-2xl flex flex-col max-h-[90vh]">
+        <style jsx global>{`
+          #recovery-dialog-root .sleek-scrollbar::-webkit-scrollbar {
+            width: 12px !important;
+            height: 12px !important;
+          }
+          #recovery-dialog-root .sleek-scrollbar::-webkit-scrollbar-track {
+            background-color: transparent !important;
+          }
+          #recovery-dialog-root .sleek-scrollbar::-webkit-scrollbar-thumb {
+            background-color: hsl(var(--muted-foreground) / 0.05) !important;
+            border-radius: 10px !important;
+            border: 4px solid transparent !important;
+            background-clip: content-box !important;
+            cursor: pointer !important;
+          }
+          #recovery-dialog-root:hover .sleek-scrollbar::-webkit-scrollbar-thumb {
+            background-color: hsl(var(--muted-foreground) / 0.25) !important;
+            border-width: 2.5px !important;
+          }
+          #recovery-dialog-root .sleek-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: hsl(var(--muted-foreground) / 0.45) !important;
+            border-width: 1.5px !important;
+          }
+          #recovery-dialog-root .sleek-scrollbar::-webkit-scrollbar-thumb:active {
+            background-color: hsl(var(--muted-foreground) / 0.6) !important;
+            border-width: 1px !important;
+          }
+        `}</style>
         <div className="p-6 flex-1 overflow-hidden flex flex-col">
           <DialogHeader className="mb-6">
             <DialogTitle className="text-xl font-bold tracking-tight">Browser Storage</DialogTitle>
@@ -223,7 +251,7 @@ export function RecoveryDialog() {
                   <div className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/45 mb-3 px-1">
                     Previous Sessions
                   </div>
-                  <div className="flex-1 overflow-y-auto space-y-2 mini-scrollbar pr-1">
+                  <div className="flex-1 overflow-y-auto space-y-2 sleek-scrollbar">
                     {otherRecords.map((r) => {
                       const id = r.id || 'current';
                       const isSelected = selectedId === id;
@@ -299,7 +327,7 @@ export function RecoveryDialog() {
             </div>
 
             {/* Selection details */}
-            <div className="w-full sm:w-72 flex flex-col gap-4 border-l border-border/30 pl-8 overflow-y-auto mini-scrollbar">
+            <div className="w-full sm:w-72 flex flex-col gap-4 border-l border-border/30 pl-8 overflow-y-auto sleek-scrollbar">
               <div className="space-y-6">
                  <div>
                     <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-2">Session Details</p>

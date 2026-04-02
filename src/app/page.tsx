@@ -22,6 +22,8 @@ import { AppReferenceDialog } from "@/components/app-reference-dialog";
 import { RecoveryDialog } from "@/components/recovery-dialog";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { cn } from "@/lib/utils";
+import { FileText, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 /**
  * Root Application Component
@@ -195,11 +197,28 @@ export default function Home() {
       {/* Persistent global notification layer */}
       <Toaster />
 
-      {/* ── MOBILE: Inline Editor below toolbar ── */}
-      {isMobile && editorVisible && (
-        <div className="md:hidden w-full h-[45vh] shrink-0 border-b overflow-hidden bg-background">
-          <MarkdownEditor />
+      {/* MOBILE: Fullscreen Side Drawer Editor (Slide-in from left) */}
+      <div 
+        className={cn(
+          "fixed inset-y-0 left-0 z-[60] w-full bg-background border-r shadow-2xl transition-transform duration-300 ease-in-out md:hidden flex flex-col",
+          editorVisible && isMobile ? "translate-x-0" : "-translate-x-full"
+        )}
+        style={{ top: '56px', height: 'calc(100dvh - 56px)' }}
+      >
+        <div className="flex flex-col h-full">
+          <div className="flex-1 overflow-hidden relative">
+            <MarkdownEditor onClose={() => setEditorVisible(false)} />
+          </div>
         </div>
+      </div>
+
+      {/* MOBILE: Drawer Backdrop (Close on click) */}
+      {isMobile && editorVisible && (
+        <div 
+          className="fixed inset-0 bg-black/40 z-[55] md:hidden animate-in fade-in duration-300"
+          onClick={() => setEditorVisible(false)}
+          style={{ top: '56px' }}
+        />
       )}
     </main>
   );

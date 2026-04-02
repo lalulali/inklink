@@ -22,7 +22,8 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { tags as t } from "@lezer/highlight";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { indentWithTab, indentMore, indentLess, undoDepth, redoDepth, undo, redo } from "@codemirror/commands";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { globalState } from "@/core/state/state-manager";
 import { createMarkdownParser } from "@/core/parser/markdown-parser";
 import { ColorManager } from "@/core/theme/color-manager";
@@ -45,9 +46,13 @@ const inklinkTheme = EditorView.theme({
 	"&.cm-focused": {
 		outline: "none !important",
 	},
-	".cm-scroller": {
-		height: "100% !important",
-		outline: "none !important",
+	".cm-content": {
+		fontFamily:
+			"var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+		padding: "0.5rem",
+	},
+	"&.cm-focused .cm-cursor": {
+		borderLeftColor: "hsl(var(--primary))",
 	},
 	".cm-gutters": {
 		backgroundColor: "transparent !important",
@@ -71,14 +76,6 @@ const inklinkTheme = EditorView.theme({
 		border: "none",
 		color: "hsl(var(--primary))",
 		padding: "0 4px",
-	},
-	".cm-content": {
-		fontFamily:
-			"var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-		padding: "0.5rem",
-	},
-	"&.cm-focused .cm-cursor": {
-		borderLeftColor: "hsl(var(--primary))",
 	},
 	"&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection":
 		{
@@ -119,7 +116,7 @@ const revealHighlightStyle = Decoration.mark({
 	} 
 });
 
-export function MarkdownEditor() {
+export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 	const [state, setState] = React.useState(globalState.getState());
 	const [value, setValue] = React.useState(state.markdown);
 	const { resolvedTheme } = useTheme();
@@ -538,7 +535,7 @@ export function MarkdownEditor() {
 							userEvent: "select.reveal",
 						});
 
-						// Trigger persistent highlight (will clear on typing)
+						// Trigger persistent highlight (will clear on typing or cursor move)
 						setRevealHighlight({ from: highlightFrom, to: highlightTo });
 
 						view.focus();
@@ -555,16 +552,25 @@ export function MarkdownEditor() {
 			if (index !== -1) {
 				view.dispatch({
 					selection: { anchor: index, head: index + content.length },
-					scrollIntoView: true,
+					effects: [EditorView.scrollIntoView(index, { y: 'start', yMargin: 20 })],
 					userEvent: "select.reveal",
 				});
+				setRevealHighlight({ from: index, to: index + content.length });
 				view.focus();
 			}
 		};
 
+		const handleClear = () => {
+			setRevealHighlight(null);
+		};
+
 		window.addEventListener("inklink-editor-reveal", handleReveal);
-		return () =>
+		window.addEventListener("inklink-editor-clear-highlight", handleClear);
+
+		return () => {
 			window.removeEventListener("inklink-editor-reveal", handleReveal);
+			window.removeEventListener("inklink-editor-clear-highlight", handleClear);
+		};
 	}, []);
 
 	// Handle quick-action inserts fired from the mobile markdown toolbar
@@ -952,8 +958,9 @@ export function MarkdownEditor() {
 
 	return (
 		<div
+			id="markdown-editor-root"
 			className={cn(
-				"flex h-full flex-col border-r bg-background relative",
+				"flex h-full flex-col border-r bg-background relative group",
 				isDragging &&
 					"ring-2 ring-primary/40 ring-inset bg-primary/5 transition-all duration-200",
 			)}
@@ -961,20 +968,64 @@ export function MarkdownEditor() {
 			onDragLeave={handleDragLeave}
 			onDrop={handleDrop}
 		>
-			<div className="flex h-10 items-center justify-between border-b px-4 text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+			<div className="flex h-10 items-center justify-between border-b px-4 text-xs font-bold uppercase tracking-wider text-muted-foreground/80 group/header">
 				<span>Markdown Editor</span>
 				<div className="flex items-center gap-2">
-					<span className="text-[10px] opacity-40 font-normal normal-case">
-						{isDragging ? "Drop to open file" : ""}
-					</span>
+					{isDragging && (
+						<span className="text-[10px] opacity-40 font-normal normal-case animate-pulse">
+							Drop to open file
+						</span>
+					)}
+					{onClose && (
+						<Button 
+							variant="ghost" 
+							size="icon" 
+							className="h-8 w-8 -mr-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+							onClick={onClose}
+						>
+							<X className="h-4 w-4" />
+						</Button>
+					)}
 				</div>
 			</div>
+
+			<style jsx global>{`
+				.sleek-scrollbar::-webkit-scrollbar {
+					width: 12px !important;
+					height: 12px !important;
+				}
+				.sleek-scrollbar::-webkit-scrollbar-track {
+					background-color: transparent !important;
+					cursor: default !important;
+				}
+				.sleek-scrollbar::-webkit-scrollbar-thumb {
+					background-color: hsl(var(--muted-foreground) / 0.05) !important;
+					border-radius: 10px !important;
+					border: 4px solid transparent !important;
+					background-clip: content-box !important;
+					cursor: pointer !important;
+				}
+				/* When the mouse enters the editor area, make the scrollbar slightly thicker and more visible */
+				#markdown-editor-root:hover .sleek-scrollbar::-webkit-scrollbar-thumb {
+					background-color: hsl(var(--muted-foreground) / 0.25) !important;
+					border-width: 2.5px !important;
+				}
+				/* When hovering directly on the thumb, make it even thicker and darker */
+				.sleek-scrollbar::-webkit-scrollbar-thumb:hover {
+					background-color: hsl(var(--muted-foreground) / 0.45) !important;
+					border-width: 1.5px !important;
+				}
+				.sleek-scrollbar::-webkit-scrollbar-thumb:active {
+					background-color: hsl(var(--muted-foreground) / 0.6) !important;
+					border-width: 1px !important;
+				}
+			`}</style>
 
 			{/* VS Code Style Search Panel */}
 			<MarkdownSearchPanel view={editorView} />
 
 			<div
-				className="flex-1 overflow-y-auto cursor-text min-h-0 sleek-scrollbar"
+				className="flex-1 overflow-y-auto min-h-0 sleek-scrollbar"
 				onClick={handleContainerClick}
 			>
 				<CodeMirror
@@ -1025,6 +1076,12 @@ export function MarkdownEditor() {
 								(tr) => tr.isUserEvent("select") || tr.isUserEvent("input"),
 							)
 						) {
+							// Clear the yellow highlight if user moves cursor manually
+							const isExternalReveal = update.transactions.some(tr => tr.isUserEvent("select.reveal"));
+							if (!isExternalReveal && revealHighlight) {
+								setRevealHighlight(null);
+							}
+
 							const head = update.state.selection.main.head;
 							const line = update.state.doc.lineAt(head);
 							const lineIndex = line.number - 1; // 0-based
