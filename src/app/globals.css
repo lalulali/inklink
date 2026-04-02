@@ -105,10 +105,6 @@
 .dark .node {
   color: hsl(var(--border));
 }
-
-.dark .link {
-  stroke: hsl(var(--border));
-}
 @layer components {
   .inklink-node-rect {
     fill: hsl(var(--card));

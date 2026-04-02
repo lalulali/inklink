@@ -113,6 +113,12 @@ const lightColorfulHighlightStyle = HighlightStyle.define([
 	{ tag: t.monospace, color: "#50a14f" },
 ]);
 
+const revealHighlightStyle = Decoration.mark({ 
+	attributes: { 
+		style: "background-color: rgba(255, 230, 0, 0.3); border: 1px solid rgba(255, 215, 0, 0.4); border-radius: 2px;" 
+	} 
+});
+
 export function MarkdownEditor() {
 	const [state, setState] = React.useState(globalState.getState());
 	const [value, setValue] = React.useState(state.markdown);
@@ -120,6 +126,7 @@ export function MarkdownEditor() {
 	const parser = React.useMemo(() => createMarkdownParser(), []);
 	const editorRef = React.useRef<any>(null);
 	const [editorView, setEditorView] = React.useState<EditorView | null>(null);
+	const [revealHighlight, setRevealHighlight] = React.useState<{ from: number; to: number } | null>(null);
 	const { autoSave } = useWebPlatform();
 	const isDark = resolvedTheme === "dark";
 
@@ -289,6 +296,25 @@ export function MarkdownEditor() {
 		[],
 	);
 
+	const revealHighlightPlugin = React.useMemo(
+		() =>
+			ViewPlugin.fromClass(
+				class {
+					decorations: DecorationSet;
+					constructor(view: EditorView) { this.decorations = this.getDecorations(); }
+					update(update: ViewUpdate) { this.decorations = this.getDecorations(); }
+					getDecorations() {
+						if (!revealHighlight) return Decoration.none;
+						const builder = new RangeSetBuilder<Decoration>();
+						builder.add(revealHighlight.from, revealHighlight.to, revealHighlightStyle);
+						return builder.finish();
+					}
+				},
+				{ decorations: v => v.decorations }
+			),
+		[revealHighlight]
+	);
+
 	const lastSentMarkdownRef = React.useRef(state.markdown);
 
 	React.useEffect(() => {
@@ -454,6 +480,7 @@ export function MarkdownEditor() {
 	const onChange = React.useCallback(
 		(val: string) => {
 			setValue(val);
+			if (revealHighlight) setRevealHighlight(null);
 
 			if (debounceTimerRef.current) {
 				clearTimeout(debounceTimerRef.current);
@@ -492,16 +519,27 @@ export function MarkdownEditor() {
 				if (lineNum <= state.doc.lines) {
 					try {
 						const line = state.doc.line(lineNum);
-						// Search for content within that line or nearby
+						
+						// Detect bullet points and markers to exclude them from the highlight if needed
+						const lineMatch = line.text.match(/^(\s*([-*+]|\d+\.)\s*(\[[ xX]\])?\s*)/);
+						const prefixLength = lineMatch ? lineMatch[0].length : 0;
+
+						// Highlight the content portion found in the node (or the whole line if empty)
 						const findIndex = line.text.indexOf(content);
-						const anchor = findIndex !== -1 ? line.from + findIndex : line.from;
-						const head = findIndex !== -1 ? anchor + content.length : line.to;
+						const highlightFrom = findIndex !== -1 ? line.from + findIndex : line.from + prefixLength;
+						const highlightTo = findIndex !== -1 ? highlightFrom + content.length : line.to;
+
+						// Put cursor at the end of the line
+						const cursorPosition = line.to;
 
 						view.dispatch({
-							selection: { anchor, head },
-							scrollIntoView: true,
+							selection: { anchor: cursorPosition, head: cursorPosition },
+							effects: [EditorView.scrollIntoView(cursorPosition, { y: 'start', yMargin: 20 })],
 							userEvent: "select.reveal",
 						});
+
+						// Trigger persistent highlight (will clear on typing)
+						setRevealHighlight({ from: highlightFrom, to: highlightTo });
 
 						view.focus();
 						return;
@@ -958,6 +996,7 @@ export function MarkdownEditor() {
 						keymap.of([indentWithTab]),
 						search(),
 						searchHighlightPlugin,
+						revealHighlightPlugin,
 					]}
 					onChange={onChange}
 					onUpdate={(update) => {

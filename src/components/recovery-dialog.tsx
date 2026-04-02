@@ -131,8 +131,8 @@ export function RecoveryDialog() {
           <DialogHeader className="mb-6">
             <DialogTitle className="text-xl font-bold tracking-tight">Browser Storage</DialogTitle>
             <DialogDescription>
-              Restore mind maps stored in your browser's local cache. 
-              These snapshots are automatically captured as you work.
+              Select a session to load. You can <b>Double-Click</b> any session to quickly restore it, 
+              or click the restore button below.
             </DialogDescription>
           </DialogHeader>
 
@@ -158,6 +158,7 @@ export function RecoveryDialog() {
                             key={id}
                             type="button"
                             onClick={() => setSelectedId(id)}
+                            onDoubleClick={handleRestore}
                             className={`w-full text-left p-4 rounded-xl border-2 transition-all group relative overflow-hidden ${
                               isSelected 
                                 ? 'border-primary bg-primary/5 ring-1 ring-primary/20' 
@@ -235,6 +236,7 @@ export function RecoveryDialog() {
                           <button
                             type="button"
                             onClick={() => setSelectedId(id)}
+                            onDoubleClick={handleRestore}
                             className={`w-full text-left p-3 rounded-lg border-2 transition-all group relative overflow-hidden ${
                               isSelected 
                                 ? 'border-primary/40 bg-primary/5' 

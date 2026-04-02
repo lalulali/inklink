@@ -122,12 +122,16 @@ export function KeyboardHandler() {
             }
          } else {
             // Target ALL nodes if no selection
-            const recursiveSet = (node: any) => {
-               node.collapsed = isCollapse;
-               if (node.children) node.children.forEach(recursiveSet);
+            const recursiveSet = (node: any, level: number) => {
+               if (isCollapse) {
+                  node.collapsed = level >= 1;
+               } else {
+                  node.collapsed = false;
+               }
+               if (node.children) node.children.forEach((child: any) => recursiveSet(child, level + 1));
             };
             const newTree = { ...state.tree };
-            recursiveSet(newTree);
+            recursiveSet(newTree, 0);
             globalState.setState({ tree: newTree, isDirty: true });
          }
       }

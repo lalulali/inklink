@@ -1004,8 +1004,8 @@ export class D3Renderer implements RendererAdapter {
       .ease(d3.easeCubicOut)
       .delay((d) => (d.target.depth || 0) * this.config.staggerDelay)
       .attr('d', sideAwareDiagonal)
-      .attr('stroke-opacity', (d) => this.isDarkMode ? 0.8 : 0.55)
-      .attr('stroke', (d) => ColorManager.getThemeShade(d.target.color, this.isDarkMode) || 'currentColor');
+      .attr('stroke-opacity', 0.55)
+      .attr('stroke', (d) => ColorManager.getThemeShade(d.target.color, false) || 'currentColor');
   }
 
   /**

@@ -72,7 +72,7 @@ A VS Code-style find and replace panel with full keyboard shortcuts (`Cmd+Shift+
 Open any `.md` file directly from the filesystem. Save changes back in place. Drag-and-drop a file onto the canvas to open it instantly — no dialog required. Inklink uses the modern **File System Access API** for a seamless local-first experience.
 
 ### 🛡️ Local-First Data Safety
-Your work is never lost. Inklink continuously saves snapshots to **IndexedDB** in the background. If you close the tab, refresh, or crash, the **Recovery Center** detects your previous sessions on next launch and lets you browse, preview, and restore any of them — individually or all at once.
+Your work is never lost. Inklink continuously saves snapshots to **IndexedDB** in the background. If you close the tab, refresh, or crash, the **Recovery Center** detects your previous sessions on next launch and lets you browse, preview, and restore any of them — individually (with a quick **double-click**) or all at once.
 
 ### ⚙️ Configurable Settings
 Tune the experience to match your workflow:
@@ -87,7 +87,7 @@ Export your mind map as SVG, PNG, or a standalone interactive HTML file — read
 50-step history with standard keyboard shortcuts. Change your mind as many times as you need.
 
 ### 🌗 Dark & Light Mode
-Theme-aware rendering with color-coded branch hierarchies. Looks great in both modes.
+Theme-aware rendering with color-coded branch hierarchies. Connectors now maintain their vibrant light-mode colors even in dark mode, providing a consistent visual identity across themes.
 
 ### 📱 Mobile Responsive
 A fully adaptive layout — persistent inline editor, mobile-optimized quick-action toolbar, and touch-friendly side drawers — so the tool remains powerful even on small screens.

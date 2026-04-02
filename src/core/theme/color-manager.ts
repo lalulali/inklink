@@ -14,30 +14,30 @@ import { TreeNode } from '../types/tree-node';
 export class ColorManager {
   // Task 9.1: Curated premium color palette
   private static readonly PALETTE = [
-    '#6366f1', // Indigo 500
-    '#8b5cf6', // Violet 500
-    '#f43f5e', // Rose 500
-    '#f59e0b', // Amber 500
-    '#10b981', // Emerald 500
-    '#0ea5e9', // Sky 500
-    '#ec4899', // Pink 500
-    '#f97316', // Orange 500
-    '#14b8a6', // Teal 500
-    '#64748b', // Slate 500
+    '#4f46e5', // Indigo 600
+    '#7c3aed', // Violet 600
+    '#e11d48', // Rose 600
+    '#d97706', // Amber 600
+    '#059669', // Emerald 600
+    '#0284c7', // Sky 600
+    '#db2777', // Pink 600
+    '#ea580c', // Orange 600
+    '#0d9488', // Teal 600
+    '#475569', // Slate 600
   ];
 
-  // Mapping from light mode shades (500) to more visible dark mode shades (400 hex)
+  // Mapping from light mode shades (600) to dark mode shades (also 600 as requested)
   private static readonly DARK_SHADES: Record<string, string> = {
-    '#6366f1': '#6366f1', // Indigo 400
-    '#8b5cf6': '#8b5cf6', // Violet 400
-    '#f43f5e': '#f43f5e', // Rose 400
-    '#f59e0b': '#f59e0b', // Amber 400
-    '#10b981': '#10b981', // Emerald 400
-    '#0ea5e9': '#0ea5e9', // Sky 400
-    '#ec4899': '#ec4899', // Pink 400
-    '#f97316': '#f97316', // Orange 400
-    '#14b8a6': '#14b8a6', // Teal 400
-    '#64748b': '#64748b', // Slate 400
+    '#4f46e5': '#4f46e5', // Indigo 600
+    '#7c3aed': '#7c3aed', // Violet 600
+    '#e11d48': '#e11d48', // Rose 600
+    '#d97706': '#d97706', // Amber 600
+    '#059669': '#059669', // Emerald 600
+    '#0284c7': '#0284c7', // Sky 600
+    '#db2777': '#db2777', // Pink 600
+    '#ea580c': '#ea580c', // Orange 600
+    '#0d9488': '#0d9488', // Teal 600
+    '#475569': '#475569', // Slate 600
   };
 
   /**

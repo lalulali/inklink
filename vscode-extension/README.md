@@ -55,7 +55,7 @@ Share your visual thinking with anyone:
 - **Interactive HTML** — a standalone file anyone can open in a browser, zoom, pan, expand, and collapse — no Inklink required
 
 ### 🎨 Theme-Aware Design
-Inklink automatically matches your VS Code theme (light or dark). Color-coded branches make hierarchy easy to read at a glance.
+Inklink automatically matches your VS Code theme (light or dark). Color-coded branches maintain their vibrant light-mode colors in both themes, ensuring visual consistency and excellent readability against dark backgrounds.
 
 ### 🛡️ Auto-Save & Recovery
 Your work is continuously saved in the background. If VS Code crashes or the panel is accidentally closed, your mind map state is preserved and restored on next launch.

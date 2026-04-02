@@ -68,6 +68,7 @@ class InklinkPanel {
     _fileUri;
     _context;
     _disposables = [];
+    _revealDecoration;
     static createOrShow(extensionUri, fileUri, context) {
         if (InklinkPanel.currentPanel) {
             InklinkPanel.currentPanel._panel.reveal(vscode.ViewColumn.Beside);
@@ -104,14 +105,37 @@ class InklinkPanel {
                     });
                     return;
                 case 'revealLine': {
-                    const editor = await vscode.window.showTextDocument(this._fileUri, {
-                        viewColumn: vscode.ViewColumn.One,
-                        preserveFocus: false
-                    });
-                    const line = message.line;
-                    const pos = new vscode.Position(line, 0);
-                    editor.selection = new vscode.Selection(pos, pos);
-                    editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+                    const lineNum = message.line;
+                    const uriStr = this._fileUri.toString();
+                    // Performance: Find if editor is already visible to avoid redundant showTextDocument calls
+                    let editor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === uriStr);
+                    if (!editor || editor.viewColumn !== vscode.ViewColumn.One) {
+                        editor = await vscode.window.showTextDocument(this._fileUri, {
+                            viewColumn: vscode.ViewColumn.One,
+                            preserveFocus: false
+                        });
+                    }
+                    if (editor) {
+                        const line = editor.document.lineAt(lineNum);
+                        const pos = new vscode.Position(lineNum, line.text.length);
+                        // 1. Position cursor at the end of the line and scroll to TOP
+                        editor.selection = new vscode.Selection(pos, pos);
+                        editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.AtTop);
+                        // 2. Apply persistent yellow highlight (like Find)
+                        // Dispose previous one if exists
+                        if (this._revealDecoration) {
+                            this._revealDecoration.dispose();
+                        }
+                        this._revealDecoration = vscode.window.createTextEditorDecorationType({
+                            backgroundColor: 'rgba(255, 230, 0, 0.3)',
+                            border: '1px solid rgba(255, 215, 0, 0.4)',
+                            borderRadius: '2px',
+                        });
+                        // Detect bullet points to narrow down the highlight to text only
+                        const lineMatch = line.text.match(/^(\s*([-*+]|\d+\.)\s*(\[[ xX]\])?\s*)/);
+                        const prefixLength = lineMatch ? lineMatch[0].length : 0;
+                        editor.setDecorations(this._revealDecoration, [new vscode.Range(lineNum, prefixLength, lineNum, line.text.length)]);
+                    }
                     return;
                 }
                 case 'ready':
@@ -163,6 +187,11 @@ class InklinkPanel {
         // Listen for document changes to update webview in real-time
         vscode.workspace.onDidChangeTextDocument(e => {
             if (e.document.uri.toString() === this._fileUri.toString()) {
+                // Clear reveal highlight on typing
+                if (this._revealDecoration) {
+                    this._revealDecoration.dispose();
+                    this._revealDecoration = undefined;
+                }
                 this._sendInitialContent();
             }
         }, null, this._disposables);

@@ -2,6 +2,11 @@
 
 All notable changes to the "inklink" extension will be documented in this file.
 
+## [0.1.4] - 2026-04-02
+- Improved visual consistency: mind map connectors now maintain their vibrant light-mode colors in dark mode
+- Double-click node to highlight its source line in the VS Code editor
+- Simplified link styling by removing redundant CSS overrides
+
 ## [0.1.3] - 2026-04-02
 - Fixed support for unsaved (dirty) and untitled Markdown documents
 - Implemented real-time synchronization between editor and mindmap (preview while typing)
