@@ -2,6 +2,11 @@
 
 All notable changes to the "inklink" extension will be documented in this file.
 
+## [0.1.3] - 2026-04-02
+- Fixed support for unsaved (dirty) and untitled Markdown documents
+- Implemented real-time synchronization between editor and mindmap (preview while typing)
+- Fixed Inklink icon visibility in editor title bar for untitled files
+
 ## [0.1.2] - 2026-04-01
 - Updated dark mode branch colors for better visibility
 

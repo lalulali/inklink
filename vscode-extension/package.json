@@ -2,7 +2,7 @@
   "name": "inklink",
   "displayName": "Inklink",
   "description": "Instantly visualize any Markdown file as a live, interactive mindmap. Features bidirectional navigation, multiple layouts, and professional export options.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "MIT",
   "publisher": "ChrisHadi",
   "author": {
@@ -60,7 +60,7 @@
         {
           "command": "inklink.open",
           "group": "navigation",
-          "when": "resourceExtname == .md"
+          "when": "editorLangId == markdown"
         }
       ],
       "explorer/context": [

@@ -28,6 +28,9 @@ Whether you are writing a product spec, reviewing an architecture decision recor
 ### 🗺️ Real-Time Markdown Mind Map
 Every heading (`#`, `##`, `###`) and list item in your Markdown automatically becomes a node in the mind map. Edit the file — the map updates instantly. No manual refresh required.
 
+### 🔄 Real-Time Synchronization
+The mind map is live-synced with your editor buffer. It updates as you type, providing an instant visual preview of your document structure as it evolves. No manual refresh or save required.
+
 ### 🔗 Bidirectional Editor ↔ Map Navigation
 - **Double-click any node** → your VS Code editor jumps to the exact line
 - **Click a line in the editor** → the corresponding node highlights in the mind map
@@ -165,27 +168,6 @@ All rendering happens locally. No data leaves your machine. No external API call
 Inklink is also available as a **free web application** at [inklink.bychris.me](https://inklink.bychris.me) with additional features like drag-and-drop file opening, local IndexedDB recovery, and a full markdown editor with find & replace.
 
 The VS Code extension and the web app share the same rendering engine, layout algorithms, and design system — so your mind maps look identical everywhere.
-
----
-
-## 📋 Changelog
-
-### 0.1.2
-- Update dark mode branch colors for better visibility
-
-### 0.1.1
-- Update VS Code Marketplace and Open VSX repository URLs
-
-### 0.1.0 — Initial Release
-- Real-time Markdown-to-mind-map rendering
-- Bidirectional editor ↔ map navigation
-- Three layout directions (LTR, RTL, two-sided)
-- Lighthouse minimap with inverted overlay
-- Canvas search
-- Export to PNG, SVG, and interactive HTML
-- Full dark mode support
-- Auto-save and session recovery
-- Expand/collapse controls
 
 ---
 

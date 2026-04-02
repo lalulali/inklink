@@ -73,7 +73,8 @@ class InklinkPanel {
             InklinkPanel.currentPanel._panel.reveal(vscode.ViewColumn.Beside);
             return;
         }
-        const panel = vscode.window.createWebviewPanel('inklinkMap', `${path.basename(fileUri.fsPath)} (Mindmap)`, vscode.ViewColumn.Beside, {
+        const fileName = fileUri.scheme === 'untitled' ? 'Untitled' : path.basename(fileUri.fsPath);
+        const panel = vscode.window.createWebviewPanel('inklinkMap', `${fileName} (Mindmap)`, vscode.ViewColumn.Beside, {
             enableScripts: true,
             localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist/webview')],
             retainContextWhenHidden: true,
@@ -142,10 +143,11 @@ class InklinkPanel {
                     await this._context.globalState.update('preferences', message.prefs);
                     this._respond(message.id, { success: true }, 'storageResponse');
                     return;
-                case 'loadPreferences':
+                case 'loadPreferences': {
                     const prefs = this._context.globalState.get('preferences');
                     this._respond(message.id, prefs || {}, 'storageResponse');
                     return;
+                }
             }
         }, null, this._disposables);
         // Listen for editor selection changes to sync with webview
@@ -158,9 +160,18 @@ class InklinkPanel {
                 });
             }
         }, null, this._disposables);
-        const fileWatcher = vscode.workspace.createFileSystemWatcher(fileUri.fsPath);
-        fileWatcher.onDidChange(() => this._sendInitialContent());
-        this._disposables.push(fileWatcher);
+        // Listen for document changes to update webview in real-time
+        vscode.workspace.onDidChangeTextDocument(e => {
+            if (e.document.uri.toString() === this._fileUri.toString()) {
+                this._sendInitialContent();
+            }
+        }, null, this._disposables);
+        // Listen for document saves
+        vscode.workspace.onDidSaveTextDocument(document => {
+            if (document.uri.toString() === this._fileUri.toString()) {
+                this._sendInitialContent();
+            }
+        }, null, this._disposables);
     }
     _respond(id, data, command = 'response') {
         this._panel.webview.postMessage({ command, id, data });
@@ -228,18 +239,21 @@ class InklinkPanel {
     _update() {
         this._panel.webview.html = this._getHtmlForWebview(this._panel.webview);
     }
-    _sendInitialContent() {
+    async _sendInitialContent() {
         try {
-            const content = fs.readFileSync(this._fileUri.fsPath, 'utf8');
+            // Use openTextDocument which handles untitled files and dirty buffers correctly
+            const document = await vscode.workspace.openTextDocument(this._fileUri);
+            const content = document.getText();
+            const fileName = this._fileUri.scheme === 'untitled' ? 'Untitled' : path.basename(this._fileUri.fsPath);
             this._panel.webview.postMessage({
                 command: 'setContent',
                 content: content,
-                fileName: path.basename(this._fileUri.fsPath),
+                fileName: fileName,
                 fileUri: this._fileUri.toString()
             });
         }
         catch (err) {
-            vscode.window.showErrorMessage(`Failed to read file: ${err}`);
+            vscode.window.showErrorMessage(`Failed to read file content: ${err}`);
         }
     }
     _getHtmlForWebview(webview) {
