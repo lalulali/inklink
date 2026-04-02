@@ -2,6 +2,17 @@
 
 All notable changes to the "inklink" extension will be documented in this file.
 
+## [0.1.5] - 2026-04-02
+- Solid Flat Design: Replaced all `backdrop-blur` effects and transparent backgrounds with a solid, high-contrast design system across all side-sheet overlays
+- Brand Consistency: Updated Marketplace and Open VSX buttons in Settings to use official brand colors (#007ACC and #5D2F92)
+- Corrected button styling for non-transparent backgrounds across all Settings dialogs
+- Redesigned Keyboard Shortcuts reference with a high-density, condensed layout and clearer grouping
+- Consolidated application maintenance settings into a unified "Maintenance Center"
+- Fixed hover feedback and pointer cursors on interactive scrollbar elements
+- Fixed a bug causing the cursor to be invisible when double-clicking a node
+- Resolved highlight glitching by preventing recursive cursor selection events
+- Improved editor focus performance during node navigation
+
 ## [0.1.4] - 2026-04-02
 - Improved visual consistency: mind map connectors now maintain their vibrant light-mode colors in dark mode
 - Double-click node to highlight its source line in the VS Code editor

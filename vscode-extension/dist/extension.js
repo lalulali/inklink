@@ -69,6 +69,8 @@ class InklinkPanel {
     _context;
     _disposables = [];
     _revealDecoration;
+    _isProgrammaticReveal = false;
+    _programmaticRevealTimeout;
     static createOrShow(extensionUri, fileUri, context) {
         if (InklinkPanel.currentPanel) {
             InklinkPanel.currentPanel._panel.reveal(vscode.ViewColumn.Beside);
@@ -107,7 +109,7 @@ class InklinkPanel {
                 case 'revealLine': {
                     const lineNum = message.line;
                     const uriStr = this._fileUri.toString();
-                    // Performance: Find if editor is already visible to avoid redundant showTextDocument calls
+                    // Performance: Find if editor is already visible
                     let editor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === uriStr);
                     if (!editor || editor.viewColumn !== vscode.ViewColumn.One) {
                         editor = await vscode.window.showTextDocument(this._fileUri, {
@@ -115,14 +117,26 @@ class InklinkPanel {
                             preserveFocus: false
                         });
                     }
+                    else {
+                        // If it's already visible but not actively focused, focus it (reveals cursor)
+                        if (vscode.window.activeTextEditor !== editor) {
+                            await vscode.window.showTextDocument(editor.document, editor.viewColumn, false);
+                        }
+                    }
                     if (editor) {
                         const line = editor.document.lineAt(lineNum);
                         const pos = new vscode.Position(lineNum, line.text.length);
-                        // 1. Position cursor at the end of the line and scroll to TOP
+                        // Guard: prevent selection-change listener from clearing the decoration
+                        // when we are the ones programmatically moving the cursor.
+                        this._isProgrammaticReveal = true;
+                        if (this._programmaticRevealTimeout) {
+                            clearTimeout(this._programmaticRevealTimeout);
+                        }
+                        // 1. Set cursor at end of line and scroll to top
                         editor.selection = new vscode.Selection(pos, pos);
                         editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.AtTop);
                         // 2. Apply persistent yellow highlight (like Find)
-                        // Dispose previous one if exists
+                        // Dispose previous decoration if exists
                         if (this._revealDecoration) {
                             this._revealDecoration.dispose();
                         }
@@ -131,10 +145,16 @@ class InklinkPanel {
                             border: '1px solid rgba(255, 215, 0, 0.4)',
                             borderRadius: '2px',
                         });
-                        // Detect bullet points to narrow down the highlight to text only
+                        // Detect bullet points to narrow down highlight to text only
                         const lineMatch = line.text.match(/^(\s*([-*+]|\d+\.)\s*(\[[ xX]\])?\s*)/);
                         const prefixLength = lineMatch ? lineMatch[0].length : 0;
-                        editor.setDecorations(this._revealDecoration, [new vscode.Range(lineNum, prefixLength, lineNum, line.text.length)]);
+                        editor.setDecorations(this._revealDecoration, [
+                            new vscode.Range(lineNum, prefixLength, lineNum, line.text.length)
+                        ]);
+                        // 3. Release the guard after event loop completes so async selection events don't clear it
+                        this._programmaticRevealTimeout = setTimeout(() => {
+                            this._isProgrammaticReveal = false;
+                        }, 50);
                     }
                     return;
                 }
@@ -174,9 +194,15 @@ class InklinkPanel {
                 }
             }
         }, null, this._disposables);
-        // Listen for editor selection changes to sync with webview
+        // Listen for editor selection changes to sync with webview and clear highlight
         vscode.window.onDidChangeTextEditorSelection(e => {
             if (e.textEditor.document.uri.toString() === this._fileUri.toString()) {
+                // Only clear the highlight if the user genuinely moved the cursor,
+                // not when we set it ourselves during a programmatic reveal.
+                if (!this._isProgrammaticReveal && this._revealDecoration) {
+                    this._revealDecoration.dispose();
+                    this._revealDecoration = undefined;
+                }
                 const line = e.selections[0].active.line;
                 this._panel.webview.postMessage({
                     command: 'focusLine',

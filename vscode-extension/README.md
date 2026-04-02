@@ -32,7 +32,7 @@ Every heading (`#`, `##`, `###`) and list item in your Markdown automatically be
 The mind map is live-synced with your editor buffer. It updates as you type, providing an instant visual preview of your document structure as it evolves. No manual refresh or save required.
 
 ### 🔗 Bidirectional Editor ↔ Map Navigation
-- **Double-click any node** → your VS Code editor jumps to the exact line
+- **Double-click any node** → your VS Code editor jumps to the exact line and highlights it briefly
 - **Click a line in the editor** → the corresponding node highlights in the mind map
 - The connection is always live: write on the left, think on the right
 
