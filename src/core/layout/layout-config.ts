@@ -29,4 +29,21 @@ export const LAYOUT_CONFIG = {
 
   // Maximum node width for the root node (depth 0)
   ROOT_MAX_WIDTH: 300,
+
+  // Image Thumbnail Constraints
+  IMAGE: {
+    MAX_WIDTH: 240,       // Max allowed width for thumbnails
+    MAX_HEIGHT: 180,      // Max allowed height for thumbnails
+    PADDING: 4,           // Inner padding for the image frame
+    CORNER_RADIUS: 4,     // Roundness of image container
+    BORDER_WIDTH: 1.5,    // Border thickness for image frame
+  },
+
+  // Distance Marker Configuration
+  DISTANCE: {
+    FONT_SIZE: 11,        // Size of the distance label
+    COLOR: '#94a3b8',     // Slate 400 color
+    BG_OPACITY: 0.8,      // Background transparency for the label
+    VISIBLE_THRESHOLD: 50 // Only show if distance is > 50px
+  },
 };

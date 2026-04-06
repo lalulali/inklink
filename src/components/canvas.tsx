@@ -7,7 +7,7 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
-import { PlatformFactory } from '@/platform';
+import { PlatformFactory, PlatformType } from '@/platform';
 import { RendererAdapter } from '@/platform/adapters';
 import { TreeNode } from '@/core/types';
 import { globalState } from '@/core/state/state-manager';
@@ -16,6 +16,8 @@ import { useTheme } from 'next-themes';
 import { useWebPlatform } from '@/platform/web/web-platform-context';
 import { useFileDrop } from '@/hooks/use-file-drop';
 import { cn } from '@/lib/utils';
+
+import { getVsCodeApi } from '@/platform/vscode/vscode-api';
 
 /**
  * Main application canvas
@@ -106,6 +108,20 @@ export function Canvas() {
            globalState.setState({ tree: { ...s.tree } });
         }
       });
+
+      // Handle link clicks
+      if (renderer.onNodeLinkClick) {
+        renderer.onNodeLinkClick((url) => {
+          if (factory.getPlatform() === PlatformType.VSCode) {
+            const vscodeApi = getVsCodeApi();
+            if (vscodeApi) {
+              vscodeApi.postMessage({ command: 'openLink', url });
+              return;
+            }
+          }
+          window.open(url, '_blank');
+        });
+      }
 
       rendererRef.current = renderer;
     }

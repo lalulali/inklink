@@ -20,7 +20,7 @@ import { markdown as mdLang } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { tags as t } from "@lezer/highlight";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { HighlightStyle, syntaxHighlighting, syntaxTree } from "@codemirror/language";
 import { indentWithTab, indentMore, indentLess, undoDepth, redoDepth, undo, redo } from "@codemirror/commands";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -677,23 +677,52 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 			key: "Mod-b",
 			run: (view) => {
 				const { state } = view;
-				const main = state.selection.main;
-				const text = state.sliceDoc(main.from, main.to);
+				let main = state.selection.main;
+				const tree = syntaxTree(state);
 
-				// Toggle logic
-				if (text.startsWith("**") && text.endsWith("**")) {
-					const insert = text.slice(2, -2);
-					view.dispatch({
-						changes: { from: main.from, to: main.to, insert },
-						selection: { anchor: main.from, head: main.to - 4 }, // Adjust selection
-					});
-				} else {
-					const insert = `**${text}**`;
-					view.dispatch({
-						changes: { from: main.from, to: main.to, insert },
-						selection: { anchor: main.from + 2, head: main.to + 2 },
-					});
+				// 1. Try to find a StrongEmphasis node wrapping the selection
+				let boldNode: any = null;
+				let cur: any = tree.resolveInner(main.head, -1);
+				while (cur && cur.name !== "Document") {
+					if (cur.name === "StrongEmphasis") {
+						boldNode = cur;
+						break;
+					}
+					cur = cur.parent;
 				}
+
+				if (boldNode) {
+					// Toggle OFF: Remove markers of the identified node
+					const from = boldNode.from, to = boldNode.to;
+					const text = state.sliceDoc(from, to);
+					// Identify if it's ** or __
+					const marker = text.startsWith("**") ? "**" : (text.startsWith("__") ? "__" : "");
+					if (marker) {
+						view.dispatch({
+							changes: [
+								{ from, to: from + marker.length, insert: "" },
+								{ from: to - marker.length, to, insert: "" }
+							],
+							selection: { anchor: from, head: to - (marker.length * 2) },
+						});
+						return true;
+					}
+				}
+
+				// 2. Otherwise: Toggle ON (Wrap selection or current word)
+				if (main.empty) {
+					const word = state.wordAt(main.head);
+					if (word) main = word;
+				}
+
+				const from = main.from, to = main.to;
+				const text = state.sliceDoc(from, to);
+				const insert = `**${text}**`;
+				
+				view.dispatch({
+					changes: { from, to, insert },
+					selection: { anchor: from + 2, head: from + 2 + text.length },
+				});
 				return true;
 			},
 		},
@@ -701,27 +730,51 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 			key: "Mod-i",
 			run: (view) => {
 				const { state } = view;
-				const main = state.selection.main;
-				const text = state.sliceDoc(main.from, main.to);
+				let main = state.selection.main;
+				const tree = syntaxTree(state);
 
-				// Toggle logic
-				if (
-					text.startsWith("*") &&
-					text.endsWith("*") &&
-					!text.startsWith("**")
-				) {
-					const insert = text.slice(1, -1);
-					view.dispatch({
-						changes: { from: main.from, to: main.to, insert },
-						selection: { anchor: main.from, head: main.to - 2 },
-					});
-				} else {
-					const insert = `*${text}*`;
-					view.dispatch({
-						changes: { from: main.from, to: main.to, insert },
-						selection: { anchor: main.from + 1, head: main.to + 1 },
-					});
+				// 1. Try to find an Emphasis node wrapping the selection
+				let italicNode: any = null;
+				let cur: any = tree.resolveInner(main.head, -1);
+				while (cur && cur.name !== "Document") {
+					if (cur.name === "Emphasis") {
+						italicNode = cur;
+						break;
+					}
+					cur = cur.parent;
 				}
+
+				if (italicNode) {
+					// Toggle OFF
+					const from = italicNode.from, to = italicNode.to;
+					const text = state.sliceDoc(from, to);
+					const marker = text.startsWith("*") ? "*" : (text.startsWith("_") ? "_" : "");
+					if (marker) {
+						view.dispatch({
+							changes: [
+								{ from, to: from + marker.length, insert: "" },
+								{ from: to - marker.length, to, insert: "" }
+							],
+							selection: { anchor: from, head: to - (marker.length * 2) },
+						});
+						return true;
+					}
+				}
+
+				// 2. Otherwise: Toggle ON
+				if (main.empty) {
+					const word = state.wordAt(main.head);
+					if (word) main = word;
+				}
+
+				const from = main.from, to = main.to;
+				const text = state.sliceDoc(from, to);
+				const insert = `*${text}*`;
+				
+				view.dispatch({
+					changes: { from, to, insert },
+					selection: { anchor: from + 1, head: from + 1 + text.length },
+				});
 				return true;
 			},
 		},
@@ -729,23 +782,47 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 			key: "Mod-Shift-x",
 			run: (view) => {
 				const { state } = view;
-				const main = state.selection.main;
-				const text = state.sliceDoc(main.from, main.to);
+				let main = state.selection.main;
+				const tree = syntaxTree(state);
 
-				// Toggle logic
-				if (text.startsWith("~~") && text.endsWith("~~")) {
-					const insert = text.slice(2, -2);
-					view.dispatch({
-						changes: { from: main.from, to: main.to, insert },
-						selection: { anchor: main.from, head: main.to - 4 },
-					});
-				} else {
-					const insert = `~~${text}~~`;
-					view.dispatch({
-						changes: { from: main.from, to: main.to, insert },
-						selection: { anchor: main.from + 2, head: main.to + 2 },
-					});
+				// 1. Try to find a Strikethrough node wrapping the selection
+				let strikeNode: any = null;
+				let cur: any = tree.resolveInner(main.head, -1);
+				while (cur && cur.name !== "Document") {
+					if (cur.name === "Strikethrough") {
+						strikeNode = cur;
+						break;
+					}
+					cur = cur.parent;
 				}
+
+				if (strikeNode) {
+					// Toggle OFF
+					const from = strikeNode.from, to = strikeNode.to;
+					view.dispatch({
+						changes: [
+							{ from, to: from + 2, insert: "" },
+							{ from: to - 2, to, insert: "" }
+						],
+						selection: { anchor: from, head: to - 4 },
+					});
+					return true;
+				}
+
+				// 2. Otherwise: Toggle ON
+				if (main.empty) {
+					const word = state.wordAt(main.head);
+					if (word) main = word;
+				}
+
+				const from = main.from, to = main.to;
+				const text = state.sliceDoc(from, to);
+				const insert = `~~${text}~~`;
+				
+				view.dispatch({
+					changes: { from, to, insert },
+					selection: { anchor: from + 2, head: from + 2 + text.length },
+				});
 				return true;
 			},
 		},

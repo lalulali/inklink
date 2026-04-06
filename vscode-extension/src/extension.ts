@@ -152,6 +152,33 @@ class InklinkPanel {
                     case 'ready':
                         this._sendInitialContent();
                         return;
+                    case 'openLink': {
+                        if (message.url.startsWith('http://') || message.url.startsWith('https://') || message.url.startsWith('mailto:')) {
+                            // Opens in default system browser
+                            vscode.env.openExternal(vscode.Uri.parse(message.url));
+                        } else {
+                            try {
+                                let linkPath: string = message.url;
+                                if (!path.isAbsolute(linkPath)) {
+                                    linkPath = path.join(path.dirname(this._fileUri.fsPath), linkPath);
+                                }
+                                const targetUri = vscode.Uri.file(linkPath);
+                                try {
+                                    const doc = await vscode.workspace.openTextDocument(targetUri);
+                                    // Open in the first column (original editing area), NOT the webview's column
+                                    await vscode.window.showTextDocument(doc, { 
+                                        viewColumn: vscode.ViewColumn.One, 
+                                        preserveFocus: false 
+                                    });
+                                } catch {
+                                    vscode.env.openExternal(targetUri);
+                                }
+                            } catch (e) {
+                                console.error('openLink: failed to resolve path', e);
+                            }
+                        }
+                        return;
+                    }
                     case 'openFile':
                         await this._handleOpenFile(message);
                         return;

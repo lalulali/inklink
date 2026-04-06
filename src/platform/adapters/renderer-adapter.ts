@@ -68,6 +68,12 @@ export interface RendererAdapter {
   onNodeToggle(callback: (nodeId: string) => void): void;
 
   /**
+   * Register callback for node link click events
+   * @param callback - Function called with the clicked link URL
+   */
+  onNodeLinkClick?(callback: (url: string) => void): void;
+
+  /**
    * Get the current viewport bounds
    * @returns Bounding box of visible area
    */

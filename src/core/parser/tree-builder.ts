@@ -130,7 +130,8 @@ export function buildTree(
   }
 
   if (orphans.length === 1) {
-    return { root: orphans[0], lineCount: lines.length, maxDepth };
+    const root = orphans[0];
+    return { root, lineCount: lines.length, maxDepth };
   }
 
   // Multiple roots

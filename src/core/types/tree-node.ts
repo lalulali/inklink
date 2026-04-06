@@ -20,6 +20,19 @@ export interface TreeNode {
 }
 
 /**
+ * Information about a parsed markdown image
+ */
+export interface ImageInfo {
+  url: string;
+  alt?: string;
+  link?: string;
+  width?: number;        // Original width
+  height?: number;       // Original height
+  thumbWidth?: number;   // Calculated thumbnail width
+  thumbHeight?: number;  // Calculated thumbnail height
+}
+
+/**
  * Additional metadata for rendering and interaction
  */
 export interface NodeMetadata {
@@ -29,6 +42,7 @@ export interface NodeMetadata {
   height: number;
   visible: boolean;
   highlighted: boolean;
+  image?: ImageInfo;
 }
 
 /**

@@ -114,4 +114,68 @@ export class ColorManager {
   public static isAccessible(fg: string, bg: string, ratio = 4.5): boolean {
     return this.getContrastRatio(fg, bg) >= ratio;
   }
+  /** Small cache: bg hex -> computed complementary link color */
+  private static readonly linkColorCache = new Map<string, string>();
+
+  /**
+   * Returns a complementary link color for a given node background hex.
+   * Shifts hue by 180° in HSL space and boosts lightness for legibility on dark fills.
+   * Results are cached so hex→color is only computed once per unique background.
+   */
+  public static getLinkColor(bgHex: string): string {
+    const cacheKey = `v2_${bgHex}`;
+    if (this.linkColorCache.has(cacheKey)) return this.linkColorCache.get(cacheKey)!;
+
+    const clean = bgHex.replace('#', '');
+    const r = parseInt(clean.substring(0, 2), 16) / 255;
+    const g = parseInt(clean.substring(2, 4), 16) / 255;
+    const b = parseInt(clean.substring(4, 6), 16) / 255;
+
+    // RGB → HSL
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    let h = 0;
+    let s = 0;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+        case g: h = ((b - r) / d + 2) / 6; break;
+        case b: h = ((r - g) / d + 4) / 6; break;
+      }
+    }
+
+    // Default solarized blue for neutral/gray backgrounds (low saturation)
+    if (s < 0.1) {
+      const solarBlue = '#3b82f6';
+      this.linkColorCache.set(cacheKey, solarBlue);
+      return solarBlue;
+    }
+
+    // Solarized/Monochromatic: keep the same hue but significantly bump lightness for "Neon" pop
+    // Saturated nodes (Pink/Purple) hover around L=0.5, so we use a high threshold (0.7)
+    const compH = h;
+    const compS = 1.0;   // Max saturation for vibrancy
+    const compL = l < 0.7 ? 0.88 : 0.25; // Force bright links for everything except light backgrounds
+
+    // HSL → hex
+    const hslToRgb = (p: number, q: number, t: number) => {
+      let tt = t;
+      if (tt < 0) tt += 1;
+      if (tt > 1) tt -= 1;
+      if (tt < 1 / 6) return p + (q - p) * 6 * tt;
+      if (tt < 1 / 2) return q;
+      if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6;
+      return p;
+    };
+    const q2 = compL < 0.5 ? compL * (1 + compS) : compL + compS - compL * compS;
+    const p2 = 2 * compL - q2;
+    const toHex = (x: number) => Math.round(x * 255).toString(16).padStart(2, '0');
+    const hex = `#${toHex(hslToRgb(p2, q2, compH + 1 / 3))}${toHex(hslToRgb(p2, q2, compH))}${toHex(hslToRgb(p2, q2, compH - 1 / 3))}`;
+
+    this.linkColorCache.set(cacheKey, hex);
+    return hex;
+  }
 }

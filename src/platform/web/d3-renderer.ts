@@ -27,6 +27,7 @@ export class D3Renderer implements RendererAdapter {
   private selectedNodeId: string | null = null;
   private isVertical: boolean = false; // Track layout orientation
   private isDarkMode: boolean = false; // Track theme mode
+  private measureCtx: CanvasRenderingContext2D | null = null;
 
 
   public onTransform?: (transform: Transform) => void;
@@ -70,7 +71,76 @@ export class D3Renderer implements RendererAdapter {
    * Helper to get line height based on depth
    */
   private getLineHeight(depth: number): number {
-    return Math.round(this.getFontSize(depth) * 1.25);
+    return this.getFontSize(depth) * 1.25;
+  }
+
+  /**
+   * Helper to wrap text into lines based on maximum width.
+   * This is Markdown-aware to ensure links are treated as atomic units and don't wrap mid-line.
+   */
+  private wrapText(text: string, maxWidth: number, fontSize: number, fontWeight: string): string[] {
+    const rawLines = text.split('\n');
+    const wrapped: string[] = [];
+    
+    if (!this.measureCtx) {
+      const canvas = document.createElement('canvas');
+      this.measureCtx = canvas.getContext('2d');
+    }
+    const ctx = this.measureCtx;
+    if (ctx) {
+      ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
+    }
+
+    const measure = (txt: string) => {
+      if (ctx) return ctx.measureText(txt).width;
+      return txt.length * (fontSize * 0.6); // Fallback
+    };
+
+    // Regex to identify atomic markdown blocks (links, formatting)
+    const atomicRegex = /(!?\[(?:[^\[\]]|\[[^\[\]]*\])*\]\([^)]+\)|\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|~~.*?~~)/g;
+
+    rawLines.forEach(line => {
+      // Split line into atomic blocks and plain words
+      const parts = line.split(atomicRegex);
+      const tokens: string[] = [];
+      
+      parts.forEach(part => {
+         if (!part) return;
+         if (part.match(atomicRegex)) {
+           // Atomic block - keep together
+           tokens.push(part);
+         } else {
+           // Plain text - split into words
+           tokens.push(...part.split(' '));
+         }
+      });
+
+      let currentLine = '';
+      tokens.forEach(token => {
+        if (!token) return;
+        
+        // When measuring the width of a markdown link, we should ideally measure the RENDERED version.
+        // For simplicity, we measure the whole token but this ensures atomicity.
+        const testLine = currentLine ? `${currentLine} ${token}` : token;
+        
+        // Heuristic: for links, we measure the title, not the whole thing, for more accurate wrapping
+        let measureText = testLine;
+        if (token.includes('](')) {
+           // Replace all links in the test line with just their titles for accurate measurement
+           measureText = testLine.replace(/!?\[(.*?)\].*?\)/g, '$1');
+        }
+
+        if (measure(measureText) > maxWidth && currentLine) {
+          wrapped.push(currentLine);
+          currentLine = token;
+        } else {
+          currentLine = testLine;
+        }
+      });
+      if (currentLine) wrapped.push(currentLine);
+    });
+
+    return wrapped;
   }
 
   /**
@@ -180,7 +250,7 @@ export class D3Renderer implements RendererAdapter {
 
     // Safety check for NaN positions which can break d3 transitions
     for (const pos of positions.values()) {
-        if (isNaN(pos.x) || isNaN(pos.y)) {
+        if (Number.isNaN(pos.x) || Number.isNaN(pos.y)) {
             console.error('D3Renderer: Invalid positions (NaN) detected', positions);
             this.clear();
             return;
@@ -234,26 +304,13 @@ export class D3Renderer implements RendererAdapter {
         ]);
     }
 
-    // Get current transform for culling
-    const d3Transform = d3.zoomTransform(this.svg.node() as SVGSVGElement);
-    const transform: Transform = {
-      x: d3Transform.x,
-      y: d3Transform.y,
-      scale: d3Transform.k,
-    };
-    const viewportBounds = this.getViewportBounds();
 
-    const visibleNodes = this.culler.getVisibleNodes(
-      root,
-      positions,
-      transform,
-      viewportBounds.width,
-      viewportBounds.height
-    );
-
-    // Text measurement using canvas
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    // Ensure measuring context is available
+    if (!this.measureCtx) {
+      const canvas = document.createElement('canvas');
+      this.measureCtx = canvas.getContext('2d');
+    }
+    const ctx = this.measureCtx;
 
     // Heuristic measurement for nodes
     allNodes.forEach(node => {
@@ -265,12 +322,11 @@ export class D3Renderer implements RendererAdapter {
       
       if (ctx) ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
 
-      // Always re-measure to ensure tidy appearance
-      const rawLines = node.content.split('\n');
+      // Use the unified wrapText helper for accurate line count and width
+      const displayLines = this.wrapText(node.content, rootMaxW, fontSize, fontWeight);
       let maxWidth = 0;
-      let wrappedLineCount = 0;
-
-      rawLines.forEach(line => {
+      
+      displayLines.forEach(line => {
         const segments = this.parseMarkdownLine(line);
         let lineWidth = 0;
         segments.forEach(seg => {
@@ -281,17 +337,11 @@ export class D3Renderer implements RendererAdapter {
             lineWidth += seg.text.length * (fontSize * 0.6);
           }
         });
-
-        if (depth === 0 && lineWidth > rootMaxW) {
-          maxWidth = Math.max(maxWidth, rootMaxW);
-          wrappedLineCount += Math.ceil(lineWidth / rootMaxW);
-        } else {
-          maxWidth = Math.max(maxWidth, lineWidth);
-          wrappedLineCount += 1;
-        }
+        maxWidth = Math.max(maxWidth, lineWidth);
       });
+
       node.metadata.width = maxWidth + (this.config.padding.x * 2);
-      node.metadata.height = (wrappedLineCount * lineHeight) + (this.config.padding.y * 2) + 4; // Extra breathing room for wrapped text
+      node.metadata.height = (displayLines.length * lineHeight) + (this.config.padding.y * 2);
     });
 
     // Temporarily disabled culling to ensure reliable initial render
@@ -409,7 +459,7 @@ export class D3Renderer implements RendererAdapter {
       }
     });
 
-    if (!isFinite(minX)) return;
+    if (!Number.isFinite(minX)) return;
 
     const contentWidth = maxX - minX;
     const contentHeight = maxY - minY;
@@ -463,6 +513,7 @@ export class D3Renderer implements RendererAdapter {
   private nodeClickCallback: (nodeId: string) => void = () => {};
   private nodeDoubleClickCallback: (nodeId: string) => void = () => {};
   private nodeToggleCallback: (nodeId: string) => void = () => {};
+  private nodeLinkClickCallback: (url: string) => void = () => {};
 
   /**
    * Register callback for node click events
@@ -481,8 +532,17 @@ export class D3Renderer implements RendererAdapter {
   /**
    * Register callback for node toggle events
    */
+  onNodeToggle(callback: (nodeId: string) => void): void;
+
   onNodeToggle(callback: (nodeId: string) => void): void {
     this.nodeToggleCallback = callback;
+  }
+
+  /**
+   * Register callback for node link click events
+   */
+  onNodeLinkClick(callback: (url: string) => void): void {
+    this.nodeLinkClickCallback = callback;
   }
 
   /**
@@ -575,7 +635,7 @@ export class D3Renderer implements RendererAdapter {
         event.stopPropagation();
         this.nodeDoubleClickCallback(d.id);
       })
-      .on('focus', (event, d) => {
+      .on('focus', (_, d) => {
         // When focused via keyboard, trigger selection
         this.nodeClickCallback(d.id);
       });
@@ -586,7 +646,6 @@ export class D3Renderer implements RendererAdapter {
       .attr('stroke-width', 2);
 
     enter.append('text')
-      .attr('dy', '0.35em')
       .attr('font-family', 'Inter, sans-serif');
 
     // UPDATE with transition — staggered by depth for cascade feel
@@ -606,42 +665,16 @@ export class D3Renderer implements RendererAdapter {
     update.select('text')
       .each(function(d) {
         const textElement = d3.select(this);
-        const rawLines = d.content.split('\n');
         const depth = d.depth || 0;
         const fontSize = thisRenderer.getFontSize(depth);
         const fontWeight = thisRenderer.getFontWeight(depth);
-        const rootMaxW = (depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH : Infinity) - (thisRenderer.config.padding.x * 2);
 
-        // Helper for measuring text inside the closure
-        const measure = (txt: string) => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
-            return ctx.measureText(txt).width;
-          }
-          return txt.length * (fontSize * 0.6);
-        };
-
-        let displayLines = rawLines;
-        if (depth === 0) {
-          const wrapped: string[] = [];
-          rawLines.forEach(line => {
-            const words = line.split(' ');
-            let currentLine = '';
-            words.forEach(word => {
-              const testLine = currentLine ? `${currentLine} ${word}` : word;
-              if (measure(testLine) > rootMaxW && currentLine) {
-                wrapped.push(currentLine);
-                currentLine = word;
-              } else {
-                currentLine = testLine;
-              }
-            });
-            if (currentLine) wrapped.push(currentLine);
-          });
-          displayLines = wrapped;
-        }
+        const displayLines = thisRenderer.wrapText(
+          d.content, 
+          depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH - (thisRenderer.config.padding.x * 2) : Infinity, 
+          fontSize, 
+          fontWeight
+        );
 
         // Calculate the target x (same as the .attr('x') logic below)
         const width = (d as any).metadata?.width || 0;
@@ -661,14 +694,23 @@ export class D3Renderer implements RendererAdapter {
         
         // Final line count for vertical centering
         const totalLines = displayLines.length;
-        const lineHeight = thisRenderer.getLineHeight(depth);
+
+        // Compute the node background fill once for potential link color use
+        const nodeFill = (() => {
+          if (thisRenderer.isDarkMode) {
+            if (depth === 0) return '#d4d4d4';
+            return ColorManager.getThemeShade(d.color, true) || '#1e293b';
+          }
+          if (depth === 0) return '#444444';
+          return d.color || '#f1f5f9';
+        })();
 
         // Add new tspans for each line
         displayLines.forEach((line, i) => {
           const tspan = textElement.append('tspan')
             .attr('x', x)
-            // dy for first line is based on total lines to center the block vertically
-            .attr('dy', i === 0 ? `${0.35 - (totalLines - 1) * 0.6}em` : '1.25em');
+            // Centering: Baseline shift for first line is based on total lines and half line-height factor (0.625)
+            .attr('dy', i === 0 ? `${0.35 - (totalLines - 1) * 0.625}em` : '1.25em');
             
           const segments = thisRenderer.parseMarkdownLine(line);
           segments.forEach(seg => {
@@ -680,6 +722,22 @@ export class D3Renderer implements RendererAdapter {
             
             if (seg.italic) span.style('font-style', 'italic');
             if (seg.strikethrough) span.style('text-decoration', 'line-through');
+            
+            if (seg.link) {
+               // Compute complementary link color relative to the node background
+               const linkColor = ColorManager.getLinkColor(nodeFill);
+               span.style('fill', linkColor)
+                   .style('text-decoration', 'underline')
+                   .style('cursor', 'pointer')
+                   .on('click', (event) => {
+                      // Stop both click & dblclick from selecting/double-clicking the node
+                      event.stopPropagation();
+                      thisRenderer.nodeLinkClickCallback(seg.link!);
+                   })
+                   .on('dblclick', (event) => {
+                      event.stopPropagation();
+                   });
+            }
           });
         });
       })
@@ -1011,18 +1069,31 @@ export class D3Renderer implements RendererAdapter {
   /**
    * Simple inline markdown parser
    */
-  private parseMarkdownLine(line: string): { text: string; bold?: boolean; italic?: boolean; strikethrough?: boolean }[] {
-    const segments: { text: string; bold?: boolean; italic?: boolean; strikethrough?: boolean }[] = [];
+  private parseMarkdownLine(line: string): { text: string; bold?: boolean; italic?: boolean; strikethrough?: boolean; link?: string }[] {
+    const segments: { text: string; bold?: boolean; italic?: boolean; strikethrough?: boolean; link?: string }[] = [];
     
     // Support combination like ***bold and italic***
     // Support non-nested tags for simplicity
-    // Regex matches: ***bolditalic***, **bold**, *italic*, ~~strike~~
-    const regex = /(\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|~~.*?~~)/g;
+    // Regex matches: ***bolditalic***, **bold**, *italic*, ~~strike~~, [text](url)
+    const regex = /(\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|~~.*?~~|\[.*?\]\(.*?\))/g;
     const parts = line.split(regex);
     
     parts.forEach(part => {
       if (!part) return;
-      if (part.startsWith('***') && part.endsWith('***')) {
+      
+      if (part.startsWith('[') || part.startsWith('![')) {
+        // Link or Image block
+        const isImage = part.startsWith('!');
+        const lastClosingBracket = part.lastIndexOf(']');
+        const title = part.substring(isImage ? 2 : 1, lastClosingBracket);
+        const urlPart = part.substring(lastClosingBracket + 1);
+        const url = urlPart.substring(1, urlPart.length - 1);
+        
+        segments.push({ 
+          text: isImage ? `!${title}` : title, 
+          link: url 
+        });
+      } else if (part.startsWith('***') && part.endsWith('***')) {
         segments.push({ text: part.slice(3, -3), bold: true, italic: true });
       } else if (part.startsWith('**') && part.endsWith('**')) {
         segments.push({ text: part.slice(2, -2), bold: true });
@@ -1031,6 +1102,7 @@ export class D3Renderer implements RendererAdapter {
       } else if (part.startsWith('~~') && part.endsWith('~~')) {
         segments.push({ text: part.slice(2, -2), strikethrough: true });
       } else {
+        // Plain text
         segments.push({ text: part });
       }
     });

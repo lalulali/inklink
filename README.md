@@ -90,6 +90,9 @@ Export your mind map as SVG, PNG, or a standalone interactive HTML file — read
 ### 🌗 Dark & Light Mode
 Theme-aware rendering with color-coded branch hierarchies. Connectors now maintain their vibrant light-mode colors even in dark mode, providing a consistent visual identity across themes.
 
+### 🎨 Solarized Monochromatic Theme
+A state-of-the-art "Solarized" link coloring system. Instead of clashing colors, links use the same hue as the node background but with optimized, high-vibrancy "Neon" saturation and lightness thresholds. This ensures extreme legibility while reducing eye strain and visual clutter on saturated nodes (Magenta, Purple, Blue).
+
 ### 📱 Mobile Responsive
 A fully adaptive layout — persistent inline editor, mobile-optimized quick-action toolbar, and touch-friendly side drawers — so the tool remains powerful even on small screens.
 
@@ -112,6 +115,7 @@ The extension is not just a web view in a frame. It is a first-class VS Code exp
 - **Deep dark background** — integrates naturally with VS Code's dark theme palette
 - **Hidden redundant shortcuts** — open, save, search, and replace are handled natively by VS Code; the Inklink toolbar surfaces only what the IDE cannot provide
 - **Shared design tokens** — despite the compact layout, the color palette, node shapes, and typography remain pixel-perfect with the web version
+- **Context-Aware Link Navigation** — Clicked links intelligently route based on type: local file links open in your primary editor area (preserving the mind map side-by-side), while web links trigger your default system browser.
 
 ### Installing the Extension
 The extension is built from the `vscode-extension/` directory in this repository. To build and install locally:
