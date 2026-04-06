@@ -61,6 +61,13 @@ Your markdown becomes a mind map as you type. Headers and indented lists transla
 ### 🔗 Bidirectional Navigation
 **Double-click any node** to jump directly to the corresponding source line in the editor, temporarily highlighting the text. The connection between visual and text is always live — edit the markdown, the map updates; navigate the map, the editor follows.
 
+### 📝 Interactive Markdown Note Blocks
+Inklink identifies **Code Blocks** and **Quote Blocks** within your markdown and renders them as interactive, expandable elements directly on the mind map nodes.
+- **Collapsed View**: Blocks appear as clean, tonal-relief "pills" indicating the type and line count.
+- **Expanded View**: Blocks expand into full-width integrated containers with syntax labeling and italicized quotes.
+- **Micro-interactions**: Toggle any block by clicking its header or the pill. All labels, carets, and counts are vertically centered with symmetric padding for a premium, well-balanced look.
+- **Stitch Design System**: Adheres to a borderless, tonal-relief aesthetic with 6px rounded corners, ensuring blocks feel like a natural extension of the node.
+
 ### 🧭 Multiple Layout Directions
 Choose how your map flows: balanced two-sided, left-to-right, or right-to-left. Each layout uses a height-based algorithm for clean, non-overlapping node spacing.
 

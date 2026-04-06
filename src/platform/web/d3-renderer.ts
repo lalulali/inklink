@@ -36,11 +36,11 @@ export class D3Renderer implements RendererAdapter {
    * Node configuration
    */
   private readonly config = {
-    padding: { 
+    padding: {
       x: 12 * 0.75, // 9
       y: 8 * 0.75   // 6 (increased from 6)
     },
-    margin: { 
+    margin: {
       x: 40 * 0.75, // 30
       y: 20 * 0.75  // 15
     },
@@ -81,7 +81,7 @@ export class D3Renderer implements RendererAdapter {
   private wrapText(text: string, maxWidth: number, fontSize: number, fontWeight: string): string[] {
     const rawLines = text.split('\n');
     const wrapped: string[] = [];
-    
+
     if (!this.measureCtx) {
       const canvas = document.createElement('canvas');
       this.measureCtx = canvas.getContext('2d');
@@ -106,31 +106,31 @@ export class D3Renderer implements RendererAdapter {
       // Split line into atomic blocks and plain words
       const parts = line.split(atomicRegex);
       const tokens: string[] = [];
-      
+
       parts.forEach(part => {
-         if (!part) return;
-         if (part.match(atomicRegex)) {
-           // Atomic block - keep together
-           tokens.push(part);
-         } else {
-           // Plain text - split into words
-           tokens.push(...part.split(' '));
-         }
+        if (!part) return;
+        if (part.match(atomicRegex)) {
+          // Atomic block - keep together
+          tokens.push(part);
+        } else {
+          // Plain text - split into words
+          tokens.push(...part.split(' '));
+        }
       });
 
       let currentLine = '';
       tokens.forEach(token => {
         if (!token) return;
-        
+
         // When measuring the width of a markdown link, we should ideally measure the RENDERED version.
         // For simplicity, we measure the whole token but this ensures atomicity.
         const testLine = currentLine ? `${currentLine} ${token}` : token;
-        
+
         // Heuristic: for links, we measure the title, not the whole thing, for more accurate wrapping
         let measureText = testLine;
         if (token.includes('](')) {
-           // Replace all links in the test line with just their titles for accurate measurement
-           measureText = testLine.replace(/!?\[(.*?)\].*?\)/g, '$1');
+          // Replace all links in the test line with just their titles for accurate measurement
+          measureText = testLine.replace(/!?\[(.*?)\].*?\)/g, '$1');
         }
 
         if (measure(measureText) > maxWidth && currentLine) {
@@ -151,7 +151,7 @@ export class D3Renderer implements RendererAdapter {
    */
   initialize(container: HTMLElement): void {
     this.container = container;
-    
+
     // Clear existing content
     d3.select(container).selectAll('*').remove();
 
@@ -181,7 +181,7 @@ export class D3Renderer implements RendererAdapter {
         if (this.g) {
           this.g.attr('transform', event.transform);
         }
-        
+
         // Sync with React state
         if (this.onTransform) {
           this.onTransform({
@@ -203,12 +203,12 @@ export class D3Renderer implements RendererAdapter {
         event.preventDefault();
 
         const isZoom = event.ctrlKey || event.altKey || event.metaKey;
-        
+
         if (isZoom) {
           // Handle Zoom: Alt+Wheel (Mac) or Ctrl+Wheel (Win)
           const delta = -event.deltaY * (event.deltaMode === 1 ? 0.05 : event.deltaMode === 2 ? 1 : 0.002);
           const factor = Math.pow(2, delta);
-          
+
           // Zoom toward mouse pointer
           const [mx, my] = d3.pointer(event, this.svg?.node());
           if (this.zoom && this.svg) {
@@ -253,11 +253,11 @@ export class D3Renderer implements RendererAdapter {
 
     // Safety check for NaN positions which can break d3 transitions
     for (const pos of positions.values()) {
-        if (Number.isNaN(pos.x) || Number.isNaN(pos.y)) {
-            console.error('D3Renderer: Invalid positions (NaN) detected', positions);
-            this.clear();
-            return;
-        }
+      if (Number.isNaN(pos.x) || Number.isNaN(pos.y)) {
+        console.error('D3Renderer: Invalid positions (NaN) detected', positions);
+        this.clear();
+        return;
+      }
     }
 
     this.lastRoot = root;
@@ -267,7 +267,7 @@ export class D3Renderer implements RendererAdapter {
     if (root.children.length > 0) {
       const rootPos = positions.get(root.id) || { x: 0, y: 0 };
       let maxDx = 0;
-      
+
       // Heuristic: In horizontal layouts (L-R, R-L, Two-Sided), 
       // children are placed at a significant horizontal distance (levelSpacing).
       // In vertical layouts (T-B, B-T), children are centered horizontally (dx ≈ 0).
@@ -277,7 +277,7 @@ export class D3Renderer implements RendererAdapter {
           maxDx = Math.max(maxDx, Math.abs(childPos.x - rootPos.x));
         }
       });
-      
+
       this.isVertical = maxDx < 40; // levelSpacing is typically 80-100, sibling spacing is 40
     }
 
@@ -287,24 +287,24 @@ export class D3Renderer implements RendererAdapter {
     // Update zoom translate extent based on actual map bounds with padding
     // This allows the "canvas to grow on the fly" as content is added or expanded.
     if (this.zoom && this.svg) {
-        let minX = 0, maxX = 0, minY = 0, maxY = 0;
-        allNodes.forEach(node => {
-            const pos = positions.get(node.id);
-            if (pos) {
-                const w = (node as any).metadata?.width || 100;
-                const h = (node as any).metadata?.height || 40;
-                minX = Math.min(minX, pos.x - w);
-                maxX = Math.max(maxX, pos.x + w);
-                minY = Math.min(minY, pos.y - h);
-                maxY = Math.max(maxY, pos.y + h);
-            }
-        });
-        
-        // Add 2000px padding to the calculated bounds for freedom of movement
-        this.zoom.translateExtent([
-            [minX - 2000, minY - 2000],
-            [maxX + 2000, maxY + 2000]
-        ]);
+      let minX = 0, maxX = 0, minY = 0, maxY = 0;
+      allNodes.forEach(node => {
+        const pos = positions.get(node.id);
+        if (pos) {
+          const w = (node as any).metadata?.width || 100;
+          const h = (node as any).metadata?.height || 40;
+          minX = Math.min(minX, pos.x - w);
+          maxX = Math.max(maxX, pos.x + w);
+          minY = Math.min(minY, pos.y - h);
+          maxY = Math.max(maxY, pos.y + h);
+        }
+      });
+
+      // Add 2000px padding to the calculated bounds for freedom of movement
+      this.zoom.translateExtent([
+        [minX - 2000, minY - 2000],
+        [maxX + 2000, maxY + 2000]
+      ]);
     }
 
 
@@ -322,14 +322,14 @@ export class D3Renderer implements RendererAdapter {
       const fontWeight = this.getFontWeight(depth);
       const lineHeight = this.getLineHeight(depth);
       const rootMaxW = (depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH : Infinity) - (this.config.padding.x * 2);
-      
+
       if (ctx) ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
 
       // Use the unified wrapText helper for accurate line count and width
       const displayContent = (node as any).metadata?.displayContent || node.content;
       const displayLines = this.wrapText(displayContent, rootMaxW, fontSize, fontWeight);
       let maxWidth = 0;
-      
+
       displayLines.forEach(line => {
         const segments = this.parseMarkdownLine(line);
         let lineWidth = 0;
@@ -359,43 +359,44 @@ export class D3Renderer implements RendererAdapter {
       if (allNoteBlocks.length > 0) {
         let maxNoteWidth = 180 * 0.75; // Baseline width for minimum pill display
         node.metadata.height += NB.PILL_GAP; // gap above first block
-        
+
         allNoteBlocks.forEach(block => {
           if (!block.expanded) {
             node.metadata.height += NB.PILL_HEIGHT + NB.PILL_GAP;
           } else {
             const lines = (block.content || '').split('\n');
-            
+
             // Calculate note block lines width
             const fontRef = block.isQuote ? `${NB.QUOTE_LINE_HEIGHT}px Inter, sans-serif` : `${NB.CODE_LINE_HEIGHT}px ${NB.MONO_FONT.replace(/'/g, "")}`;
             if (ctx) ctx.font = fontRef;
             lines.forEach(line => {
-                let lineWidth = 0;
-                if (ctx) {
-                    lineWidth = ctx.measureText(line).width + (block.isQuote ? NB.QUOTE_BORDER_WIDTH + 16 : 16);
-                } else {
-                    lineWidth = line.length * ((block.isQuote ? NB.QUOTE_LINE_HEIGHT : NB.CODE_LINE_HEIGHT) * 0.6) + 16;
-                }
-                if (lineWidth > maxNoteWidth) maxNoteWidth = lineWidth;
+              let lineWidth = 0;
+              if (ctx) {
+                lineWidth = ctx.measureText(line).width + (block.isQuote ? NB.QUOTE_BORDER_WIDTH + 16 : 16);
+              } else {
+                lineWidth = line.length * ((block.isQuote ? NB.QUOTE_LINE_HEIGHT : NB.CODE_LINE_HEIGHT) * 0.6) + 16;
+              }
+              if (lineWidth > maxNoteWidth) maxNoteWidth = lineWidth;
             });
 
             const expandedH = block.isQuote
               ? NB.QUOTE_V_PADDING * 2 + lines.length * NB.QUOTE_LINE_HEIGHT
-              : NB.CODE_HEADER_HEIGHT + NB.CODE_V_PADDING + lines.length * NB.CODE_LINE_HEIGHT + NB.CODE_V_PADDING;
-            node.metadata.height += expandedH + NB.PILL_GAP;
+              : NB.CODE_HEADER_HEIGHT + (NB.CODE_V_PADDING * 2) + (lines.length * NB.CODE_LINE_HEIGHT);
+            // Add block height plus a bottom margin equal to the node's top padding for visual symmetry
+            node.metadata.height += expandedH - 2 + this.config.padding.y;
           }
         });
 
         if (maxNoteWidth > maxWidth) {
-           maxWidth = maxNoteWidth;
-           node.metadata.width = maxWidth + (this.config.padding.x * 2);
+          maxWidth = maxNoteWidth;
+          node.metadata.width = maxWidth + (this.config.padding.x * 2);
         }
       }
     });
 
     // Temporarily disabled culling to ensure reliable initial render
     const nodesToRender = allNodes;
-    
+
     // Links are visible if target is visible
     const allLinks = this.getLinks(allNodes);
     const linksToRender = allLinks;
@@ -446,7 +447,7 @@ export class D3Renderer implements RendererAdapter {
    */
   focusNode(nodeId: string, skipBrowserFocus: boolean = false): void {
     if (!this.svg || !this.zoom || !this.g) return;
-    
+
     // Find node elements
     const node = this.g.select<SVGGElement>(`g.node[data-id="${nodeId}"]`);
     if (node.empty()) return;
@@ -454,7 +455,7 @@ export class D3Renderer implements RendererAdapter {
     // Trigger browser focus for accessibility only if requested
     const nodeElement = node.node() as SVGGElement;
     if (nodeElement && !skipBrowserFocus) {
-        nodeElement.focus();
+      nodeElement.focus();
     }
 
     const bounds = this.getViewportBounds();
@@ -463,10 +464,10 @@ export class D3Renderer implements RendererAdapter {
 
     // Calculate visual center of the node to handle large/card nodes correctly
     const bbox = nodeElement.getBBox();
-    
+
     const x = pos.x + bbox.x + bbox.width / 2;
     const y = pos.y + bbox.y + bbox.height / 2;
-    
+
     this.svg.transition()
       .duration(750)
       .ease(d3.easeCubicOut)
@@ -484,24 +485,24 @@ export class D3Renderer implements RendererAdapter {
    */
   fitView(padding = 0.2): void {
     if (!this.svg || !this.zoom || !this.lastRoot || !this.lastPositions) return;
-    
+
     const viewportBounds = this.getViewportBounds();
     if (viewportBounds.width === 0 || viewportBounds.height === 0) return;
 
     // Calculate map bounds
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    
+
     const nodes = this.flattenTree(this.lastRoot);
     nodes.forEach(node => {
       const pos = this.lastPositions!.get(node.id);
       if (pos) {
         const w = (node as any).metadata?.width || 0;
         const h = (node as any).metadata?.height || 0;
-        
+
         // This is a rough estimation of where the bounds are. 
         // Horizontal nodes grow from pivot (x: 0 or -width)
         // Vertical nodes focus on center
-        minX = Math.min(minX, pos.x - w); 
+        minX = Math.min(minX, pos.x - w);
         maxX = Math.max(maxX, pos.x + w);
         minY = Math.min(minY, pos.y - h);
         maxY = Math.max(maxY, pos.y + h);
@@ -543,7 +544,7 @@ export class D3Renderer implements RendererAdapter {
    */
   setTransform(transform: Transform): void {
     if (!this.svg || !this.zoom) return;
-    
+
     this.svg.call(
       this.zoom.transform,
       d3.zoomIdentity.translate(transform.x, transform.y).scale(transform.scale)
@@ -559,10 +560,10 @@ export class D3Renderer implements RendererAdapter {
     return { x: t.x, y: t.y, scale: t.k };
   }
 
-  private nodeClickCallback: (nodeId: string) => void = () => {};
-  private nodeDoubleClickCallback: (nodeId: string) => void = () => {};
-  private nodeToggleCallback: (nodeId: string) => void = () => {};
-  private nodeLinkClickCallback: (url: string) => void = () => {};
+  private nodeClickCallback: (nodeId: string) => void = () => { };
+  private nodeDoubleClickCallback: (nodeId: string) => void = () => { };
+  private nodeToggleCallback: (nodeId: string) => void = () => { };
+  private nodeLinkClickCallback: (url: string) => void = () => { };
 
   /**
    * Register callback for node click events
@@ -633,11 +634,11 @@ export class D3Renderer implements RendererAdapter {
       .attr('opacity', 0)
       .attr('transform', (d: any) => {
         const fallbackPos = this.lastPositions?.get(d.id) || { x: 0, y: 0 };
-        
+
         // Walk up the tree to find the nearest visible ancestor
         let ancestor = d.parent;
         while (ancestor && !positions.has(ancestor.id)) {
-            ancestor = ancestor.parent;
+          ancestor = ancestor.parent;
         }
 
         if (ancestor) {
@@ -661,18 +662,18 @@ export class D3Renderer implements RendererAdapter {
       .attr('transform', (d) => {
         // Find where this node should emerge from
         const targetPos = positions.get(d.id) || { x: 0, y: 0 };
-        
+
         // RECURSIVE FLY-OUT:
         // Walk up the tree to find the nearest ancestor that WAS already visible 
         // in the previous layout. This makes everything grow out from the CLICKED node.
         let ancestor = d.parent;
         while (ancestor && !this.lastPositions?.has(ancestor.id)) {
-            ancestor = ancestor.parent;
+          ancestor = ancestor.parent;
         }
 
-        const startPos = (ancestor && this.lastPositions?.get(ancestor.id)) || 
-                         (d.parent && positions.get(d.parent.id)) || 
-                         targetPos;
+        const startPos = (ancestor && this.lastPositions?.get(ancestor.id)) ||
+          (d.parent && positions.get(d.parent.id)) ||
+          targetPos;
 
         return `translate(${startPos.x}, ${startPos.y})`;
       })
@@ -712,7 +713,7 @@ export class D3Renderer implements RendererAdapter {
       });
 
     update.select('text')
-      .each(function(d) {
+      .each(function (d) {
         const textElement = d3.select(this);
         const depth = d.depth || 0;
         const fontSize = thisRenderer.getFontSize(depth);
@@ -720,9 +721,9 @@ export class D3Renderer implements RendererAdapter {
 
         const displayContent = (d as any).metadata?.displayContent || d.content;
         const displayLines = thisRenderer.wrapText(
-          displayContent, 
-          depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH - (thisRenderer.config.padding.x * 2) : Infinity, 
-          fontSize, 
+          displayContent,
+          depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH - (thisRenderer.config.padding.x * 2) : Infinity,
+          fontSize,
           fontWeight
         );
 
@@ -741,7 +742,7 @@ export class D3Renderer implements RendererAdapter {
 
         // Clean up previous tspans
         textElement.selectAll('tspan').remove();
-        
+
         // Final line count for vertical centering
         const totalLines = displayLines.length;
 
@@ -766,32 +767,32 @@ export class D3Renderer implements RendererAdapter {
             .attr('x', x)
             // Centering: Baseline shift for first line is based on total lines and half line-height factor (0.625)
             .attr('dy', i === 0 ? `${0.35 - (totalLines - 1) * 0.625}em` : '1.25em');
-            
+
           const segments = thisRenderer.parseMarkdownLine(line);
           segments.forEach(seg => {
             const span = tspan.append('tspan')
               .text(seg.text);
-            
+
             if (seg.bold) span.style('font-weight', 'bold');
             else span.style('font-weight', thisRenderer.getFontWeight(depth));
-            
+
             if (seg.italic) span.style('font-style', 'italic');
             if (seg.strikethrough) span.style('text-decoration', 'line-through');
-            
+
             if (seg.link) {
-               // Compute complementary link color relative to the node background
-               const linkColor = ColorManager.getLinkColor(nodeFill);
-               span.style('fill', linkColor)
-                   .style('text-decoration', 'underline')
-                   .style('cursor', 'pointer')
-                   .on('click', (event) => {
-                      // Stop both click & dblclick from selecting/double-clicking the node
-                      event.stopPropagation();
-                      thisRenderer.nodeLinkClickCallback(seg.link!);
-                   })
-                   .on('dblclick', (event) => {
-                      event.stopPropagation();
-                   });
+              // Compute complementary link color relative to the node background
+              const linkColor = ColorManager.getLinkColor(nodeFill);
+              span.style('fill', linkColor)
+                .style('text-decoration', 'underline')
+                .style('cursor', 'pointer')
+                .on('click', (event) => {
+                  // Stop both click & dblclick from selecting/double-clicking the node
+                  event.stopPropagation();
+                  thisRenderer.nodeLinkClickCallback(seg.link!);
+                })
+                .on('dblclick', (event) => {
+                  event.stopPropagation();
+                });
             }
           });
         });
@@ -818,7 +819,12 @@ export class D3Renderer implements RendererAdapter {
         if (pos.x < parentPos.x) return -width + thisRenderer.config.padding.x;
         return thisRenderer.config.padding.x;
       });
-      // Vertically centered via 'dy' on first tspan instead of 'y' on text element
+    // Vertically centered via 'dy' on first tspan instead of 'y' on text element
+
+    // Render code/quote note blocks below node text
+    update.each(function (d) {
+      thisRenderer.renderNoteBlocks(d3.select(this) as any, d, positions);
+    });
 
     // Render code/quote note blocks below node text
     update.each(function(d) {
@@ -840,12 +846,12 @@ export class D3Renderer implements RendererAdapter {
 
         const pos = positions.get(d.id) || { x: 0, y: 0 };
         const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
-        
+
         // Root is centered on the layout point
         if (!parentPos) {
           return -width / 2;
         }
-        
+
         // Left side nodes are mirrored
         if (pos.x < parentPos.x) {
           return -width;
@@ -856,7 +862,7 @@ export class D3Renderer implements RendererAdapter {
       .attr('fill', (d) => {
         if (thisRenderer.isDarkMode) {
           if (d.depth === 0) return '#d4d4d4'; // Visual Studio Light Grey Root in Dark Mode
-          return ColorManager.getThemeShade(d.color, true) || '#1e293b'; 
+          return ColorManager.getThemeShade(d.color, true) || '#1e293b';
         }
         if (d.depth === 0) return '#444444'; // Subtle Dark Grey Root in Light Mode
         return d.color || '#f1f5f9'; // Branches colored (500)
@@ -864,7 +870,7 @@ export class D3Renderer implements RendererAdapter {
       .style('stroke', (d) => {
         if (this.selectedNodeId === d.id) return '#ef4444'; // Red for selected
         if (this.highlightIds.has(d.id)) return this.config.highlightColor;
-        
+
         // Remove border for nodes with interactive blocks to achieve 'tonal relief' look
         if ((d as any).metadata?.codeBlocks?.length > 0 || (d as any).metadata?.quoteBlocks?.length > 0) return 'none';
 
@@ -882,7 +888,7 @@ export class D3Renderer implements RendererAdapter {
       .data(d => d.children.length > 0 ? [d] : [], d => d.id);
 
     indicator.exit().remove();
-    
+
     indicator.enter()
       .append('circle')
       .attr('class', 'collapsible-indicator')
@@ -893,17 +899,17 @@ export class D3Renderer implements RendererAdapter {
       .attr('role', 'button')
       .attr('aria-label', (d) => d.collapsed ? "Expand node" : "Collapse node")
       .attr('tabindex', -1) // Not directly tabbable, controlled via Enter on node
-      .on('mouseover', function() { d3.select(this).attr('r', 8); })
-      .on('mouseout', function() { d3.select(this).attr('r', 6); })
+      .on('mouseover', function () { d3.select(this).attr('r', 8); })
+      .on('mouseout', function () { d3.select(this).attr('r', 6); })
       .on('click', (event, d) => {
         event.stopPropagation();
         this.toggleNode(d);
       })
       .merge(indicator as any)
       .transition() // Use a new transition for enter/update
-      .duration(this.config.animationDuration) 
-      .ease(d3.easeCubicOut) 
-      .delay((d) => (d.depth || 0) * this.config.staggerDelay) 
+      .duration(this.config.animationDuration)
+      .ease(d3.easeCubicOut)
+      .delay((d) => (d.depth || 0) * this.config.staggerDelay)
       .attr('cx', (d) => {
         if (thisRenderer.isVertical) return 0; // Centered horizontally for vertical layouts
         const width = (d as any).metadata?.width || 0;
@@ -923,7 +929,7 @@ export class D3Renderer implements RendererAdapter {
             return childPos && childPos.x < pos.x;
           });
           if (hasLeftChild) return -width / 2;
-          
+
           return width / 2; // Default for no children or LTR
         }
         if (pos.x < parentPos.x) return -width; // Left-side node
@@ -933,7 +939,7 @@ export class D3Renderer implements RendererAdapter {
         if (!thisRenderer.isVertical) return 0; // Centered vertically for horizontal layouts
         const height = (d as any).metadata?.height || 0;
         const pos = positions.get(d.id) || { x: 0, y: 0 };
-        
+
         // Determine Top-Down vs Bottom-Up based on children positions
         const firstChild = d.children[0];
         const childPos = firstChild ? positions.get(firstChild.id) : null;
@@ -945,7 +951,7 @@ export class D3Renderer implements RendererAdapter {
       .style('stroke', (d) => {
         if (!thisRenderer.isDarkMode) {
           // Use both parent-null check and depth check for robust root detection
-          if (!d.parent || d.depth === 0) return '#000000'; 
+          if (!d.parent || d.depth === 0) return '#000000';
           return '#cbd5e1'; // Consistent lightgrey border for children
         }
         if (!d.parent || d.depth === 0) return '#ffffff'; // White ring for root in dark mode
@@ -954,12 +960,12 @@ export class D3Renderer implements RendererAdapter {
       .attr('fill', (d) => {
         if (thisRenderer.isDarkMode) {
           if (d.collapsed) return 'white'; // Solid indicator when closed
-          
+
           // Open: Follow the node background
           if (d.depth === 0) return '#d4d4d4'; // Match light grey root in dark mode
           return ColorManager.getThemeShade(d.color, true) || '#1e293b';
         }
-        
+
         // Light mode
         if (d.collapsed) return 'white';
         if (d.depth === 0) return '#444444'; // Match the subtle root background
@@ -1019,12 +1025,12 @@ export class D3Renderer implements RendererAdapter {
     nodeGroup.selectAll('g.note-blocks').remove();
 
     const isDark = this.isDarkMode;
-    const pillBg      = isDark ? '#0f172a' : '#e2e8f0';
-    const pillText    = isDark ? '#94a3b8' : '#64748b';
-    const expandedBg  = isDark ? '#0f172a' : '#f8fafc';
-    const codeLang    = isDark ? '#7dd3fc' : '#0284c7';
+    const pillBg = isDark ? '#0f172a' : '#e2e8f0';
+    const pillText = isDark ? '#94a3b8' : '#64748b';
+    const expandedBg = isDark ? '#0f172a' : '#f8fafc';
+    const codeLang = isDark ? '#7dd3fc' : '#0284c7';
     const quoteAccent = isDark ? '#818cf8' : '#6366f1';
-    const quoteTextC  = isDark ? '#c7d2fe' : '#4338ca';
+    const quoteTextC = isDark ? '#c7d2fe' : '#4338ca';
     const innerW = width - this.config.padding.x * 2;
 
     const blocksGroup = nodeGroup.append('g').attr('class', 'note-blocks');
@@ -1039,7 +1045,7 @@ export class D3Renderer implements RendererAdapter {
 
       if (!block.expanded) {
         // ── Collapsed Pill ──────────────────────────────────
-        const label     = type === 'code' ? (block.language || 'code') : 'quote';
+        const label = type === 'code' ? (block.language || 'code') : 'quote';
         const rawContent = type === 'code' ? block.code : block.text;
         const lineCount = rawContent ? rawContent.split('\n').length : 0;
         const countLabel = `${lineCount} line${lineCount !== 1 ? 's' : ''}`;
@@ -1094,10 +1100,10 @@ export class D3Renderer implements RendererAdapter {
 
       } else {
         // ── Expanded ────────────────────────────────────────
-        const rawContent  = (type === 'code' ? block.code : block.text) || '';
+        const rawContent = (type === 'code' ? block.code : block.text) || '';
         const contentLines = rawContent.split('\n');
-        const lineH   = type === 'code' ? NB.CODE_LINE_HEIGHT : NB.QUOTE_LINE_HEIGHT;
-        const vPad    = type === 'code' ? NB.CODE_V_PADDING : NB.QUOTE_V_PADDING;
+        const lineH = type === 'code' ? NB.CODE_LINE_HEIGHT : NB.QUOTE_LINE_HEIGHT;
+        const vPad = type === 'code' ? NB.CODE_V_PADDING : NB.QUOTE_V_PADDING;
         const headerH = type === 'code' ? NB.CODE_HEADER_HEIGHT : 0;
         const expandedH = headerH + vPad + contentLines.length * lineH + vPad;
 
@@ -1252,34 +1258,34 @@ export class D3Renderer implements RendererAdapter {
       .attr('d', (data: any) => {
         // Find nearest visible source/target or their ancestors
         const getVisiblePos = (node: TreeNode): Position => {
-            let curr: TreeNode | null = node;
-            while (curr && !positions.has(curr.id)) {
-                curr = curr.parent;
-            }
-            return curr ? positions.get(curr.id)! : (this.lastPositions?.get(node.id) || { x: 0, y: 0 });
+          let curr: TreeNode | null = node;
+          while (curr && !positions.has(curr.id)) {
+            curr = curr.parent;
+          }
+          return curr ? positions.get(curr.id)! : (this.lastPositions?.get(node.id) || { x: 0, y: 0 });
         };
 
         const sPos = getVisiblePos(data.source);
         const tPos = getVisiblePos(data.target);
         const sWidth = (data.source as any).metadata?.width || 0;
         const sY = sPos.y;
-        
+
         let sX: number;
         if (this.isVertical) {
           sX = sPos.x;
           const sHeight = (data.source as any).metadata?.height || 0;
-          const dy = tPos.y < sPos.y ? -sHeight/2 : sHeight/2;
+          const dy = tPos.y < sPos.y ? -sHeight / 2 : sHeight / 2;
           return `M${sX},${sPos.y + dy}C${sX},${sPos.y + dy} ${sX},${sPos.y + dy} ${sX},${sPos.y + dy}`;
         } else {
           // Robust source side detection
           if (!data.source.parent) {
-             sX = tPos.x < sPos.x ? sPos.x - sWidth/2 : sPos.x + sWidth/2;
+            sX = tPos.x < sPos.x ? sPos.x - sWidth / 2 : sPos.x + sWidth / 2;
           } else {
-             // For non-root sources, we use the direction toward its own parent if possible
-             let pVisible = data.source.parent;
-             while (pVisible && !positions.has(pVisible.id)) pVisible = pVisible.parent;
-             const pPos = pVisible ? positions.get(pVisible.id)! : { x: sPos.x - 1, y: sPos.y };
-             sX = sPos.x < pPos.x ? sPos.x - sWidth : sPos.x + sWidth;
+            // For non-root sources, we use the direction toward its own parent if possible
+            let pVisible = data.source.parent;
+            while (pVisible && !positions.has(pVisible.id)) pVisible = pVisible.parent;
+            const pPos = pVisible ? positions.get(pVisible.id)! : { x: sPos.x - 1, y: sPos.y };
+            sX = sPos.x < pPos.x ? sPos.x - sWidth : sPos.x + sWidth;
           }
           return `M${sX},${sY}C${sX},${sY} ${sX},${sY} ${sX},${sY}`;
         }
@@ -1297,15 +1303,15 @@ export class D3Renderer implements RendererAdapter {
         // Find the nearest ancestor that WAS already visible
         let ancestor = d.source;
         while (ancestor && !this.lastPositions?.has(ancestor.id)) {
-            ancestor = ancestor.parent;
+          ancestor = ancestor.parent;
         }
 
-        const sPos = (ancestor && this.lastPositions?.get(ancestor.id)) || 
-                     positions.get(d.source.id) || 
-                     { x: 0, y: 0 };
-                     
+        const sPos = (ancestor && this.lastPositions?.get(ancestor.id)) ||
+          positions.get(d.source.id) ||
+          { x: 0, y: 0 };
+
         const sWidth = (d.source as any).metadata?.width || 0;
-        
+
         // Target in initial state is just the source point (collapsed)
         const tPos = sPos;
 
@@ -1395,16 +1401,16 @@ export class D3Renderer implements RendererAdapter {
    */
   private parseMarkdownLine(line: string): { text: string; bold?: boolean; italic?: boolean; strikethrough?: boolean; link?: string }[] {
     const segments: { text: string; bold?: boolean; italic?: boolean; strikethrough?: boolean; link?: string }[] = [];
-    
+
     // Support combination like ***bold and italic***
     // Support non-nested tags for simplicity
     // Regex matches: ***bolditalic***, **bold**, *italic*, ~~strike~~, [text](url)
     const regex = /(\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|~~.*?~~|\[.*?\]\(.*?\))/g;
     const parts = line.split(regex);
-    
+
     parts.forEach(part => {
       if (!part) return;
-      
+
       if (part.startsWith('[') || part.startsWith('![')) {
         // Link or Image block
         const isImage = part.startsWith('!');
@@ -1412,10 +1418,10 @@ export class D3Renderer implements RendererAdapter {
         const title = part.substring(isImage ? 2 : 1, lastClosingBracket);
         const urlPart = part.substring(lastClosingBracket + 1);
         const url = urlPart.substring(1, urlPart.length - 1);
-        
-        segments.push({ 
-          text: isImage ? `!${title}` : title, 
-          link: url 
+
+        segments.push({
+          text: isImage ? `!${title}` : title,
+          link: url
         });
       } else if (part.startsWith('***') && part.endsWith('***')) {
         segments.push({ text: part.slice(3, -3), bold: true, italic: true });
@@ -1430,7 +1436,7 @@ export class D3Renderer implements RendererAdapter {
         segments.push({ text: part });
       }
     });
-    
+
     return segments;
   }
 
