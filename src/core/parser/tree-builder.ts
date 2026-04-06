@@ -5,6 +5,7 @@
  */
 
 import { TreeNode, createTreeNode } from '../types/tree-node';
+import type { CodeBlockInfo, QuoteBlockInfo } from '../types/tree-node';
 import {
   IndentationType,
   detectIndentation,
@@ -129,6 +130,17 @@ export function buildTree(
      throw new TreeBuildError('Failed to build tree: no nodes found', -1);
   }
 
+  // Post-process: extract code/quote blocks from every node's content
+  const applyExtraction = (node: TreeNode): void => {
+    const { cleanContent: afterCode, codeBlocks } = extractCodeBlocks(node.content);
+    const { cleanContent: afterQuote, quoteBlocks } = extractQuoteBlocks(afterCode);
+    node.metadata.displayContent = afterQuote;
+    node.metadata.codeBlocks = codeBlocks;
+    node.metadata.quoteBlocks = quoteBlocks;
+    node.children.forEach(applyExtraction);
+  };
+  orphans.forEach(applyExtraction);
+
   if (orphans.length === 1) {
     const root = orphans[0];
     return { root, lineCount: lines.length, maxDepth };
@@ -148,6 +160,53 @@ export function buildTree(
   });
 
   return { root: virtualRoot, lineCount: lines.length, maxDepth: maxDepth + 1 };
+}
+
+/**
+ * Extracts fenced code blocks from raw content.
+ * Replaces each block with a [codeblock:N] placeholder in cleanContent.
+ */
+export function extractCodeBlocks(raw: string): {
+  cleanContent: string;
+  codeBlocks: CodeBlockInfo[];
+} {
+  const codeBlocks: CodeBlockInfo[] = [];
+  const cleanContent = raw.replace(
+    /```(\w*)[ \t]*\n([\s\S]*?)\n```/g,
+    (_match, lang, code) => {
+      const idx = codeBlocks.length;
+      codeBlocks.push({ language: lang || '', code: code.trimEnd(), expanded: false });
+      return `[codeblock:${idx}]`;
+    }
+  );
+  return { cleanContent, codeBlocks };
+}
+
+/**
+ * Extracts blockquote runs from raw content.
+ * Replaces each contiguous quote block with a [quoteblock:N] placeholder.
+ */
+export function extractQuoteBlocks(raw: string): {
+  cleanContent: string;
+  quoteBlocks: QuoteBlockInfo[];
+} {
+  const quoteBlocks: QuoteBlockInfo[] = [];
+  // Match one or more contiguous lines starting with "> "
+  const cleanContent = raw.replace(
+    /(?:^|\n)((?:[ \t]*>[ \t]?[^\n]*(?:\n|$))+)/g,
+    (match, block) => {
+      const text = block
+        .split('\n')
+        .filter((l: string) => l.trim().length > 0)
+        .map((l: string) => l.replace(/^[ \t]*>[ \t]?/, ''))
+        .join('\n');
+      const idx = quoteBlocks.length;
+      quoteBlocks.push({ text, expanded: false });
+      // Preserve leading newline if match started with one
+      return match.startsWith('\n') ? `\n[quoteblock:${idx}]` : `[quoteblock:${idx}]`;
+    }
+  );
+  return { cleanContent, quoteBlocks };
 }
 
 /**

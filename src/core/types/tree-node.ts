@@ -20,6 +20,23 @@ export interface TreeNode {
 }
 
 /**
+ * A fenced code block extracted from a node's content
+ */
+export interface CodeBlockInfo {
+  language: string;   // e.g. "typescript", "" = unknown
+  code: string;       // raw multiline code content
+  expanded: boolean;  // display state (in-memory only, not persisted)
+}
+
+/**
+ * A blockquote extracted from a node's content
+ */
+export interface QuoteBlockInfo {
+  text: string;       // plain text, may be multiline
+  expanded: boolean;  // display state (in-memory only)
+}
+
+/**
  * Information about a parsed markdown image
  */
 export interface ImageInfo {
@@ -43,6 +60,9 @@ export interface NodeMetadata {
   visible: boolean;
   highlighted: boolean;
   image?: ImageInfo;
+  codeBlocks?: CodeBlockInfo[];
+  quoteBlocks?: QuoteBlockInfo[];
+  displayContent?: string;
 }
 
 /**
@@ -68,6 +88,8 @@ export function createTreeNode(content: string, depth: number, id?: string): Tre
       height: 0,
       visible: true,
       highlighted: false,
+      codeBlocks: [],
+      quoteBlocks: [],
     },
   };
 }

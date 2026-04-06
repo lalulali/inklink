@@ -7,6 +7,8 @@
 
 Inklink is a **Markdown mind map extension** for Visual Studio Code that instantly visualizes the structure of your `.md` files as navigable, color-coded mind maps. No export step. No separate tool. Just open a Markdown file and see its hierarchy come alive in a side panel.
 
+![Inklink VS Code Extension](../public/screenshots/vscode.png)
+
 Whether you are writing a product spec, reviewing an architecture decision record, drafting AI prompts, or navigating a large documentation tree — Inklink gives you the **bird's-eye view** that plain text cannot.
 
 ---
@@ -42,6 +44,10 @@ Choose how your mind map flows:
 - **Left-to-Right** — classic reading direction
 - **Right-to-Left** — for RTL workflows or alternative perspectives
 
+| Balanced | Left to Right | Right to Left |
+|:---:|:---:|:---:|
+| ![](../public/screenshots/balance.png) | ![](../public/screenshots/left%20to%20right.png) | ![](../public/screenshots/Right%20to%20left.png) |
+
 ### 🔭 Lighthouse Minimap
 A smart minimap in the bottom-right corner keeps you oriented on even the largest mind maps. The current viewport is highlighted with an inverted overlay so your position is always unmistakable — even when zoomed out to see thousands of nodes.
 
@@ -54,8 +60,13 @@ Share your visual thinking with anyone:
 - **SVG** — scalable vector graphics
 - **Interactive HTML** — a standalone file anyone can open in a browser, zoom, pan, expand, and collapse — no Inklink required
 
-### 🎨 Theme-Aware Design
-Inklink automatically matches your VS Code theme (light or dark). Color-coded branches maintain their vibrant light-mode colors in both themes, ensuring visual consistency and excellent readability against dark backgrounds.
+### 🎨 Theme-Aware Design & Solarized Links
+Inklink automatically matches your VS Code theme (light or dark). Color-coded branches maintain their vibrant light-mode colors in both themes, ensuring visual consistency. Additionally, the **Solarized Monochromatic** link system ensures high-contrast "Neon" visibility while maintaining color harmony and reducing eye strain.
+
+### 🔗 Context-Aware Link Navigation
+Clicked links route intelligently based on their destination:
+- **Local file links** open in your primary editor area, keeping your mind map side-by-side with your code
+- **Web links** trigger your default system browser for a seamless browsing experience
 
 ### 🛡️ Auto-Save & Recovery
 Your work is continuously saved in the background. If VS Code crashes or the panel is accidentally closed, your mind map state is preserved and restored on next launch.

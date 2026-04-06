@@ -46,4 +46,17 @@ export const LAYOUT_CONFIG = {
     BG_OPACITY: 0.8,      // Background transparency for the label
     VISIBLE_THRESHOLD: 50 // Only show if distance is > 50px
   },
+
+  // Note Block (Code/Quote) Configuration
+  NOTE_BLOCK: {
+    PILL_HEIGHT: 24 * 0.75,       // Height of the collapsed pill
+    PILL_GAP: 5 * 0.75,           // Vertical gap between pills / between text and first pill
+    CODE_LINE_HEIGHT: 12 * 0.75,  // Line height inside expanded code block
+    CODE_HEADER_HEIGHT: 20 * 0.75, // Height of the language header row
+    CODE_V_PADDING: 8 * 0.75,     // Top+bottom padding inside expanded code
+    QUOTE_LINE_HEIGHT: 14 * 0.75, // Line height inside expanded quote
+    QUOTE_V_PADDING: 6 * 0.75,    // Top+bottom padding inside expanded quote
+    QUOTE_BORDER_WIDTH: 3 * 0.75, // Width of left accent border
+    MONO_FONT: "'JetBrains Mono', 'Fira Code', 'Courier New', monospace",
+  },
 };

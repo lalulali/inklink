@@ -37,6 +37,8 @@ There is no conversion step. No import format. No special syntax to learn. Just 
 
 **Write on the left. Think on the right.**
 
+![Inklink Web Interface](public/screenshots/web.png)
+
 And now, with the **VS Code extension**, you can think right inside your editor — without breaking your flow.
 
 ---
@@ -61,6 +63,10 @@ Your markdown becomes a mind map as you type. Headers and indented lists transla
 
 ### 🧭 Multiple Layout Directions
 Choose how your map flows: balanced two-sided, left-to-right, or right-to-left. Each layout uses a height-based algorithm for clean, non-overlapping node spacing.
+
+| Balanced | Left to Right | Right to Left |
+|:---:|:---:|:---:|
+| ![](public/screenshots/balance.png) | ![](public/screenshots/left%20to%20right.png) | ![](public/screenshots/Right%20to%20left.png) |
 
 ### 🔭 Lighthouse Minimap
 A purpose-built **navigation minimap** in the bottom-right corner keeps you oriented even on the largest mind maps. The active viewport is highlighted using an inverted overlay — the rest of the map is dimmed, so your position is always unmistakable. A center grab handle and a guaranteed minimum viewport size ensure the minimap is always interactive, no matter how far you are zoomed out.
@@ -108,6 +114,8 @@ A professional, high-end **Solid Flat Design System**:
 ## VS Code Extension
 
 Inklink is available as a **VS Code extension**, bringing the same mind map experience directly into your editor panel — no browser required.
+
+![Inklink VS Code Extension](public/screenshots/vscode.png)
 
 ### Platform-Aware Design
 The extension is not just a web view in a frame. It is a first-class VS Code experience:
