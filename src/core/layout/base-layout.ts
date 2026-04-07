@@ -82,7 +82,8 @@ export abstract class BaseLayout implements LayoutAlgorithm {
     const fontSize = (depth === 0 ? 22 : depth === 1 ? 17 : depth === 2 ? 14 : 12) * scale;
     const lineHeight = Math.round(fontSize * 1.25);
     
-    let rawLines = (node.content || '').split('\n');
+    const content = node.metadata.displayContent ?? node.content ?? '';
+    let rawLines = content.split('\n');
     let lineCount = 0;
 
     // Root node wrapping heuristic for height calculation
@@ -116,7 +117,35 @@ export abstract class BaseLayout implements LayoutAlgorithm {
        lineCount = rawLines.length;
     }
 
-    return (lineCount * lineHeight) + (16 * scale); // increased padding.y
+    let totalHeight = (lineCount * lineHeight) + (16 * scale);
+
+    // Account for Note Blocks (Code/Quote)
+    const NB = LAYOUT_CONFIG.NOTE_BLOCK;
+    const codeBlocks = node.metadata.codeBlocks || [];
+    const quoteBlocks = node.metadata.quoteBlocks || [];
+    
+    if (codeBlocks.length > 0 || quoteBlocks.length > 0) {
+      const allBlocks = [
+        ...codeBlocks.map(b => ({ ...b, type: 'code' })),
+        ...quoteBlocks.map(b => ({ ...b, type: 'quote' }))
+      ];
+      
+      allBlocks.forEach(block => {
+        totalHeight += NB.PILL_GAP;
+        if (block.expanded) {
+          const blockLines = (block.type === 'code' ? (block as any).code : (block as any).text) || '';
+          const blockLineCount = blockLines.split('\n').length;
+          const vPad = block.type === 'code' ? NB.CODE_V_PADDING : NB.QUOTE_V_PADDING;
+          const lineH = block.type === 'code' ? NB.CODE_LINE_HEIGHT : NB.QUOTE_LINE_HEIGHT;
+          // Both now have the same header height
+          totalHeight += NB.CODE_HEADER_HEIGHT + vPad + (blockLineCount * lineH) + vPad;
+        } else {
+          totalHeight += NB.PILL_HEIGHT;
+        }
+      });
+    }
+
+    return totalHeight;
   }
 
   /**

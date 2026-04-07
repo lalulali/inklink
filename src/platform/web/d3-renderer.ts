@@ -379,11 +379,10 @@ export class D3Renderer implements RendererAdapter {
               if (lineWidth > maxNoteWidth) maxNoteWidth = lineWidth;
             });
 
-            const expandedH = block.isQuote
-              ? NB.QUOTE_V_PADDING * 2 + lines.length * NB.QUOTE_LINE_HEIGHT
-              : NB.CODE_HEADER_HEIGHT + (NB.CODE_V_PADDING * 2) + (lines.length * NB.CODE_LINE_HEIGHT);
-            // Add block height plus a bottom margin equal to the node's top padding for visual symmetry
-            node.metadata.height += expandedH - 2 + this.config.padding.y;
+            const vPad = block.isQuote ? NB.QUOTE_V_PADDING : NB.CODE_V_PADDING;
+            const lineH = block.isQuote ? NB.QUOTE_LINE_HEIGHT : NB.CODE_LINE_HEIGHT;
+            const expandedH = NB.CODE_HEADER_HEIGHT + vPad + (lines.length * lineH) + vPad;
+            node.metadata.height += expandedH + NB.PILL_GAP;
           }
         });
 
@@ -727,7 +726,7 @@ export class D3Renderer implements RendererAdapter {
           fontWeight
         );
 
-        // Calculate the target x (same as the .attr('x') logic below)
+        // Calculate the target x (mirrors the logic used for the text element transition)
         const width = (d as any).metadata?.width || 0;
         let x: number;
         if (thisRenderer.isVertical) {
@@ -740,13 +739,19 @@ export class D3Renderer implements RendererAdapter {
           else x = thisRenderer.config.padding.x;
         }
 
-        // Clean up previous tspans
-        textElement.selectAll('tspan').remove();
+        // Use join to avoid jumpy text positions
+        const tspanJoin = textElement.selectAll<SVGTSpanElement, string>('tspan.line')
+          .data(displayLines, (line, i) => `${line}-${i}`);
 
-        // Final line count for vertical centering
-        const totalLines = displayLines.length;
+        tspanJoin.exit().remove();
 
-        // Compute the node background fill once for potential link color use
+        const tspanEnter = tspanJoin.enter()
+          .append('tspan')
+          .attr('class', 'line');
+
+        const tspanUpdate = tspanEnter.merge(tspanJoin);
+
+        // Compute the node background fill for link contrast logic
         const nodeFill = (() => {
           if (thisRenderer.isDarkMode) {
             if (depth === 0) return '#d4d4d4';
@@ -756,22 +761,43 @@ export class D3Renderer implements RendererAdapter {
           return d.color || '#f1f5f9';
         })();
 
-        // Add new tspans for each line
+        // Vertical centering offset calculation
+        const totalLines = displayLines.length;
         const textH = totalLines * thisRenderer.getLineHeight(depth);
         const height = (d as any).metadata?.height || 0;
         const textOffset = -height / 2 + thisRenderer.config.padding.y + textH / 2;
-        textElement.attr('y', textOffset);
 
-        displayLines.forEach((line, i) => {
-          const tspan = textElement.append('tspan')
-            .attr('x', x)
-            // Centering: Baseline shift for first line is based on total lines and half line-height factor (0.625)
-            .attr('dy', i === 0 ? `${0.35 - (totalLines - 1) * 0.625}em` : '1.25em');
+        const duration = thisRenderer.config.animationDuration;
+        const ease = d3.easeCubicOut;
+        const staggerDelay = depth * thisRenderer.config.staggerDelay;
+
+        // Transition the text element's coordinates (prevents jumping)
+        // Use a named transition to avoid conflicts with child tspan transitions
+        const textTransition = textElement.transition(`text-pos-${d.id}`)
+          .duration(duration)
+          .ease(ease)
+          .delay(staggerDelay);
+
+        textTransition
+          .attr('y', textOffset)
+          .attr('x', x);
+
+        // Transition each line's position/baseline (prevents horizontal jumping)
+        tspanUpdate.transition(`tspan-pos-${d.id}`)
+          .duration(duration)
+          .ease(ease)
+          .delay(staggerDelay)
+          .attr('x', x)
+          .attr('dy', (line, i) => i === 0 ? `${0.35 - (totalLines - 1) * 0.625}em` : '1.25em');
+
+        // Update internal segments (clearing them first inside each line to minimize flickering)
+        tspanUpdate.each(function (line) {
+          const tspan = d3.select<SVGTSpanElement, string>(this);
+          tspan.selectAll('*').remove();
 
           const segments = thisRenderer.parseMarkdownLine(line);
           segments.forEach(seg => {
-            const span = tspan.append('tspan')
-              .text(seg.text);
+            const span = tspan.append('tspan').text(seg.text);
 
             if (seg.bold) span.style('font-weight', 'bold');
             else span.style('font-weight', thisRenderer.getFontWeight(depth));
@@ -780,19 +806,15 @@ export class D3Renderer implements RendererAdapter {
             if (seg.strikethrough) span.style('text-decoration', 'line-through');
 
             if (seg.link) {
-              // Compute complementary link color relative to the node background
               const linkColor = ColorManager.getLinkColor(nodeFill);
               span.style('fill', linkColor)
                 .style('text-decoration', 'underline')
                 .style('cursor', 'pointer')
                 .on('click', (event) => {
-                  // Stop both click & dblclick from selecting/double-clicking the node
                   event.stopPropagation();
                   thisRenderer.nodeLinkClickCallback(seg.link!);
                 })
-                .on('dblclick', (event) => {
-                  event.stopPropagation();
-                });
+                .on('dblclick', (event) => event.stopPropagation());
             }
           });
         });
@@ -806,28 +828,11 @@ export class D3Renderer implements RendererAdapter {
         }
         return 'white';
       })
-      .transition()
-      .duration(this.config.animationDuration)
-      .ease(d3.easeCubicOut)
-      .delay((d) => (d.depth || 0) * this.config.staggerDelay)
-      .attr('x', (d) => {
-        const width = (d as any).metadata?.width || 0;
-        if (thisRenderer.isVertical) return -width / 2 + thisRenderer.config.padding.x;
-        const pos = positions.get(d.id) || { x: 0, y: 0 };
-        const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
-        if (!parentPos) return -width / 2 + thisRenderer.config.padding.x;
-        if (pos.x < parentPos.x) return -width + thisRenderer.config.padding.x;
-        return thisRenderer.config.padding.x;
-      });
+    // Attributes already transitioned inside the .each block above
     // Vertically centered via 'dy' on first tspan instead of 'y' on text element
 
     // Render code/quote note blocks below node text
     update.each(function (d) {
-      thisRenderer.renderNoteBlocks(d3.select(this) as any, d, positions);
-    });
-
-    // Render code/quote note blocks below node text
-    update.each(function(d) {
       thisRenderer.renderNoteBlocks(d3.select(this) as any, d, positions);
     });
 
@@ -1021,8 +1026,19 @@ export class D3Renderer implements RendererAdapter {
     const rectTop = -height / 2;
     let blockY = rectTop + this.config.padding.y + textBlockH + NB.PILL_GAP;
 
-    // Remove and redraw
-    nodeGroup.selectAll('g.note-blocks').remove();
+    // Use data joins for blocks to enable smooth transitions
+    let blocksGroup = nodeGroup.select<SVGGElement>('g.note-blocks');
+    if (blocksGroup.empty()) {
+      blocksGroup = nodeGroup.append('g').attr('class', 'note-blocks');
+    }
+
+    const allBlocks = [
+      ...codeBlocks.map((b, i) => ({ ref: b, type: 'code' as const, id: `code-${i}` })),
+      ...quoteBlocks.map((b, i) => ({ ref: b, type: 'quote' as const, id: `quote-${i}` }))
+    ];
+
+    const blockSelections = blocksGroup.selectAll<SVGGElement, any>('g.note-block')
+      .data(allBlocks, d => d.id);
 
     const isDark = this.isDarkMode;
     const pillBg = isDark ? '#0f172a' : '#e2e8f0';
@@ -1033,203 +1049,166 @@ export class D3Renderer implements RendererAdapter {
     const quoteTextC = isDark ? '#c7d2fe' : '#4338ca';
     const innerW = width - this.config.padding.x * 2;
 
-    const blocksGroup = nodeGroup.append('g').attr('class', 'note-blocks');
+    // EXIT: fade out and remove
+    blockSelections.exit()
+      .transition()
+      .duration(this.config.animationDuration)
+      .ease(d3.easeCubicOut)
+      .attr('opacity', 0)
+      .remove();
 
-    const drawBlock = (
-      type: 'code' | 'quote',
-      block: { language?: string; code?: string; text?: string; expanded: boolean }
-    ) => {
-      const blockGroup = blocksGroup.append('g')
-        .attr('class', `note-block note-block-${type}`)
-        .attr('transform', `translate(${rectX + this.config.padding.x}, ${blockY})`);
+    // ENTER: start invisible
+    const enter = blockSelections.enter()
+      .append('g')
+      .attr('class', b => `note-block note-block-${b.type}`)
+      .attr('opacity', 0);
 
-      if (!block.expanded) {
-        // ── Collapsed Pill ──────────────────────────────────
-        const label = type === 'code' ? (block.language || 'code') : 'quote';
-        const rawContent = type === 'code' ? block.code : block.text;
-        const lineCount = rawContent ? rawContent.split('\n').length : 0;
-        const countLabel = `${lineCount} line${lineCount !== 1 ? 's' : ''}`;
+    // MERGE & UPDATE
+    const update = enter.merge(blockSelections as any);
 
-        blockGroup.append('rect')
-          .attr('x', 0).attr('y', 0)
-          .attr('width', innerW).attr('height', NB.PILL_HEIGHT)
-          .attr('rx', 4).attr('ry', 4)
-          .attr('fill', pillBg)
-          .style('cursor', 'pointer')
-          .on('click', (event) => {
-            event.stopPropagation();
-            block.expanded = true;
-            thisRenderer.render(thisRenderer.lastRoot!, thisRenderer.lastPositions!, thisRenderer.isDarkMode);
-          })
-          .on('dblclick', (event) => event.stopPropagation());
+    update.each(function (block) {
+      const blockGroup = d3.select(this);
+      const type = block.type;
 
-        // Caret
-        blockGroup.append('text')
-          .attr('x', 10).attr('y', NB.PILL_HEIGHT / 2)
-          .attr('font-size', '9px')
-          .attr('fill', pillText)
-          .attr('dominant-baseline', 'central')
-          .style('pointer-events', 'none')
-          .text('▶');
+      // Calculate dimensions
+      const isExpanded = block.ref.expanded;
+      const rawContent = (type === 'code' ? block.ref.code : block.ref.text) || '';
+      const contentLines = rawContent.split(/\r?\n/);
+      const lineH = type === 'code' ? NB.CODE_LINE_HEIGHT : NB.QUOTE_LINE_HEIGHT;
+      const vPad = type === 'code' ? NB.CODE_V_PADDING : NB.QUOTE_V_PADDING;
+      const headerH = NB.CODE_HEADER_HEIGHT;
+      const expandedH = !isExpanded ? NB.PILL_HEIGHT : (headerH + vPad + contentLines.length * lineH + vPad);
 
-        // Type label
-        blockGroup.append('text')
-          .attr('x', 26).attr('y', NB.PILL_HEIGHT / 2)
-          .attr('font-size', '10px')
-          .attr('font-family', type === 'code' ? NB.MONO_FONT : 'Inter, sans-serif')
-          .attr('font-style', type === 'quote' ? 'italic' : 'normal')
-          .attr('fill', type === 'code' ? codeLang : quoteAccent)
-          .attr('dominant-baseline', 'central')
-          .style('pointer-events', 'none')
-          .text(label);
+      // Transition the block group's position (for cascade moves)
+      blockGroup.transition()
+        .duration(thisRenderer.config.animationDuration)
+        .ease(d3.easeCubicOut)
+        .delay((d.depth || 0) * thisRenderer.config.staggerDelay)
+        .attr('opacity', 1)
+        .attr('transform', `translate(${rectX + thisRenderer.config.padding.x}, ${blockY})`);
 
-        // Line count (right-aligned)
-        blockGroup.append('text')
-          .attr('x', innerW - 8).attr('y', NB.PILL_HEIGHT / 2)
-          .attr('text-anchor', 'end')
-          .attr('font-size', '9px')
-          .attr('fill', pillText)
-          .attr('dominant-baseline', 'central')
-          .style('pointer-events', 'none')
-          .text(countLabel);
-
-        // Removed redundant transparent hit-area rect to fix sharp border artifacts.
-        // Listeners moved to the primary pill rectangle above.
-
-        blockY += NB.PILL_HEIGHT + NB.PILL_GAP;
-
-      } else {
-        // ── Expanded ────────────────────────────────────────
-        const rawContent = (type === 'code' ? block.code : block.text) || '';
-        const contentLines = rawContent.split('\n');
-        const lineH = type === 'code' ? NB.CODE_LINE_HEIGHT : NB.QUOTE_LINE_HEIGHT;
-        const vPad = type === 'code' ? NB.CODE_V_PADDING : NB.QUOTE_V_PADDING;
-        const headerH = type === 'code' ? NB.CODE_HEADER_HEIGHT : 0;
-        const expandedH = headerH + vPad + contentLines.length * lineH + vPad;
-
-        // Outer rect
-        blockGroup.append('rect')
-          .attr('x', 0).attr('y', 0)
-          .attr('width', innerW).attr('height', expandedH)
-          .attr('rx', 4).attr('ry', 4)
-          .attr('fill', expandedBg)
-          .attr('stroke', 'none');
-
-        if (type === 'code') {
-          // Use a clean path for the top-rounded, bottom-square header background
-          const hw = innerW;
-          const hh = NB.CODE_HEADER_HEIGHT;
-          const r = 4;
-          const headerPath = `M 0 ${r} Q 0 0 ${r} 0 L ${hw - r} 0 Q ${hw} 0 ${hw} ${r} L ${hw} ${hh} L 0 ${hh} Z`;
-          blockGroup.append('path')
-            .attr('d', headerPath)
-            .attr('fill', isDark ? '#1e293b' : '#e2e8f0')
-            .style('cursor', 'pointer')
-            .on('click', (event) => {
-              event.stopPropagation();
-              block.expanded = false;
-              thisRenderer.render(thisRenderer.lastRoot!, thisRenderer.lastPositions!, thisRenderer.isDarkMode);
-            })
-            .on('dblclick', (event) => event.stopPropagation());
-
-          // Caret ▼
-          blockGroup.append('text')
-            .attr('x', 10).attr('y', NB.CODE_HEADER_HEIGHT / 2)
-            .attr('font-size', '9px').attr('fill', pillText)
-            .attr('dominant-baseline', 'central')
-            .style('pointer-events', 'none')
-            .text('▼');
-
-          // Language label
-          blockGroup.append('text')
-            .attr('x', 26).attr('y', NB.CODE_HEADER_HEIGHT / 2)
-            .attr('font-size', '10px')
-            .attr('font-family', NB.MONO_FONT)
-            .attr('fill', codeLang)
-            .attr('dominant-baseline', 'central')
-            .style('pointer-events', 'none')
-            .text(block.language || 'code');
-
-          // Code lines
-          const codeTextEl = blockGroup.append('text')
-            .attr('font-family', NB.MONO_FONT)
-            .attr('font-size', `${NB.CODE_LINE_HEIGHT}px`)
-            .attr('fill', isDark ? '#e2e8f0' : '#1e293b');
-
-          contentLines.forEach((line, i) => {
-            codeTextEl.append('tspan')
-              .attr('x', 8)
-              // Shift baseline down by header + padding + font size
-              .attr('dy', i === 0 ? NB.CODE_HEADER_HEIGHT + vPad + (NB.CODE_LINE_HEIGHT * 0.8) : NB.CODE_LINE_HEIGHT)
-              .text(line.length > 58 ? `${line.substring(0, 56)}…` : line);
-          });
-
-        } else {
-          // Quote left accent border
-          blockGroup.append('rect')
-            .attr('x', 0).attr('y', 0)
-            .attr('width', NB.QUOTE_BORDER_WIDTH).attr('height', expandedH)
-            .attr('rx', 1).attr('ry', 1)
-            .attr('fill', quoteAccent);
-
-          // Caret ▼
-          blockGroup.append('text')
-            .attr('x', NB.QUOTE_BORDER_WIDTH + 8).attr('y', NB.CODE_HEADER_HEIGHT * 0.4)
-            .attr('font-size', '9px').attr('fill', pillText)
-            .attr('dominant-baseline', 'central')
-            .style('pointer-events', 'none')
-            .text('▼');
-
-          // Quote label (new)
-          blockGroup.append('text')
-            .attr('x', NB.QUOTE_BORDER_WIDTH + 24).attr('y', NB.CODE_HEADER_HEIGHT * 0.4)
-            .attr('font-size', '10px')
-            .attr('font-family', 'Inter, sans-serif')
-            .attr('font-style', 'italic')
-            .attr('fill', quoteAccent)
-            .attr('dominant-baseline', 'central')
-            .style('pointer-events', 'none')
-            .text('quote');
-
-          // Quote text (italic)
-          const quoteTextEl = blockGroup.append('text')
-            .attr('font-size', `${NB.QUOTE_LINE_HEIGHT}px`)
-            .attr('font-family', 'Inter, sans-serif')
-            .attr('font-style', 'italic')
-            .attr('fill', quoteTextC);
-
-          contentLines.forEach((line, i) => {
-            quoteTextEl.append('tspan')
-              .attr('x', NB.QUOTE_BORDER_WIDTH + 8)
-              // Shift baseline down by header (consistent with code) + padding
-              .attr('dy', i === 0 ? NB.CODE_HEADER_HEIGHT + vPad + (NB.QUOTE_LINE_HEIGHT * 0.8) : NB.QUOTE_LINE_HEIGHT)
-              .text(line);
-          });
-        }
-
-        // Toggle hit area for quotes (since code has the header path)
-        const clickH = type === 'code' ? NB.CODE_HEADER_HEIGHT : vPad + NB.QUOTE_LINE_HEIGHT;
-        if (type === 'quote') {
-          blockGroup.append('rect')
-            .attr('x', 0).attr('y', 0)
-            .attr('width', innerW).attr('height', clickH)
-            .attr('fill', 'transparent')
-            .attr('rx', 4).attr('ry', 4) // MUST be rounded to match
-            .style('cursor', 'pointer')
-            .on('click', (event) => {
-              event.stopPropagation();
-              block.expanded = false;
-              thisRenderer.render(thisRenderer.lastRoot!, thisRenderer.lastPositions!, thisRenderer.isDarkMode);
-            })
-            .on('dblclick', (event) => event.stopPropagation());
-        }
-
-        blockY += expandedH + NB.PILL_GAP;
+      // Background rectangle transition (for height expansion/collapse)
+      let bgRect = blockGroup.select<SVGRectElement>('rect.block-bg');
+      if (bgRect.empty()) {
+        bgRect = blockGroup.append('rect').attr('class', 'block-bg').attr('rx', 4).attr('ry', 4);
       }
-    };
+      bgRect.transition()
+        .duration(thisRenderer.config.animationDuration)
+        .ease(d3.easeCubicOut)
+        .attr('width', innerW)
+        .attr('height', expandedH)
+        .attr('fill', isExpanded ? expandedBg : pillBg);
 
-    codeBlocks.forEach(block => drawBlock('code', block as any));
-    quoteBlocks.forEach(block => drawBlock('quote', block as any));
+      // Clean up background selection
+      bgRect.style('cursor', isExpanded ? 'default' : 'pointer')
+        .on('click', (event: any) => {
+          if (!isExpanded) {
+            event.stopPropagation();
+            block.ref.expanded = true;
+            thisRenderer.render(thisRenderer.lastRoot!, thisRenderer.lastPositions!, thisRenderer.isDarkMode);
+          }
+        })
+        .on('dblclick', (event: any) => event.stopPropagation());
+
+      // ── 1. Collapsed Pill Elements (only when !isExpanded) ──
+      const pillContent = blockGroup.selectAll<SVGGElement, any>('g.pill-content')
+        .data(!isExpanded ? [block] : []);
+
+      pillContent.exit().transition().duration(150).attr('opacity', 0).remove();
+
+      const pillEnter = pillContent.enter().append('g').attr('class', 'pill-content').attr('opacity', 0);
+
+      pillEnter.append('text').attr('class', 'caret').attr('x', 10).attr('y', NB.PILL_HEIGHT / 2)
+        .attr('font-size', '9px').attr('fill', pillText).attr('dominant-baseline', 'central').style('pointer-events', 'none').text('▶');
+
+      pillEnter.append('text').attr('class', 'label').attr('x', 26).attr('y', NB.PILL_HEIGHT / 2)
+        .attr('font-size', '10px').attr('dominant-baseline', 'central').style('pointer-events', 'none');
+
+      pillEnter.append('text').attr('class', 'count').attr('x', innerW - 8).attr('y', NB.PILL_HEIGHT / 2)
+        .attr('text-anchor', 'end').attr('font-size', '9px').attr('fill', pillText).attr('dominant-baseline', 'central').style('pointer-events', 'none');
+
+      const pillUpdate = pillEnter.merge(pillContent as any);
+      pillUpdate.transition().duration(thisRenderer.config.animationDuration).attr('opacity', 1);
+
+      pillUpdate.select('text.label')
+        .attr('font-family', type === 'code' ? NB.MONO_FONT : 'Inter, sans-serif')
+        .attr('font-style', type === 'quote' ? 'italic' : 'normal')
+        .attr('fill', type === 'code' ? codeLang : quoteAccent)
+        .text(type === 'code' ? (block.ref.language || 'code') : 'quote');
+
+      pillUpdate.select('text.count')
+        .attr('x', innerW - 8)
+        .text(`${contentLines.length} line${contentLines.length !== 1 ? 's' : ''}`);
+
+      // ── 2. Expanded Header ──
+      const header = blockGroup.selectAll<SVGGElement, any>('g.block-header')
+        .data(isExpanded ? [block] : []);
+
+      header.exit().transition().duration(150).attr('opacity', 0).remove();
+
+      const headerEnter = header.enter().append('g').attr('class', 'block-header').attr('opacity', 0);
+
+      headerEnter.append('path').attr('class', 'header-bg');
+      headerEnter.append('text').attr('class', 'caret').attr('x', 10).attr('y', headerH / 2)
+        .attr('font-size', '9px').attr('fill', pillText).attr('dominant-baseline', 'central').style('pointer-events', 'none').text('▼');
+      headerEnter.append('text').attr('class', 'label').attr('x', 26).attr('y', headerH / 2)
+        .attr('font-size', '10px').attr('dominant-baseline', 'central').style('pointer-events', 'none');
+
+      const headerUpdate = headerEnter.merge(header as any);
+      headerUpdate.transition().duration(thisRenderer.config.animationDuration).attr('opacity', 1);
+
+      const headerPath = `M 0 4 Q 0 0 4 0 L ${innerW - 4} 0 Q ${innerW} 0 ${innerW} 4 L ${innerW} ${headerH} L 0 ${headerH} Z`;
+      headerUpdate.select('path.header-bg')
+        .attr('d', headerPath)
+        .attr('fill', isDark ? '#1e293b' : '#e2e8f0')
+        .style('cursor', 'pointer')
+        .on('click', (event) => {
+          event.stopPropagation();
+          block.ref.expanded = false;
+          thisRenderer.render(thisRenderer.lastRoot!, thisRenderer.lastPositions!, thisRenderer.isDarkMode);
+        });
+
+      headerUpdate.select('text.label')
+        .attr('font-family', type === 'code' ? NB.MONO_FONT : 'Inter, sans-serif')
+        .attr('font-style', type === 'quote' ? 'italic' : 'normal')
+        .attr('fill', type === 'code' ? codeLang : quoteAccent)
+        .text(type === 'code' ? (block.ref.language || 'code') : 'quote');
+
+      // ── 3. Expanded Content Box ──
+      const content = blockGroup.selectAll<SVGTextElement, any>('text.block-content')
+        .data(isExpanded ? [block] : []);
+
+      content.exit().transition().duration(150).attr('opacity', 0).remove();
+
+      const contentEnter = content.enter().append('text').attr('class', 'block-content').attr('opacity', 0);
+
+      const contentUpdate = contentEnter.merge(content as any);
+      contentUpdate.transition().duration(thisRenderer.config.animationDuration).attr('opacity', 1);
+
+      const blockFontStyle = type === 'quote' ? 'italic' : 'normal';
+
+      contentUpdate.attr('font-family', type === 'code' ? NB.MONO_FONT : 'Inter, sans-serif')
+        .attr('font-size', `${lineH}px`)
+        .attr('font-style', blockFontStyle)
+        .attr('fill', type === 'code' ? (isDark ? '#e2e8f0' : '#1e293b') : quoteTextC)
+        .style('white-space', 'pre');
+
+      // Render lines using tspan join
+      const tspans = contentUpdate.selectAll<SVGTSpanElement, string>('tspan')
+        .data(contentLines);
+
+      tspans.join('tspan')
+        .attr('x', 10) // Align with header label
+        .attr('dy', (line, i) => i === 0 ? headerH + vPad + (lineH * 0.8) : lineH)
+        .text(line => {
+          if (line.length === 0) return '\u00A0';
+          // Use standard lines now that white-space: pre is active
+          return type === 'code' && line.length > 58 ? `${line.substring(0, 56)}…` : line;
+        });
+
+      blockY += expandedH + NB.PILL_GAP;
+    });
+
   }
 
   /**

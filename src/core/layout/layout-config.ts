@@ -54,7 +54,7 @@ export const LAYOUT_CONFIG = {
     CODE_LINE_HEIGHT: 12 * 0.75,  // Line height inside expanded code block
     CODE_HEADER_HEIGHT: 20 * 0.75, // Height of the language header row
     CODE_V_PADDING: 8 * 0.75,     // Top+bottom padding inside expanded code
-    QUOTE_LINE_HEIGHT: 14 * 0.75, // Line height inside expanded quote
+    QUOTE_LINE_HEIGHT: 12 * 0.75, // Line height inside expanded quote
     QUOTE_V_PADDING: 6 * 0.75,    // Top+bottom padding inside expanded quote
     QUOTE_BORDER_WIDTH: 3 * 0.75, // Width of left accent border
     MONO_FONT: "'JetBrains Mono', 'Fira Code', 'Courier New', monospace",

@@ -59,15 +59,29 @@ export function buildTree(
   const stack: TreeNode[] = [];
   let maxDepth = 0;
   let lastHeaderDepth = -1;
+  let isFenced = false;
+  let contentStartColumn = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const { text: line, index: originalIndex } = lines[i];
     const trimmed = line.trimStart();
-    if (trimmed.length === 0) continue;
+    
+    // Toggle fenced state
+    if (trimmed.startsWith('```')) {
+      isFenced = !isFenced;
+      
+      // If we just entered/exited a fence, the fence line itself needs to be treated as content
+      // unless it's the very first line of a new node.
+    }
+
+    // Preserve blank lines inside fenced blocks or nodes; otherwise skip if at top level and empty
+    if (trimmed.length === 0 && !isFenced && orphans.length === 0) continue;
 
     let rawDepth = calculateIndentLevel(line, indentType, indentSize);
-    const isHeader = trimmed.startsWith('#');
-    const isList = /^(\*|-|\+|\d+\.)\s+/.test(trimmed);
+    
+    // Only detect headers/lists if NOT inside a code block fence
+    const isHeader = !isFenced && trimmed.startsWith('#');
+    const isList = !isFenced && /^(\*|-|\+|\d+\.)\s+/.test(trimmed);
     const isInitiator = isHeader || isList;
 
     if (isHeader) {
@@ -82,15 +96,26 @@ export function buildTree(
     let content = '';
     if (isHeader) {
       content = trimmed.replace(/^#+\s*/, '');
+      contentStartColumn = (line.length - trimmed.length) + (trimmed.length - content.length);
     } else if (isList) {
       content = trimmed.replace(/^(\*|-|\+|\d+\.)\s+/, '');
+      contentStartColumn = (line.length - trimmed.length) + (trimmed.length - content.length);
+    } else if (line.trim().length === 0) {
+      content = '';
+    } else if (orphans.length === 0 || isInitiator) {
+      // This case is for the first line of the tree or any new initiator
+      // (though isInitiator is already handled above, kept for clarity)
+      content = trimmed;
+      contentStartColumn = line.length - trimmed.length;
     } else {
-      const indentCharCount = indentType === 'tabs' ? rawDepth : (line.length - line.trimStart().length);
-      content = line.substring(indentCharCount);
+      // Continuation of a node: strip only as much as the node's baseline indentation
+      const stripCount = Math.min(line.length, contentStartColumn);
+      content = line.substring(stripCount);
     }
 
     if (content.trim().length === 0 && isInitiator) continue;
 
+    // A node is created if it's an initiator OR if it's the very first line of the tree
     if (isInitiator || orphans.length === 0) {
       // Use original index in the ID for traceability
       const node = createTreeNode(content, currentDepth, `line_${originalIndex}`);
@@ -117,6 +142,7 @@ export function buildTree(
       stack.push(node);
       maxDepth = Math.max(maxDepth, currentDepth);
     } else {
+      // Append content to current node (including lines inside code blocks)
       let targetNode = stack[stack.length - 1];
       if (targetNode) {
           targetNode.content += '\n' + content;
@@ -172,10 +198,12 @@ export function extractCodeBlocks(raw: string): {
 } {
   const codeBlocks: CodeBlockInfo[] = [];
   const cleanContent = raw.replace(
-    /```(\w*)[ \t]*\n([\s\S]*?)\n```/g,
+    /```(\w*)[ \t]*\n([\s\S]*?)\n?```/g,
     (_match, lang, code) => {
       const idx = codeBlocks.length;
-      codeBlocks.push({ language: lang || '', code: code.trimEnd(), expanded: false });
+      // Strip leading and trailing empty lines (similar to space trim but specifically for blocks)
+      const trimmedCode = code.replace(/^(\s*[\r\n]+)+/, '').replace(/([\r\n]+\s*)+$/, '');
+      codeBlocks.push({ language: lang || '', code: trimmedCode, expanded: false });
       return `[codeblock:${idx}]`;
     }
   );
@@ -195,11 +223,21 @@ export function extractQuoteBlocks(raw: string): {
   const cleanContent = raw.replace(
     /(?:^|\n)((?:[ \t]*>[ \t]?[^\n]*(?:\n|$))+)/g,
     (match, block) => {
-      const text = block
+      let text = block
         .split('\n')
-        .filter((l: string) => l.trim().length > 0)
-        .map((l: string) => l.replace(/^[ \t]*>[ \t]?/, ''))
+        .map((l: string) => {
+          const bracketIdx = l.indexOf('>');
+          if (bracketIdx === -1) return l;
+          const pre = l.substring(0, bracketIdx);
+          const post = l.substring(bracketIdx + 1);
+          // Remove the first space after '>' if it exists
+          return pre + (post.startsWith(' ') ? post.substring(1) : post);
+        })
         .join('\n');
+      
+      // Strip leading and trailing empty lines
+      text = text.replace(/^(\s*[\r\n]+)+/, '').replace(/([\r\n]+\s*)+$/, '');
+
       const idx = quoteBlocks.length;
       quoteBlocks.push({ text, expanded: false });
       // Preserve leading newline if match started with one

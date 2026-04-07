@@ -62,7 +62,7 @@ function activate(context) {
 }
 function deactivate() { }
 class InklinkPanel {
-    static currentPanel;
+    static _panels = new Map();
     _panel;
     _extensionUri;
     _fileUri;
@@ -72,8 +72,10 @@ class InklinkPanel {
     _isProgrammaticReveal = false;
     _programmaticRevealTimeout;
     static createOrShow(extensionUri, fileUri, context) {
-        if (InklinkPanel.currentPanel) {
-            InklinkPanel.currentPanel._panel.reveal(vscode.ViewColumn.Beside);
+        const fileUriString = fileUri.toString();
+        const existingPanel = InklinkPanel._panels.get(fileUriString);
+        if (existingPanel) {
+            existingPanel._panel.reveal(vscode.ViewColumn.Beside);
             return;
         }
         const fileName = fileUri.scheme === 'untitled' ? 'Untitled' : path.basename(fileUri.fsPath);
@@ -86,10 +88,13 @@ class InklinkPanel {
             light: vscode.Uri.joinPath(extensionUri, 'assets', 'icon-light.svg'),
             dark: vscode.Uri.joinPath(extensionUri, 'assets', 'icon-dark.svg')
         };
-        InklinkPanel.currentPanel = new InklinkPanel(panel, extensionUri, fileUri, context);
+        const inklinkPanel = new InklinkPanel(panel, extensionUri, fileUri, context);
+        InklinkPanel._panels.set(fileUriString, inklinkPanel);
     }
     static revive(panel, extensionUri, fileUri, context) {
-        InklinkPanel.currentPanel = new InklinkPanel(panel, extensionUri, fileUri, context);
+        const fileUriString = fileUri.toString();
+        const inklinkPanel = new InklinkPanel(panel, extensionUri, fileUri, context);
+        InklinkPanel._panels.set(fileUriString, inklinkPanel);
     }
     constructor(panel, extensionUri, fileUri, context) {
         this._panel = panel;
@@ -313,7 +318,7 @@ class InklinkPanel {
         this._respond(message.id, { success: true }, 'storageResponse');
     }
     dispose() {
-        InklinkPanel.currentPanel = undefined;
+        InklinkPanel._panels.delete(this._fileUri.toString());
         this._panel.dispose();
         while (this._disposables.length) {
             const x = this._disposables.pop();

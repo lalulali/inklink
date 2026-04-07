@@ -145,8 +145,7 @@ export class IndentationParser implements MarkdownParser {
 
     // Map lines to include their original index for traceability
     const mappedLines = rawLines
-      .map((text, index) => ({ text, index }))
-      .filter(line => line.text.trim().length > 0);
+      .map((text, index) => ({ text, index }));
 
     // Check if we have any valid content after filtering
     if (mappedLines.length === 0) {
@@ -195,7 +194,7 @@ export class IndentationParser implements MarkdownParser {
 
     // After potential normalization, we re-map to ensure indices stay accurate to the source
     const finalLines = processedMarkdown.split('\n').map((text, index) => ({ text, index }));
-    const filteredFinalLines = finalLines.filter(line => line.text.trim().length > 0);
+    const filteredFinalLines = finalLines;
 
     // Validate tree structure
     const structureValidation = validateTreeStructure(
@@ -320,7 +319,7 @@ export class IndentationParser implements MarkdownParser {
       return { valid: false, errors, warnings };
     }
 
-    const nonEmptyLines = lines.filter(line => line.trim().length > 0);
+    const nonEmptyLines = lines;
 
     // Initial indentation detection
     let indentType: IndentationType;

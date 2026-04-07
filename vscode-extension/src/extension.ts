@@ -30,7 +30,7 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {}
 
 class InklinkPanel {
-    public static currentPanel: InklinkPanel | undefined;
+    private static readonly _panels = new Map<string, InklinkPanel>();
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
     private readonly _fileUri: vscode.Uri;
@@ -41,8 +41,11 @@ class InklinkPanel {
     private _programmaticRevealTimeout: any;
 
     public static createOrShow(extensionUri: vscode.Uri, fileUri: vscode.Uri, context: vscode.ExtensionContext) {
-        if (InklinkPanel.currentPanel) {
-            InklinkPanel.currentPanel._panel.reveal(vscode.ViewColumn.Beside);
+        const fileUriString = fileUri.toString();
+        const existingPanel = InklinkPanel._panels.get(fileUriString);
+
+        if (existingPanel) {
+            existingPanel._panel.reveal(vscode.ViewColumn.Beside);
             return;
         }
 
@@ -63,11 +66,14 @@ class InklinkPanel {
             dark: vscode.Uri.joinPath(extensionUri, 'assets', 'icon-dark.svg')
         };
 
-        InklinkPanel.currentPanel = new InklinkPanel(panel, extensionUri, fileUri, context);
+        const inklinkPanel = new InklinkPanel(panel, extensionUri, fileUri, context);
+        InklinkPanel._panels.set(fileUriString, inklinkPanel);
     }
 
     public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, fileUri: vscode.Uri, context: vscode.ExtensionContext) {
-        InklinkPanel.currentPanel = new InklinkPanel(panel, extensionUri, fileUri, context);
+        const fileUriString = fileUri.toString();
+        const inklinkPanel = new InklinkPanel(panel, extensionUri, fileUri, context);
+        InklinkPanel._panels.set(fileUriString, inklinkPanel);
     }
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, fileUri: vscode.Uri, context: vscode.ExtensionContext) {
@@ -315,7 +321,7 @@ class InklinkPanel {
     }
 
     public dispose() {
-        InklinkPanel.currentPanel = undefined;
+        InklinkPanel._panels.delete(this._fileUri.toString());
         this._panel.dispose();
         while (this._disposables.length) {
             const x = this._disposables.pop();
