@@ -74,6 +74,12 @@ export interface RendererAdapter {
   onNodeLinkClick?(callback: (url: string) => void): void;
 
   /**
+   * Register callback for block toggle (collapse/expand) events
+   * @param callback - Function called with toggled node ID
+   */
+  onBlockToggle?(callback: (nodeId: string) => void): void;
+
+  /**
    * Get the current viewport bounds
    * @returns Bounding box of visible area
    */

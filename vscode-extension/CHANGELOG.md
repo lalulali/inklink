@@ -2,17 +2,15 @@
 
 All notable changes to the "inklink" extension will be documented in this file.
 
-## [0.1.7] - 2026-04-07
-- High-Fidelity Block Indentation: Implemented `white-space: pre` rendering for Code and Quote blocks to faithfully preserve complex indentation structures (tabs/spaces)
-- Editor Shortcuts: Added VS Code-style keyboard shortcuts for Bold (Cmd+B), Italic (Cmd+I), and Strikethrough (Cmd+Shift+X) with robust syntax detection
-- Refined Mind Map Layout: Optimized vertical centering for multi-line node content and improved block element alignment
-- Image Support Foundations: Added internal data models and centralized configuration for upcoming image rendering support
-
-## [0.1.6] - 2026-04-06
+## [0.1.6] - 2026-04-07
 - Solarized Monochromatic Theme: High-vibrancy "Neon" saturation and lightness thresholds specifically tuned for links on colored nodes (Magenta, Purple, Blue) to solve eye strain and visual clutter
 - Context-Aware Link Navigation: Local file links intelligently open in the primary editor area (Column 1) so it stays side-by-side with the mind map, while web links trigger the system browser
 - Fixed Data Loss: Prevented Markdown image and link tags from being stripped by removing destructive pre-processing logic from the layout engine
 - Enhanced Performance: Implemented a versioned link color cache and more stable VS Code API message handling for consistent across-the-board updates
+- High-Fidelity Block Indentation: Implemented `white-space: pre` rendering for Code and Quote blocks to faithfully preserve complex indentation structures (tabs/spaces)
+- Editor Shortcuts: Added VS Code-style keyboard shortcuts for Bold (Cmd+B), Italic (Cmd+I), and Strikethrough (Cmd+Shift+X) with robust syntax detection
+- Refined Mind Map Layout: Optimized vertical centering for multi-line node content and improved block element alignment
+- Image Support Foundations: Added internal data models and centralized configuration for upcoming image rendering support
 
 ## [0.1.5] - 2026-04-02
 - Solid Flat Design: Replaced all `backdrop-blur` effects and transparent backgrounds with a solid, high-contrast design system across all side-sheet overlays

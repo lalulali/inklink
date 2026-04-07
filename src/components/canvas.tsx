@@ -109,6 +109,16 @@ export function Canvas() {
         }
       });
 
+      // Recalculate layout on block toggle (code/quote expansion)
+      if (renderer.onBlockToggle) {
+        renderer.onBlockToggle(() => {
+          const s = globalState.getState();
+          if (s.tree) {
+             globalState.setState({ tree: { ...s.tree } });
+          }
+        });
+      }
+
       // Handle link clicks
       if (renderer.onNodeLinkClick) {
         renderer.onNodeLinkClick((url) => {
