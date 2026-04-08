@@ -11,6 +11,7 @@ All notable changes to the "inklink" extension will be documented in this file.
 - Context-Aware Link Navigation: Local file links intelligently open in the primary editor area (Column 1) so it stays side-by-side with the mind map, while web links trigger the system browser
 - Fixed Data Loss: Prevented Markdown image and link tags from being stripped by removing destructive pre-processing logic from the layout engine
 - Enhanced Performance: Implemented a versioned link color cache and more stable VS Code API message handling for consistent across-the-board updates
+- Image Support Foundations: Added internal data models and centralized configuration for upcoming image rendering support
 
 ## [0.1.5] - 2026-04-02
 - Solid Flat Design: Replaced all `backdrop-blur` effects and transparent backgrounds with a solid, high-contrast design system across all side-sheet overlays

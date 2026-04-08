@@ -564,6 +564,7 @@ export class D3Renderer implements RendererAdapter {
   private nodeToggleCallback: (nodeId: string) => void = () => { };
   private nodeUpdateCallback: (nodeId: string) => void = () => { };
   private nodeLinkClickCallback: (url: string) => void = () => { };
+  private blockToggleCallback: (nodeId: string) => void = () => { };
 
   /**
    * Register callback for node click events
@@ -600,6 +601,13 @@ export class D3Renderer implements RendererAdapter {
    */
   onNodeLinkClick(callback: (url: string) => void): void {
     this.nodeLinkClickCallback = callback;
+  }
+
+  /**
+   * Register callback for block toggle events (expansion of code/quote)
+   */
+  onBlockToggle(callback: (nodeId: string) => void): void {
+    this.blockToggleCallback = callback;
   }
 
   /**

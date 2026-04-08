@@ -61,6 +61,16 @@ Choose how your mind map flows:
 ### 🔭 Lighthouse Minimap
 A smart minimap in the bottom-right corner keeps you oriented on even the largest mind maps. The current viewport is highlighted with an inverted overlay so your position is always unmistakable — even when zoomed out to see thousands of nodes.
 
+### 📝 Interactive Markdown Note Blocks
+Inklink identifies **Code Blocks** and **Quote Blocks** within your markdown and renders them as interactive, expandable elements directly on the mind map nodes.
+- **Collapsed View**: Blocks appear as clean, tonal-relief "pills" indicating the type and line count.
+- **Expanded View**: Blocks expand into full-width integrated containers with syntax labeling and italicized quotes.
+- **Micro-interactions**: Toggle any block by clicking its header or the pill. All labels, carets, and counts are vertically centered with symmetric padding for a premium, well-balanced look.
+- **Dynamic Layout**: Mind map nodes automatically adjust their vertical distance and re-flow to accommodate expanded or collapsed blocks, ensuring the layout remains clean and readable without overlaps.
+- **State Persistence**: Interactive blocks maintain their expanded/collapsed state during live markdown edits, allowing for a seamless transitions between writing and thinking.
+- **Indentation Fidelity**: Uses `white-space: pre` to faithfully preserve complex indentation structures (tabs and spaces) inside code and quote blocks, ensuring technical snippets remain readable and accurate.
+- **Stitch Design System**: Adheres to a borderless, tonal-relief aesthetic with 6px rounded corners, ensuring blocks feel like a natural extension of the node.
+
 ### 🔍 Canvas Search
 Find any node by text directly on the mind map canvas. Navigate through results with keyboard shortcuts.
 
@@ -147,6 +157,9 @@ Every heading and list item becomes a node. Indented text beneath a node becomes
 | `Cmd/Ctrl + ←` | Right-to-left layout |
 | `Cmd/Ctrl + →` | Left-to-right layout |
 | `Cmd/Ctrl + ↑ / ↓` | Two-sided layout |
+| `Cmd/Ctrl + B` | Toggle **bold** on selection |
+| `Cmd/Ctrl + I` | Toggle *italic* on selection |
+| `Cmd/Ctrl + Shift + X` | Toggle ~~strikethrough~~ on selection |
 
 > **Note:** Standard VS Code shortcuts like `Cmd+S` (Save), `Cmd+F` (Find), and `Cmd+Z` (Undo) work natively — Inklink does not override them.
 
