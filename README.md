@@ -66,6 +66,8 @@ Inklink identifies **Code Blocks** and **Quote Blocks** within your markdown and
 - **Collapsed View**: Blocks appear as clean, tonal-relief "pills" indicating the type and line count.
 - **Expanded View**: Blocks expand into full-width integrated containers with syntax labeling and italicized quotes.
 - **Micro-interactions**: Toggle any block by clicking its header or the pill. All labels, carets, and counts are vertically centered with symmetric padding for a premium, well-balanced look.
+- **Dynamic Layout**: Mind map nodes automatically adjust their vertical distance and re-flow to accommodate expanded or collapsed blocks, ensuring the layout remains clean and readable without overlaps.
+- **State Persistence**: Interactive blocks maintain their expanded/collapsed state during live markdown edits, allowing for a seamless transitions between writing and thinking.
 - **Indentation Fidelity**: Uses `white-space: pre` to faithfully preserve complex indentation structures (tabs and spaces) inside code and quote blocks, ensuring technical snippets remain readable and accurate.
 - **Stitch Design System**: Adheres to a borderless, tonal-relief aesthetic with 6px rounded corners, ensuring blocks feel like a natural extension of the node.
 

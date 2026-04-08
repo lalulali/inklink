@@ -46,7 +46,7 @@ export class D3Renderer implements RendererAdapter {
     },
     borderRadius: 6,
     animationDuration: 250,
-    staggerDelay: 25,       // ms per depth level for cascade effect
+    staggerDelay: 0,
     highlightColor: '#2563eb',
   };
 
@@ -562,6 +562,7 @@ export class D3Renderer implements RendererAdapter {
   private nodeClickCallback: (nodeId: string) => void = () => { };
   private nodeDoubleClickCallback: (nodeId: string) => void = () => { };
   private nodeToggleCallback: (nodeId: string) => void = () => { };
+  private nodeUpdateCallback: (nodeId: string) => void = () => { };
   private nodeLinkClickCallback: (url: string) => void = () => { };
 
   /**
@@ -585,6 +586,13 @@ export class D3Renderer implements RendererAdapter {
 
   onNodeToggle(callback: (nodeId: string) => void): void {
     this.nodeToggleCallback = callback;
+  }
+
+  /**
+   * Register callback for node update (e.g. content/size change)
+   */
+  onNodeUpdate(callback: (nodeId: string) => void): void {
+    this.nodeUpdateCallback = callback;
   }
 
   /**
@@ -689,7 +697,16 @@ export class D3Renderer implements RendererAdapter {
         this.nodeClickCallback(d.id);
       });
 
+    // Create unique clip path per node to prevent block text overflows during animation
+    const defs = enter.append('defs');
+    defs.append('clipPath')
+      .attr('id', d => `clip-${d.id}`)
+      .append('rect')
+      .attr('rx', this.config.borderRadius)
+      .attr('ry', this.config.borderRadius);
+
     enter.append('rect')
+      .attr('class', 'node-bg')
       .attr('rx', this.config.borderRadius)
       .attr('ry', this.config.borderRadius)
       .attr('stroke-width', 2);
@@ -701,10 +718,11 @@ export class D3Renderer implements RendererAdapter {
     const update = enter.merge(nodeGroups);
 
     update.attr('data-id', (d) => d.id)
+      .interrupt() // Prevent queuing jitter
       .transition()
       .duration(this.config.animationDuration)
       .ease(d3.easeCubicOut)
-      .delay((d) => (d.depth || 0) * this.config.staggerDelay)
+      .delay(0)
       .attr('opacity', 1)
       .attr('transform', (d) => {
         const pos = positions.get(d.id) || { x: 0, y: 0 };
@@ -739,9 +757,9 @@ export class D3Renderer implements RendererAdapter {
           else x = thisRenderer.config.padding.x;
         }
 
-        // Use join to avoid jumpy text positions
+        // 1. Stable join for multi-line text lines
         const tspanJoin = textElement.selectAll<SVGTSpanElement, string>('tspan.line')
-          .data(displayLines, (line, i) => `${line}-${i}`);
+          .data(displayLines, (line, i) => i); // Use index for stability during typing
 
         tspanJoin.exit().remove();
 
@@ -761,62 +779,56 @@ export class D3Renderer implements RendererAdapter {
           return d.color || '#f1f5f9';
         })();
 
-        // Vertical centering offset calculation
+        // 2. Vertical centering offset calculation
         const totalLines = displayLines.length;
         const textH = totalLines * thisRenderer.getLineHeight(depth);
         const height = (d as any).metadata?.height || 0;
         const textOffset = -height / 2 + thisRenderer.config.padding.y + textH / 2;
 
         const duration = thisRenderer.config.animationDuration;
-        const ease = d3.easeCubicOut;
-        const staggerDelay = depth * thisRenderer.config.staggerDelay;
-
-        // Transition the text element's coordinates (prevents jumping)
-        // Use a named transition to avoid conflicts with child tspan transitions
-        const textTransition = textElement.transition(`text-pos-${d.id}`)
+        textElement.interrupt().transition()
           .duration(duration)
-          .ease(ease)
-          .delay(staggerDelay);
-
-        textTransition
+          .ease(d3.easeCubicOut)
+          .delay(0)
           .attr('y', textOffset)
           .attr('x', x);
 
-        // Transition each line's position/baseline (prevents horizontal jumping)
-        tspanUpdate.transition(`tspan-pos-${d.id}`)
-          .duration(duration)
-          .ease(ease)
-          .delay(staggerDelay)
-          .attr('x', x)
+        // Update each line's position instantly to avoid crawling
+        tspanUpdate.attr('x', x)
           .attr('dy', (line, i) => i === 0 ? `${0.35 - (totalLines - 1) * 0.625}em` : '1.25em');
 
-        // Update internal segments (clearing them first inside each line to minimize flickering)
+        // 4. Stable join for rich text segments (bold, italic, links)
         tspanUpdate.each(function (line) {
           const tspan = d3.select<SVGTSpanElement, string>(this);
-          tspan.selectAll('*').remove();
-
           const segments = thisRenderer.parseMarkdownLine(line);
-          segments.forEach(seg => {
-            const span = tspan.append('tspan').text(seg.text);
 
-            if (seg.bold) span.style('font-weight', 'bold');
-            else span.style('font-weight', thisRenderer.getFontWeight(depth));
+          const segmentJoin = tspan.selectAll<SVGTSpanElement, any>('tspan.segment')
+            .data(segments, (s, i) => `${s.text}-${i}`);
 
-            if (seg.italic) span.style('font-style', 'italic');
-            if (seg.strikethrough) span.style('text-decoration', 'line-through');
+          segmentJoin.exit().remove();
 
-            if (seg.link) {
-              const linkColor = ColorManager.getLinkColor(nodeFill);
-              span.style('fill', linkColor)
-                .style('text-decoration', 'underline')
-                .style('cursor', 'pointer')
-                .on('click', (event) => {
-                  event.stopPropagation();
-                  thisRenderer.nodeLinkClickCallback(seg.link!);
-                })
-                .on('dblclick', (event) => event.stopPropagation());
-            }
-          });
+          const segEnter = segmentJoin.enter()
+            .append('tspan')
+            .attr('class', 'segment');
+
+          const segUpdate = segEnter.merge(segmentJoin);
+
+          segUpdate.text(s => s.text)
+            .style('font-weight', s => s.bold ? 'bold' : thisRenderer.getFontWeight(depth))
+            .style('font-style', s => s.italic ? 'italic' : 'normal')
+            .style('text-decoration', s => s.strikethrough ? 'line-through' : (s.link ? 'underline' : 'none'))
+            .style('fill', s => {
+              if (s.link) return ColorManager.getLinkColor(nodeFill);
+              return null; // Inherit from parent <text>
+            })
+            .style('cursor', s => s.link ? 'pointer' : 'default')
+            .on('click', (event, s) => {
+              if (s.link) {
+                event.stopPropagation();
+                thisRenderer.nodeLinkClickCallback(s.link);
+              }
+            })
+            .on('dblclick', event => event.stopPropagation());
         });
       })
       .attr('font-size', (d) => `${thisRenderer.getFontSize(d.depth)}px`)
@@ -828,21 +840,42 @@ export class D3Renderer implements RendererAdapter {
         }
         return 'white';
       })
-    // Attributes already transitioned inside the .each block above
-    // Vertically centered via 'dy' on first tspan instead of 'y' on text element
-
-    // Render code/quote note blocks below node text
+    // Render code/quote note blocks below node text with unified timing
     update.each(function (d) {
-      thisRenderer.renderNoteBlocks(d3.select(this) as any, d, positions);
+      const duration = thisRenderer.config.animationDuration;
+      const staggerDelay = (d.depth || 0) * thisRenderer.config.staggerDelay;
+      thisRenderer.renderNoteBlocks(d3.select(this) as any, d, positions, duration, staggerDelay);
     });
 
-    update.select('rect')
+
+    // Sync the clip path dimensions with the background rect
+    update.select('clipPath rect')
+      .interrupt()
+      .transition()
+      .duration(this.config.animationDuration)
+      .ease(d3.easeCubicOut)
+      .delay(0)
+      .attr('width', (d) => (d as any).metadata?.width || 0)
+      .attr('height', (d) => (d as any).metadata?.height || 0)
+      .attr('x', function (d) {
+        // Reuse same geometry as the background rect
+        const width = (d as any).metadata?.width || 0;
+        if (thisRenderer.isVertical) return -width / 2;
+        const pos = positions.get(d.id) || { x: 0, y: 0 };
+        const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
+        if (!parentPos || pos.x >= parentPos.x) return 0;
+        return -width;
+      })
+      .attr('y', (d) => -((d as any).metadata?.height || 0) / 2);
+
+    update.select('rect.node-bg')
+      .interrupt()
       .attr('rx', this.config.borderRadius)
       .attr('ry', this.config.borderRadius)
       .transition()
       .duration(this.config.animationDuration)
       .ease(d3.easeCubicOut)
-      .delay((d) => (d.depth || 0) * this.config.staggerDelay)
+      .delay(0)
       .attr('width', (d) => (d as any).metadata?.width || 0)
       .attr('height', (d) => (d as any).metadata?.height || 0)
       .attr('x', (d) => {
@@ -984,7 +1017,9 @@ export class D3Renderer implements RendererAdapter {
   private renderNoteBlocks(
     nodeGroup: d3.Selection<SVGGElement, TreeNode, SVGGElement, unknown>,
     d: TreeNode,
-    positions: Map<string, Position>
+    positions: Map<string, Position>,
+    duration: number,
+    delay: number
   ): void {
     const NB = LAYOUT_CONFIG.NOTE_BLOCK;
     const thisRenderer = this;
@@ -1029,7 +1064,12 @@ export class D3Renderer implements RendererAdapter {
     // Use data joins for blocks to enable smooth transitions
     let blocksGroup = nodeGroup.select<SVGGElement>('g.note-blocks');
     if (blocksGroup.empty()) {
-      blocksGroup = nodeGroup.append('g').attr('class', 'note-blocks');
+      blocksGroup = nodeGroup.append('g')
+        .attr('class', 'note-blocks')
+        .attr('clip-path', `url(#clip-${d.id})`);
+    } else {
+      // Ensure existing blocksGroup also has the clip-path attribute
+      blocksGroup.attr('clip-path', `url(#clip-${d.id})`);
     }
 
     const allBlocks = [
@@ -1052,7 +1092,7 @@ export class D3Renderer implements RendererAdapter {
     // EXIT: fade out and remove
     blockSelections.exit()
       .transition()
-      .duration(this.config.animationDuration)
+      .duration(duration)
       .ease(d3.easeCubicOut)
       .attr('opacity', 0)
       .remove();
@@ -1068,6 +1108,12 @@ export class D3Renderer implements RendererAdapter {
 
     update.each(function (block) {
       const blockGroup = d3.select(this);
+
+      // Ensure group starts at current blockY IF it's newly entered (opacity 0) 
+      // AND has no transform yet, to prevent flying from node origin
+      if (!blockGroup.attr('transform')) {
+        blockGroup.attr('transform', `translate(${rectX + thisRenderer.config.padding.x}, ${blockY})`);
+      }
       const type = block.type;
 
       // Calculate dimensions
@@ -1080,10 +1126,11 @@ export class D3Renderer implements RendererAdapter {
       const expandedH = !isExpanded ? NB.PILL_HEIGHT : (headerH + vPad + contentLines.length * lineH + vPad);
 
       // Transition the block group's position (for cascade moves)
-      blockGroup.transition()
-        .duration(thisRenderer.config.animationDuration)
+      blockGroup.interrupt()
+        .transition()
+        .duration(duration)
         .ease(d3.easeCubicOut)
-        .delay((d.depth || 0) * thisRenderer.config.staggerDelay)
+        .delay(0)
         .attr('opacity', 1)
         .attr('transform', `translate(${rectX + thisRenderer.config.padding.x}, ${blockY})`);
 
@@ -1092,9 +1139,11 @@ export class D3Renderer implements RendererAdapter {
       if (bgRect.empty()) {
         bgRect = blockGroup.append('rect').attr('class', 'block-bg').attr('rx', 4).attr('ry', 4);
       }
-      bgRect.transition()
-        .duration(thisRenderer.config.animationDuration)
+      bgRect.interrupt()
+        .transition()
+        .duration(duration)
         .ease(d3.easeCubicOut)
+        .delay(0)
         .attr('width', innerW)
         .attr('height', expandedH)
         .attr('fill', isExpanded ? expandedBg : pillBg);
@@ -1105,7 +1154,8 @@ export class D3Renderer implements RendererAdapter {
           if (!isExpanded) {
             event.stopPropagation();
             block.ref.expanded = true;
-            thisRenderer.render(thisRenderer.lastRoot!, thisRenderer.lastPositions!, thisRenderer.isDarkMode);
+            // Notify the application to trigger a layout recalculation
+            thisRenderer.nodeUpdateCallback(d.id);
           }
         })
         .on('dblclick', (event: any) => event.stopPropagation());
@@ -1114,7 +1164,10 @@ export class D3Renderer implements RendererAdapter {
       const pillContent = blockGroup.selectAll<SVGGElement, any>('g.pill-content')
         .data(!isExpanded ? [block] : []);
 
-      pillContent.exit().transition().duration(150).attr('opacity', 0).remove();
+      pillContent.exit().transition().duration(duration).delay(delay)
+        .attr('opacity', 0)
+        .attr('transform', 'translate(0, 0)') // Lock position while fading
+        .remove();
 
       const pillEnter = pillContent.enter().append('g').attr('class', 'pill-content').attr('opacity', 0);
 
@@ -1128,7 +1181,7 @@ export class D3Renderer implements RendererAdapter {
         .attr('text-anchor', 'end').attr('font-size', '9px').attr('fill', pillText).attr('dominant-baseline', 'central').style('pointer-events', 'none');
 
       const pillUpdate = pillEnter.merge(pillContent as any);
-      pillUpdate.transition().duration(thisRenderer.config.animationDuration).attr('opacity', 1);
+      pillUpdate.transition().duration(duration).delay(delay).attr('opacity', 1);
 
       pillUpdate.select('text.label')
         .attr('font-family', type === 'code' ? NB.MONO_FONT : 'Inter, sans-serif')
@@ -1144,7 +1197,12 @@ export class D3Renderer implements RendererAdapter {
       const header = blockGroup.selectAll<SVGGElement, any>('g.block-header')
         .data(isExpanded ? [block] : []);
 
-      header.exit().transition().duration(150).attr('opacity', 0).remove();
+      header.exit().interrupt()
+        .transition()
+        .duration(duration * 0.6) // Faster exit to prevent flying
+        .attr('opacity', 0)
+        .attr('transform', 'translate(0, 0)')
+        .remove();
 
       const headerEnter = header.enter().append('g').attr('class', 'block-header').attr('opacity', 0);
 
@@ -1155,7 +1213,7 @@ export class D3Renderer implements RendererAdapter {
         .attr('font-size', '10px').attr('dominant-baseline', 'central').style('pointer-events', 'none');
 
       const headerUpdate = headerEnter.merge(header as any);
-      headerUpdate.transition().duration(thisRenderer.config.animationDuration).attr('opacity', 1);
+      headerUpdate.transition().duration(duration).delay(delay).attr('opacity', 1);
 
       const headerPath = `M 0 4 Q 0 0 4 0 L ${innerW - 4} 0 Q ${innerW} 0 ${innerW} 4 L ${innerW} ${headerH} L 0 ${headerH} Z`;
       headerUpdate.select('path.header-bg')
@@ -1165,7 +1223,8 @@ export class D3Renderer implements RendererAdapter {
         .on('click', (event) => {
           event.stopPropagation();
           block.ref.expanded = false;
-          thisRenderer.render(thisRenderer.lastRoot!, thisRenderer.lastPositions!, thisRenderer.isDarkMode);
+          // Notify the application to trigger a layout recalculation
+          thisRenderer.nodeUpdateCallback(d.id);
         });
 
       headerUpdate.select('text.label')
@@ -1178,12 +1237,26 @@ export class D3Renderer implements RendererAdapter {
       const content = blockGroup.selectAll<SVGTextElement, any>('text.block-content')
         .data(isExpanded ? [block] : []);
 
-      content.exit().transition().duration(150).attr('opacity', 0).remove();
+      content.exit().interrupt()
+        .transition()
+        .duration(duration * 0.6) // Faster exit to prevent flying
+        .attr('opacity', 0)
+        .attr('x', 0)
+        .attr('y', 0)
+        .remove();
 
-      const contentEnter = content.enter().append('text').attr('class', 'block-content').attr('opacity', 0);
+      const contentEnter = content.enter().append('text')
+        .attr('class', 'block-content')
+        .attr('opacity', 0)
+        .attr('x', 0)
+        .attr('y', 0);
 
       const contentUpdate = contentEnter.merge(content as any);
-      contentUpdate.transition().duration(thisRenderer.config.animationDuration).attr('opacity', 1);
+      contentUpdate
+        .interrupt()
+        .attr('x', 0)
+        .attr('y', 0)
+        .transition().duration(duration).delay(0).attr('opacity', 1);
 
       const blockFontStyle = type === 'quote' ? 'italic' : 'normal';
 

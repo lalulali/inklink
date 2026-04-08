@@ -68,6 +68,13 @@ export interface RendererAdapter {
   onNodeToggle(callback: (nodeId: string) => void): void;
 
   /**
+   * Register callback for generic node updates that might require layout recalculation
+   * (e.g., expanding a code block)
+   * @param callback - Function called with the updated node ID 
+   */
+  onNodeUpdate(callback: (nodeId: string) => void): void;
+
+  /**
    * Register callback for node link click events
    * @param callback - Function called with the clicked link URL
    */

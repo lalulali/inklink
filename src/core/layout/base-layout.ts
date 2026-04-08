@@ -85,8 +85,12 @@ export abstract class BaseLayout implements LayoutAlgorithm {
     const content = node.metadata.displayContent ?? node.content ?? '';
     let rawLines = content.split('\n');
     let lineCount = 0;
+    // Filter out lines that are purely placeholders (handled separately) or truly empty
+    const displayLines = rawLines.filter(line => {
+      const clean = line.replace(/\[(codeblock|quoteblock):\d+\]/g, '').trim();
+      return clean.length > 0;
+    });
 
-    // Root node wrapping heuristic for height calculation
     if (depth === 0 && typeof document !== 'undefined') {
        const canvas = document.createElement('canvas');
        const ctx = canvas.getContext('2d');
@@ -95,12 +99,13 @@ export abstract class BaseLayout implements LayoutAlgorithm {
          const fontWeight = '700';
          ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
 
-         rawLines.forEach(line => {
-           const words = line.split(' ');
+         displayLines.forEach(line => {
+           // We already filtered placeholders, but we should also strip inline markdown for measurement
+           const words = line.replace(/(\*\*\*|\*\*|\*|~~)/g, '').split(' ');
            let currentLine = '';
            words.forEach(word => {
              const testLine = currentLine ? `${currentLine} ${word}` : word;
-             const width = ctx.measureText(testLine.replace(/(\*\*\*|\*\*|\*|~~)/g, '')).width;
+             const width = ctx.measureText(testLine).width;
              if (width > maxWidthLimit && currentLine) {
                lineCount += 1;
                currentLine = word;
@@ -111,10 +116,10 @@ export abstract class BaseLayout implements LayoutAlgorithm {
            if (currentLine) lineCount += 1;
          });
        } else {
-         lineCount = rawLines.length;
+         lineCount = displayLines.length;
        }
     } else {
-       lineCount = rawLines.length;
+       lineCount = displayLines.length;
     }
 
     let totalHeight = (lineCount * lineHeight) + (16 * scale);

@@ -58,12 +58,13 @@ export function buildTree(
   const orphans: TreeNode[] = [];
   const stack: TreeNode[] = [];
   let maxDepth = 0;
+  let nodeCounter = 0;  // Sequential counter for stable IDs during minor edits
   let lastHeaderDepth = -1;
   let isFenced = false;
   let contentStartColumn = 0;
 
   for (let i = 0; i < lines.length; i++) {
-    const { text: line, index: originalIndex } = lines[i];
+    const { text: line } = lines[i];
     const trimmed = line.trimStart();
     
     // Toggle fenced state
@@ -117,8 +118,7 @@ export function buildTree(
 
     // A node is created if it's an initiator OR if it's the very first line of the tree
     if (isInitiator || orphans.length === 0) {
-      // Use original index in the ID for traceability
-      const node = createTreeNode(content, currentDepth, `line_${originalIndex}`);
+      const node = createTreeNode(content, currentDepth, `node_${nodeCounter++}`);
 
       if (orphans.length === 0) {
         orphans.push(node);
@@ -158,7 +158,8 @@ export function buildTree(
 
   // Post-process: extract code/quote blocks from every node's content
   const applyExtraction = (node: TreeNode): void => {
-    const { cleanContent: afterCode, codeBlocks } = extractCodeBlocks(node.content);
+    const trimmed = (node.content || '').trim();
+    const { cleanContent: afterCode, codeBlocks } = extractCodeBlocks(trimmed);
     const { cleanContent: afterQuote, quoteBlocks } = extractQuoteBlocks(afterCode);
     node.metadata.displayContent = afterQuote;
     node.metadata.codeBlocks = codeBlocks;

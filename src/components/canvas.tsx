@@ -109,6 +109,14 @@ export function Canvas() {
         }
       });
 
+      renderer.onNodeUpdate((nodeId) => {
+        const s = globalState.getState();
+        if (s.tree) {
+          // Trigger a full state update to force re-layout calculation
+          globalState.setState({ tree: { ...s.tree } });
+        }
+      });
+
       // Handle link clicks
       if (renderer.onNodeLinkClick) {
         renderer.onNodeLinkClick((url) => {
