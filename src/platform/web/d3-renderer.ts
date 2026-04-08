@@ -79,7 +79,7 @@ export class D3Renderer implements RendererAdapter {
    * This is Markdown-aware to ensure links are treated as atomic units and don't wrap mid-line.
    */
   private wrapText(text: string, maxWidth: number, fontSize: number, fontWeight: string): string[] {
-    const rawLines = text.split('\n');
+    const rawLines = text.trim().split('\n');
     const wrapped: string[] = [];
 
     if (!this.measureCtx) {
@@ -102,7 +102,14 @@ export class D3Renderer implements RendererAdapter {
     rawLines.forEach(rawLine => {
       // Strip note block placeholders — they are rendered separately by renderNoteBlocks
       const line = rawLine.replace(/\[(codeblock|quoteblock):\d+\]/g, '').trim();
-      if (!line) return; // skip lines that were entirely a placeholder
+
+      // Only skip if it was a placeholder line. If it was a natural blank line, keep it.
+      if (!line && rawLine.match(/\[(codeblock|quoteblock):\d+\]/)) return;
+
+      if (!line) {
+        wrapped.push('');
+        return;
+      }
       // Split line into atomic blocks and plain words
       const parts = line.split(atomicRegex);
       const tokens: string[] = [];
@@ -326,7 +333,7 @@ export class D3Renderer implements RendererAdapter {
       if (ctx) ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
 
       // Use the unified wrapText helper for accurate line count and width
-      const displayContent = (node as any).metadata?.displayContent || node.content;
+      const displayContent = (node as any).metadata?.displayContent ?? node.content;
       const displayLines = this.wrapText(displayContent, rootMaxW, fontSize, fontWeight);
       let maxWidth = 0;
 
@@ -346,6 +353,26 @@ export class D3Renderer implements RendererAdapter {
 
       node.metadata.width = maxWidth + (this.config.padding.x * 2);
       node.metadata.height = (displayLines.length * lineHeight) + (this.config.padding.y * 2);
+
+      // Account for images in measurement
+      if (node.metadata.image) {
+        const image = node.metadata.image;
+        const imgConfig = LAYOUT_CONFIG.IMAGE;
+
+        // Use aspect ratio to calculate thumbnail dimensions
+        const w = image.width || imgConfig.MAX_WIDTH;
+        const h = image.height || imgConfig.MAX_HEIGHT;
+        const scale = Math.min(1, imgConfig.MAX_WIDTH / w, imgConfig.MAX_HEIGHT / h);
+
+        image.thumbWidth = w * scale;
+        image.thumbHeight = h * scale;
+
+        if (image.thumbWidth > maxWidth) {
+          maxWidth = image.thumbWidth;
+          node.metadata.width = maxWidth + (this.config.padding.x * 2);
+        }
+        node.metadata.height += image.thumbHeight + imgConfig.PADDING;
+      }
 
       // Account for code/quote note blocks in height
       const NB = LAYOUT_CONFIG.NOTE_BLOCK;
@@ -744,7 +771,7 @@ export class D3Renderer implements RendererAdapter {
         const fontSize = thisRenderer.getFontSize(depth);
         const fontWeight = thisRenderer.getFontWeight(depth);
 
-        const displayContent = (d as any).metadata?.displayContent || d.content;
+        const displayContent = (d as any).metadata?.displayContent ?? d.content;
         const displayLines = thisRenderer.wrapText(
           displayContent,
           depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH - (thisRenderer.config.padding.x * 2) : Infinity,
@@ -791,7 +818,12 @@ export class D3Renderer implements RendererAdapter {
         const totalLines = displayLines.length;
         const textH = totalLines * thisRenderer.getLineHeight(depth);
         const height = (d as any).metadata?.height || 0;
-        const textOffset = -height / 2 + thisRenderer.config.padding.y + textH / 2;
+
+        let yOffset = -height / 2 + thisRenderer.config.padding.y;
+        if (d.metadata.image) {
+          yOffset += (d.metadata.image.thumbHeight || 0) + LAYOUT_CONFIG.IMAGE.PADDING;
+        }
+        const textOffset = yOffset + textH / 2;
 
         const duration = thisRenderer.config.animationDuration;
         textElement.interrupt().transition()
@@ -848,10 +880,11 @@ export class D3Renderer implements RendererAdapter {
         }
         return 'white';
       })
-    // Render code/quote note blocks below node text with unified timing
+    // Render images and note blocks below node text with unified timing
     update.each(function (d) {
       const duration = thisRenderer.config.animationDuration;
       const staggerDelay = (d.depth || 0) * thisRenderer.config.staggerDelay;
+      thisRenderer.renderImages(d3.select(this) as any, d, positions, duration, staggerDelay);
       thisRenderer.renderNoteBlocks(d3.select(this) as any, d, positions, duration, staggerDelay);
     });
 
@@ -1022,6 +1055,79 @@ export class D3Renderer implements RendererAdapter {
   /**
    * Render code and quote note blocks within a node group
    */
+  private renderImages(
+    nodeGroup: d3.Selection<SVGGElement, TreeNode, SVGGElement, unknown>,
+    d: TreeNode,
+    positions: Map<string, Position>,
+    duration: number,
+    delay: number
+  ): void {
+    const image = d.metadata.image;
+    if (!image) {
+      nodeGroup.selectAll('g.image-container').remove();
+      return;
+    }
+
+    const width = (d as any).metadata?.width || 0;
+    const height = (d as any).metadata?.height || 0;
+    const imgW = image.thumbWidth || 0;
+    const imgH = image.thumbHeight || 0;
+
+    // Compute left-x of the node rect
+    let rectX: number;
+    if (this.isVertical) {
+      rectX = -width / 2;
+    } else {
+      const pos = positions.get(d.id) || { x: 0, y: 0 };
+      const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
+      if (!parentPos) rectX = -width / 2;
+      else if (pos.x < parentPos.x) rectX = -width;
+      else rectX = 0;
+    }
+
+    const rectTop = -height / 2;
+    const imgTop = rectTop + this.config.padding.y;
+
+    let container = nodeGroup.select<SVGGElement>('g.image-container');
+    if (container.empty()) {
+      container = nodeGroup.append('g')
+        .attr('class', 'image-container')
+        .attr('clip-path', `url(#clip-${d.id})`);
+    }
+
+    container.interrupt()
+      .transition()
+      .duration(duration)
+      .ease(d3.easeCubicOut)
+      .attr('opacity', 1)
+      .attr('transform', `translate(${rectX + (width - imgW) / 2}, ${imgTop})`);
+
+    let img = container.select<SVGImageElement>('image');
+    if (img.empty()) {
+      img = container.append('image')
+        .attr('preserveAspectRatio', 'xMidYMid meet')
+        .style('cursor', 'pointer');
+    }
+
+    img.attr('width', imgW)
+       .attr('height', imgH)
+       .attr('href', image.url);
+
+    // Add border for image
+    let border = container.select<SVGRectElement>('rect.image-border');
+    if (border.empty()) {
+      border = container.append('rect').attr('class', 'image-border').attr('fill', 'none');
+    }
+
+    const imgConfig = LAYOUT_CONFIG.IMAGE;
+    border.attr('width', imgW)
+      .attr('height', imgH)
+      .attr('rx', imgConfig.CORNER_RADIUS)
+      .attr('ry', imgConfig.CORNER_RADIUS)
+      .attr('stroke', this.isDarkMode ? '#475569' : '#cbd5e1')
+      .attr('stroke-width', imgConfig.BORDER_WIDTH);
+  }
+
   private renderNoteBlocks(
     nodeGroup: d3.Selection<SVGGElement, TreeNode, SVGGElement, unknown>,
     d: TreeNode,
@@ -1068,6 +1174,9 @@ export class D3Renderer implements RendererAdapter {
     // Y start: rect top + padding + text height + gap
     const rectTop = -height / 2;
     let blockY = rectTop + this.config.padding.y + textBlockH + NB.PILL_GAP;
+    if (d.metadata.image) {
+      blockY += (d.metadata.image.thumbHeight || 0) + LAYOUT_CONFIG.IMAGE.PADDING;
+    }
 
     // Use data joins for blocks to enable smooth transitions
     let blocksGroup = nodeGroup.select<SVGGElement>('g.note-blocks');
@@ -1461,6 +1570,10 @@ export class D3Renderer implements RendererAdapter {
    */
   private parseMarkdownLine(line: string): { text: string; bold?: boolean; italic?: boolean; strikethrough?: boolean; link?: string }[] {
     const segments: { text: string; bold?: boolean; italic?: boolean; strikethrough?: boolean; link?: string }[] = [];
+
+    if (!line) {
+      return [{ text: '\u00A0' }];
+    }
 
     // Support combination like ***bold and italic***
     // Support non-nested tags for simplicity

@@ -109,6 +109,13 @@ Theme-aware rendering with color-coded branch hierarchies. Connectors now mainta
 ### 🎨 Solarized Monochromatic Theme
 A state-of-the-art "Solarized" link coloring system. Instead of clashing colors, links use the same hue as the node background but with optimized, high-vibrancy "Neon" saturation and lightness thresholds. This ensures extreme legibility while reducing eye strain and visual clutter on saturated nodes (Magenta, Purple, Blue).
 
+### 🖼️ Real-time Image Rendering
+Experience your visual assets directly on the mind map. Inklink parses standard markdown image syntax — `![alt](url)` and `[[!alt](url)](link)` — and renders them as professional thumbnails integrated within your nodes.
+- **Aspect-Aware Resizing**: Images are automatically scaled to fit within established constraints while strictly preserving their original aspect ratio.
+- **Smart Constraint Logic**: Whichever dimension hits the maximum threshold first determines the scale, with the other dimension auto-calculating to prevent distortion.
+- **Seamless Node Flow**: Nodes automatically expand vertically to accommodate images, with thumbnails positioned at the top and text content flowing naturally below with proper padding.
+- **Async Dimensions**: Dimensions are resolved asynchronously to ensure the initial map rendering remains fast and fluid.
+
 ### 📱 Mobile Responsive
 A fully adaptive layout — persistent inline editor, mobile-optimized quick-action toolbar, and touch-friendly side drawers — so the tool remains powerful even on small screens.
 

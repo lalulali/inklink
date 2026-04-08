@@ -52,8 +52,9 @@ export abstract class BaseLayout implements LayoutAlgorithm {
         const lines = (node.content || '').split('\n');
         let totalMaxWidth = 0;
         lines.forEach(line => {
-          // Strip basic inline markdown to measure only visible text
-          const cleanLine = line.replace(/(\*\*\*|\*\*|\*|~~)/g, '');
+          // Strip all inline markdown including links/images to measure only visible labels
+          const cleanLine = line.replace(/!?\[(.*?)\].*?\)/g, '$1')
+                               .replace(/(\*\*\*|\*\*|\*|~~)/g, '');
           ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
           
           const lineWidth = ctx.measureText(cleanLine).width;
@@ -86,9 +87,11 @@ export abstract class BaseLayout implements LayoutAlgorithm {
     let rawLines = content.split('\n');
     let lineCount = 0;
     // Filter out lines that are purely placeholders (handled separately) or truly empty
-    const displayLines = rawLines.filter(line => {
-      const clean = line.replace(/\[(codeblock|quoteblock):\d+\]/g, '').trim();
-      return clean.length > 0;
+    const displayLines = rawLines.filter(rawLine => {
+      const line = rawLine.replace(/\[(codeblock|quoteblock):\d+\]/g, '').trim();
+      // Only skip if it was a placeholder line. If it was a natural blank line, keep it.
+      if (!line && rawLine.match(/\[(codeblock|quoteblock):\d+\]/)) return false;
+      return true;
     });
 
     if (depth === 0 && typeof document !== 'undefined') {
