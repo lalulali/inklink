@@ -37,6 +37,16 @@ export interface QuoteBlockInfo {
 }
 
 /**
+ * A table extracted from a node's content
+ */
+export interface TableBlockInfo {
+  headers: string[];
+  rows: string[][];
+  alignments: ('left' | 'center' | 'right')[];
+  expanded: boolean;
+}
+
+/**
  * Information about a parsed markdown image
  */
 export interface ImageInfo {
@@ -63,6 +73,7 @@ export interface NodeMetadata {
   image?: ImageInfo;
   codeBlocks?: CodeBlockInfo[];
   quoteBlocks?: QuoteBlockInfo[];
+  tableBlocks?: TableBlockInfo[];
   displayContent?: string;
 }
 
@@ -91,6 +102,7 @@ export function createTreeNode(content: string, depth: number, id?: string): Tre
       highlighted: false,
       codeBlocks: [],
       quoteBlocks: [],
+      tableBlocks: [],
     },
   };
 }

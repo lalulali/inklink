@@ -55,8 +55,8 @@ And now, with the **VS Code extension**, you can think right inside your editor 
 
 ## Core Features
 
-### 🗺️ Real-time Mind Map Rendering
-Your markdown becomes a mind map as you type. Headers and indented lists translate directly to nodes and branches — no configuration required. Root nodes respect a maximum width constraint so large titles wrap cleanly without distorting the layout.
+### 🗺️ Real-Time Markdown Mind Map
+Every heading (`#`, `##`, `###`) and list item in your Markdown automatically becomes a node in the mind map. Edit the file — the map updates instantly. **Version 0.1.6** features **Zero-Jitter Synchronization**, eliminating all visual shifting and "jumping" while you type for a seamless, flicker-free experience.
 
 ### 🔗 Bidirectional Navigation
 **Double-click any node** to jump directly to the corresponding source line in the editor, temporarily highlighting the text. The connection between visual and text is always live — edit the markdown, the map updates; navigate the map, the editor follows.
@@ -65,7 +65,7 @@ Your markdown becomes a mind map as you type. Headers and indented lists transla
 Inklink identifies **Code Blocks** and **Quote Blocks** within your markdown and renders them as interactive, expandable elements directly on the mind map nodes.
 - **Collapsed View**: Blocks appear as clean, tonal-relief "pills" indicating the type and line count.
 - **Expanded View**: Blocks expand into full-width integrated containers with syntax labeling and italicized quotes.
-- **Micro-interactions**: Toggle any block by clicking its header or the pill. All labels, carets, and counts are vertically centered with symmetric padding for a premium, well-balanced look.
+- **Micro-interactions**: Toggle any block by clicking its header or the pill. All labels, carets, and counts are vertically centered with **Perfectly Balanced Padding** for a premium, well-balanced look.
 - **Dynamic Layout**: Mind map nodes automatically adjust their vertical distance and re-flow to accommodate expanded or collapsed blocks, ensuring the layout remains clean and readable without overlaps.
 - **State Persistence**: Interactive blocks maintain their expanded/collapsed state during live markdown edits, allowing for a seamless transitions between writing and thinking.
 - **Indentation Fidelity**: Uses `white-space: pre` to faithfully preserve complex indentation structures (tabs and spaces) inside code and quote blocks, ensuring technical snippets remain readable and accurate.
@@ -111,11 +111,11 @@ A state-of-the-art "Solarized" link coloring system. Instead of clashing colors,
 
 ### 🖼️ Interactive Image Support
 Experience your visual assets directly on the mind map. Inklink parses standard markdown image syntax — `![alt](url)` and `[![alt](img)](link)` — and renders them as professional thumbnails integrated within your nodes.
-- **Strict Parsing**: Improved reliability with a strict `!` requirement, ensuring standard links are never mistakenly rendered as images.
-- **Aspect-Aware Resizing**: Images are automatically scaled to fit within established constraints while strictly preserving their original aspect ratio.
-- **Interactive Lightbox**: Click any image to open a fullscreen, high-fidelity lightbox with center-zoom animations.
-- **Smart Link Integration**: Images wrapped in Markdown links feature an interactive "Open Link" button in the lightbox preview.
-- **URL Normalization**: Built-in normalization ensures external URLs (e.g., `google.com`) are correctly handled as absolute links in both the lightbox and the canvas.
+- **Strict Parsing**: Improved reliability with a strict `!` requirement for accurate differentiation from standard links.
+- **Aspect-Aware Resizing**: Images are automatically scaled to fit within nodes while strictly preserving their original aspect ratio.
+- **Interactive Lightbox**: Click any image to open a fullscreen lightbox with center-zoom animations.
+- **Linked Image Integration**: Images wrapped in links feature functional "Open Link" handlers within the lightbox preview.
+- **Link Normalization**: Built-in logic ensures external URLs are correctly handled as absolute links.
 - **Seamless Node Flow**: Nodes automatically expand vertically to accommodate images, with thumbnails positioned at the top and text content flowing naturally below.
 
 ### 📱 Mobile Responsive

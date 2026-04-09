@@ -9,6 +9,12 @@ import { TreeNode } from '../types/tree-node';
 import { Viewport, Position, BoundingBox } from '../types/interfaces';
 import { countLeafNodes } from './subtree-utils';
 import { LAYOUT_CONFIG } from './layout-config';
+import { 
+  wrapText, 
+  getNoteBlockFontWeight, 
+  getNoteBlockFontSize, 
+  getNoteBlockLineHeight 
+} from '../utils/text-rendering';
 
 /**
  * Abstract class embodying the common functionality of all layout strategies
@@ -26,67 +32,80 @@ export abstract class BaseLayout implements LayoutAlgorithm {
   }
 
   /**
-   * Helper to accurately measure text width identically to the renderer
-   */
-  /**
-   * Helper to accurately measure text width identically to the renderer
-   */
-  /**
-   * Helper to accurately measure text width identically to the renderer
+   * Helper to accurately measure node width identically to the renderer
    */
   protected getNodeWidth(node: TreeNode): number {
     const scale = LAYOUT_CONFIG.BASE_SCALE;
     const depth = node.depth || 0;
-    const fontSize = (depth === 0 ? 22 : depth === 1 ? 17 : depth === 2 ? 14 : 12) * scale;
-    const fontWeight = depth === 0 ? '700' : depth === 1 ? '600' : '500';
+    const fontSize = getNoteBlockFontSize(depth);
+    const fontWeight = getNoteBlockFontWeight(depth);
     
     // Check for hard-coded root max width constraint
     const maxWidthLimit = depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH : Infinity;
     
-    // Exact synchronization with d3-renderer dimensions
-    let textWidth = (node.content?.length || 0) * (fontSize * 0.6);
+    let ctx: CanvasRenderingContext2D | null = null;
     if (typeof document !== 'undefined') {
       const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        const lines = (node.content || '').split('\n');
-        let totalMaxWidth = 0;
-        lines.forEach(line => {
-          // Strip all inline markdown including links/images to measure only visible labels
-          const cleanLine = line.replace(/!?\[(.*?)\].*?\)/g, '$1')
-                               .replace(/(\*\*\*|\*\*|\*|~~)/g, '');
-          ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
-          
-          const lineWidth = ctx.measureText(cleanLine).width;
-          
-          // If we are at the root and exceed the limit, we'll wrap (heuristic)
-          if (depth === 0 && lineWidth > maxWidthLimit - (24 * scale)) {
-             totalMaxWidth = Math.max(totalMaxWidth, maxWidthLimit - (24 * scale));
-          } else {
-             totalMaxWidth = Math.max(totalMaxWidth, lineWidth);
-          }
-        });
-        textWidth = totalMaxWidth;
-      }
+      ctx = canvas.getContext('2d');
     }
+
+    const measureFn = (txt: string, font: string) => {
+      if (ctx) {
+        ctx.font = font;
+        return ctx.measureText(txt).width;
+      }
+      return txt.length * (fontSize * 0.6);
+    };
+
+    const cleanContent = (node.content || '')
+      .replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/gi, '')
+      .trim();
+
+    const displayLines = wrapText(cleanContent, maxWidthLimit - (24 * scale), fontSize, fontWeight, measureFn);
+    let totalMaxWidth = 0;
+    displayLines.forEach(line => {
+      totalMaxWidth = Math.max(totalMaxWidth, measureFn(line, `${fontWeight} ${fontSize}px Inter, sans-serif`));
+    });
     
-    const res = textWidth + (24 * scale); // padding.x * 2 (12 * 0.75 * 2 = 18)
+    const res = totalMaxWidth + (24 * scale); // padding.x * 2 (12 * 0.75 * 2 = 18)
     let finalWidth = Math.min(res, maxWidthLimit);
 
     // Account for images in width
     if (node.metadata.image) {
       const image = node.metadata.image;
-      const imgConfig = LAYOUT_CONFIG.IMAGE;
-      const dims = image.thumbWidth; // D3Renderer should have hydrated this or we calculate it
-      
-      // If thumbWidth is available in metadata, use it
-      if (dims) {
-        finalWidth = Math.max(finalWidth, dims + (24 * scale));
-      } else {
-        // Approximate if not yet calculated by renderer
-        finalWidth = Math.max(finalWidth, imgConfig.MAX_WIDTH + (24 * scale));
-      }
+      const dims = image.thumbWidth;
+      if (dims) finalWidth = Math.max(finalWidth, dims + (24 * scale));
+      else finalWidth = Math.max(finalWidth, 300 * scale);
     }
+
+    // Account for expanded tables in width
+    const tableBlocks = node.metadata.tableBlocks || [];
+    tableBlocks.forEach(block => {
+      if (block.expanded) {
+        let tableWidth = 0;
+        const colCount = Math.max(block.headers?.length || 0, ...(block.rows?.map(r => r.length) || [0]));
+        if (colCount > 0) {
+          const NB = LAYOUT_CONFIG.NOTE_BLOCK;
+          const colWidths = new Array(colCount).fill(0);
+          
+          block.headers?.forEach((h, i) => {
+            if (ctx) ctx.font = `${NB.TABLE_LINE_HEIGHT}px Inter, sans-serif`;
+            const w = ctx ? ctx.measureText(h).width : h.length * NB.TABLE_LINE_HEIGHT * 0.6;
+            colWidths[i] = Math.max(colWidths[i], w + NB.TABLE_CELL_HPADDING * 2);
+          });
+          block.rows?.forEach(row => {
+            row.forEach((cell, i) => {
+              const w = ctx ? ctx.measureText(cell).width : cell.length * NB.TABLE_LINE_HEIGHT * 0.6;
+              colWidths[i] = Math.max(colWidths[i], w + NB.TABLE_CELL_HPADDING * 2);
+            });
+          });
+          const maxIndividualColWidth = Math.max(...colWidths);
+          tableWidth = maxIndividualColWidth * colCount;
+          // Ensure table width can override root max width if necessary
+          finalWidth = Math.max(finalWidth, tableWidth + (24 * scale));
+        }
+      }
+    });
 
     return finalWidth;
   }
@@ -97,52 +116,32 @@ export abstract class BaseLayout implements LayoutAlgorithm {
   protected getNodeHeight(node: TreeNode): number {
     const scale = LAYOUT_CONFIG.BASE_SCALE;
     const depth = node.depth || 0;
-    const fontSize = (depth === 0 ? 22 : depth === 1 ? 17 : depth === 2 ? 14 : 12) * scale;
-    const lineHeight = Math.round(fontSize * 1.25);
+    const fontSize = getNoteBlockFontSize(depth);
+    const fontWeight = getNoteBlockFontWeight(depth);
+    const lineHeight = getNoteBlockLineHeight(depth);
     
-    const content = node.metadata.displayContent ?? node.content ?? '';
-    let rawLines = content.split('\n');
-    let lineCount = 0;
-    // Filter out lines that are purely placeholders (handled separately) or truly empty
-    const displayLines = rawLines.filter(rawLine => {
-      const line = rawLine.replace(/\[(codeblock|quoteblock):\d+\]/g, '').trim();
-      // Only skip if it was a placeholder line. If it was a natural blank line, keep it.
-      if (!line && rawLine.match(/\[(codeblock|quoteblock):\d+\]/)) return false;
-      return true;
-    });
-
-    if (depth === 0 && typeof document !== 'undefined') {
-       const canvas = document.createElement('canvas');
-       const ctx = canvas.getContext('2d');
-       if (ctx) {
-         const maxWidthLimit = LAYOUT_CONFIG.ROOT_MAX_WIDTH - (24 * scale);
-         const fontWeight = '700';
-         ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
-
-         displayLines.forEach(line => {
-           // We already filtered placeholders, but we should also strip inline markdown for measurement
-           const words = line.replace(/(\*\*\*|\*\*|\*|~~)/g, '').split(' ');
-           let currentLine = '';
-           words.forEach(word => {
-             const testLine = currentLine ? `${currentLine} ${word}` : word;
-             const width = ctx.measureText(testLine).width;
-             if (width > maxWidthLimit && currentLine) {
-               lineCount += 1;
-               currentLine = word;
-             } else {
-               currentLine = testLine;
-             }
-           });
-           if (currentLine) lineCount += 1;
-         });
-       } else {
-         lineCount = displayLines.length;
-       }
-    } else {
-       lineCount = displayLines.length;
+    let ctx: CanvasRenderingContext2D | null = null;
+    if (typeof document !== 'undefined') {
+      const canvas = document.createElement('canvas');
+      ctx = canvas.getContext('2d');
     }
 
-    let totalHeight = (lineCount * lineHeight) + (16 * scale);
+    const measureFn = (txt: string, font: string) => {
+      if (ctx) {
+        ctx.font = font;
+        return ctx.measureText(txt).width;
+      }
+      return txt.length * (fontSize * 0.6);
+    };
+
+    const maxWidthLimit = depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH : Infinity;
+    const content = node.metadata.displayContent ?? node.content ?? '';
+    const cleanContent = content.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/gi, '').trim();
+    
+    const displayLines = wrapText(cleanContent, maxWidthLimit - (24 * scale), fontSize, fontWeight, measureFn);
+    const lineCount = displayLines.length;
+
+    let totalHeight = (lineCount * lineHeight) + (24 * scale); // padding.y * 2 (12 * 0.75 * 2 = 18)
 
     // Account for images in height
     if (node.metadata.image) {
@@ -162,26 +161,37 @@ export abstract class BaseLayout implements LayoutAlgorithm {
       }
     }
 
-    // Account for Note Blocks (Code/Quote)
+    // Account for Note Blocks (Code/Quote/Table)
     const NB = LAYOUT_CONFIG.NOTE_BLOCK;
     const codeBlocks = node.metadata.codeBlocks || [];
     const quoteBlocks = node.metadata.quoteBlocks || [];
+    const tableBlocks = node.metadata.tableBlocks || [];
     
-    if (codeBlocks.length > 0 || quoteBlocks.length > 0) {
+    if (codeBlocks.length > 0 || quoteBlocks.length > 0 || tableBlocks.length > 0) {
       const allBlocks = [
         ...codeBlocks.map(b => ({ ...b, type: 'code' })),
-        ...quoteBlocks.map(b => ({ ...b, type: 'quote' }))
+        ...quoteBlocks.map(b => ({ ...b, type: 'quote' })),
+        ...tableBlocks.map(b => ({ ...b, type: 'table' }))
       ];
       
-      allBlocks.forEach(block => {
-        totalHeight += NB.PILL_GAP;
+      const hasText = displayLines.length > 0;
+      allBlocks.forEach((block, idx) => {
+        if (hasText || idx > 0) {
+          totalHeight += NB.PILL_GAP;
+        }
         if (block.expanded) {
-          const blockLines = (block.type === 'code' ? (block as any).code : (block as any).text) || '';
-          const blockLineCount = blockLines.split('\n').length;
-          const vPad = block.type === 'code' ? NB.CODE_V_PADDING : NB.QUOTE_V_PADDING;
-          const lineH = block.type === 'code' ? NB.CODE_LINE_HEIGHT : NB.QUOTE_LINE_HEIGHT;
-          // Both now have the same header height
-          totalHeight += NB.CODE_HEADER_HEIGHT + vPad + (blockLineCount * lineH) + vPad;
+          if (block.type === 'table') {
+            const table = block as any;
+            const headerRows = table.headers?.length ? 1 : 0;
+            const totalRows = (table.rows?.length || 0) + headerRows;
+            totalHeight += NB.TABLE_HEADER_HEIGHT + (totalRows * NB.TABLE_ROW_HEIGHT) + (NB.TABLE_V_PADDING * 2);
+          } else {
+            const blockLinesContent = (block.type === 'code' ? (block as any).code : (block as any).text) || '';
+            const blockLineCount = blockLinesContent.split('\n').length;
+            const vPad = block.type === 'code' ? NB.CODE_V_PADDING : NB.QUOTE_V_PADDING;
+            const lineHValue = block.type === 'code' ? NB.CODE_LINE_HEIGHT : NB.QUOTE_LINE_HEIGHT;
+            totalHeight += NB.CODE_HEADER_HEIGHT + vPad + (blockLineCount * lineHValue) + vPad;
+          }
         } else {
           totalHeight += NB.PILL_HEIGHT;
         }

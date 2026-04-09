@@ -11,6 +11,12 @@ import { ViewportCuller } from './viewport-culler';
 import { ColorManager } from '@/core/theme/color-manager';
 import { LAYOUT_CONFIG } from '@/core/layout/layout-config';
 import { imageDimensionStore } from '@/core/utils/image-store';
+import { 
+  wrapText, 
+  getNoteBlockFontSize, 
+  getNoteBlockFontWeight, 
+  getNoteBlockLineHeight 
+} from '@/core/utils/text-rendering';
 
 /**
  * Web implementation of RendererAdapter using D3.js
@@ -55,24 +61,15 @@ export class D3Renderer implements RendererAdapter {
    * Helper to get font size based on node depth (Heading style)
    */
   private getFontSize(depth: number): number {
-    const base = depth === 0 ? 22 : depth === 1 ? 17 : depth === 2 ? 14 : 12;
-    return base * 0.75;
+    return getNoteBlockFontSize(depth);
   }
 
-  /**
-   * Helper to get font weight based on node depth
-   */
   private getFontWeight(depth: number): string {
-    if (depth === 0) return '600';
-    if (depth === 1) return '500';
-    return '400';
+    return getNoteBlockFontWeight(depth);
   }
 
-  /**
-   * Helper to get line height based on depth
-   */
   private getLineHeight(depth: number): number {
-    return this.getFontSize(depth) * 1.25;
+    return getNoteBlockLineHeight(depth);
   }
 
   /**
@@ -80,78 +77,14 @@ export class D3Renderer implements RendererAdapter {
    * This is Markdown-aware to ensure links are treated as atomic units and don't wrap mid-line.
    */
   private wrapText(text: string, maxWidth: number, fontSize: number, fontWeight: string): string[] {
-    const rawLines = text.trim().split('\n');
-    const wrapped: string[] = [];
-
-    if (!this.measureCtx) {
-      const canvas = document.createElement('canvas');
-      this.measureCtx = canvas.getContext('2d');
-    }
-    const ctx = this.measureCtx;
-    if (ctx) {
-      ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
-    }
-
-    const measure = (txt: string) => {
-      if (ctx) return ctx.measureText(txt).width;
+    const measure = (txt: string, font: string) => {
+      if (this.measureCtx) {
+        this.measureCtx.font = font;
+        return this.measureCtx.measureText(txt).width;
+      }
       return txt.length * (fontSize * 0.6); // Fallback
     };
-
-    // Regex to identify atomic markdown blocks (links, formatting)
-    const atomicRegex = /(!?\[(?:[^\[\]]|\[[^\[\]]*\])*\]\([^)]+\)|\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|~~.*?~~)/g;
-
-    rawLines.forEach(rawLine => {
-      // Strip all internal placeholders (code, quote, image)
-      const line = rawLine.replace(/\[(codeblock|quoteblock|image):\d+\]/g, '').trim();
-
-      // Only skip if it was a placeholder line. If it was a natural blank line, keep it.
-      if (!line && rawLine.match(/\[(codeblock|quoteblock):\d+\]/)) return;
-
-      if (!line) {
-        wrapped.push('');
-        return;
-      }
-      // Split line into atomic blocks and plain words
-      const parts = line.split(atomicRegex);
-      const tokens: string[] = [];
-
-      parts.forEach(part => {
-        if (!part) return;
-        if (part.match(atomicRegex)) {
-          // Atomic block - keep together
-          tokens.push(part);
-        } else {
-          // Plain text - split into words
-          tokens.push(...part.split(' '));
-        }
-      });
-
-      let currentLine = '';
-      tokens.forEach(token => {
-        if (!token) return;
-
-        // When measuring the width of a markdown link, we should ideally measure the RENDERED version.
-        // For simplicity, we measure the whole token but this ensures atomicity.
-        const testLine = currentLine ? `${currentLine} ${token}` : token;
-
-        // Heuristic: for links, we measure the title, not the whole thing, for more accurate wrapping
-        let measureText = testLine;
-        if (token.includes('](')) {
-          // Replace all links in the test line with just their titles for accurate measurement
-          measureText = testLine.replace(/!?\[(.*?)\].*?\)/g, '$1');
-        }
-
-        if (measure(measureText) > maxWidth && currentLine) {
-          wrapped.push(currentLine);
-          currentLine = token;
-        } else {
-          currentLine = testLine;
-        }
-      });
-      if (currentLine) wrapped.push(currentLine);
-    });
-
-    return wrapped;
+    return wrapText(text, maxWidth, fontSize, fontWeight, measure);
   }
 
   /**
@@ -365,8 +298,8 @@ export class D3Renderer implements RendererAdapter {
     // Use the unified wrapText helper for accurate line count and width
     let displayContent = (node as any).metadata?.displayContent ?? node.content;
     
-    // Strip [image:N] placeholders from the rendered text to avoid clutter
-    displayContent = displayContent.replace(/\[image:\d+\]/gi, '').trim();
+    // Strip internal placeholders from the rendered text to avoid clutter
+    displayContent = displayContent.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/gi, '').trim();
 
     const displayLines = this.wrapText(displayContent, rootMaxW, fontSize, fontWeight);
     let maxWidth = 0;
@@ -444,19 +377,51 @@ export class D3Renderer implements RendererAdapter {
     const NB = LAYOUT_CONFIG.NOTE_BLOCK;
     const codeBlocks = node.metadata.codeBlocks || [];
     const quoteBlocks = node.metadata.quoteBlocks || [];
-    const allNoteBlocks: Array<{ expanded: boolean; content: string; isQuote: boolean }> = [
-      ...codeBlocks.map(b => ({ expanded: b.expanded, content: b.code, isQuote: false })),
-      ...quoteBlocks.map(b => ({ expanded: b.expanded, content: b.text, isQuote: true })),
+    const tableBlocks = node.metadata.tableBlocks || [];
+    const allNoteBlocks: Array<{ expanded: boolean; content: string; isQuote: boolean; isTable: boolean; headers?: string[]; rows?: string[][] }> = [
+      ...codeBlocks.map(b => ({ expanded: b.expanded, content: b.code, isQuote: false, isTable: false })),
+      ...quoteBlocks.map(b => ({ expanded: b.expanded, content: b.text, isQuote: true, isTable: false })),
+      ...tableBlocks.map(b => ({ expanded: b.expanded, content: '', isQuote: false, isTable: true, headers: b.headers, rows: b.rows })),
     ];
 
     if (allNoteBlocks.length > 0) {
       let maxNoteWidth = 180 * 0.75; // Baseline width for minimum pill display
-      node.metadata.height += NB.PILL_GAP; // gap above first block
+      allNoteBlocks.forEach((block, idx) => {
+        if (hasText || idx > 0) {
+          node.metadata.height += NB.PILL_GAP;
+        }
 
-      allNoteBlocks.forEach(block => {
         if (!block.expanded) {
-          node.metadata.height += NB.PILL_HEIGHT + NB.PILL_GAP;
+          node.metadata.height += NB.PILL_HEIGHT;
+        } else if (block.isTable) {
+          // Table height
+          const headerRows = block.headers?.length ? 1 : 0;
+          const totalRows = (block.rows?.length || 0) + headerRows;
+          const tableH = NB.TABLE_HEADER_HEIGHT + (totalRows * NB.TABLE_ROW_HEIGHT) + (NB.TABLE_V_PADDING * 2);
+          node.metadata.height += tableH;
+
+          // Table width (sum of max column widths)
+          const colCount = Math.max(block.headers?.length || 0, ...(block.rows?.map(r => r.length) || [0]));
+          if (colCount > 0) {
+            const colWidths = new Array(colCount).fill(0);
+            if (ctx) ctx.font = `${NB.TABLE_LINE_HEIGHT}px Inter, sans-serif`;
+
+            block.headers?.forEach((h, i) => {
+              const w = ctx ? ctx.measureText(h).width : h.length * NB.TABLE_LINE_HEIGHT * 0.6;
+              colWidths[i] = Math.max(colWidths[i], w + NB.TABLE_CELL_HPADDING * 2);
+            });
+            block.rows?.forEach(row => {
+              row.forEach((cell, i) => {
+                const w = ctx ? ctx.measureText(cell).width : cell.length * NB.TABLE_LINE_HEIGHT * 0.6;
+                colWidths[i] = Math.max(colWidths[i], w + NB.TABLE_CELL_HPADDING * 2);
+              });
+            });
+            const maxIndividualColWidth = Math.max(...colWidths);
+            const totalTableW = maxIndividualColWidth * colCount;
+            if (totalTableW > maxNoteWidth) maxNoteWidth = totalTableW;
+          }
         } else {
+          // Code/Quote block height
           const lines = (block.content || '').split('\n');
 
           // Calculate note block lines width
@@ -475,7 +440,7 @@ export class D3Renderer implements RendererAdapter {
           const vPad = block.isQuote ? NB.QUOTE_V_PADDING : NB.CODE_V_PADDING;
           const lineH = block.isQuote ? NB.QUOTE_LINE_HEIGHT : NB.CODE_LINE_HEIGHT;
           const expandedH = NB.CODE_HEADER_HEIGHT + vPad + (lines.length * lineH) + vPad;
-          node.metadata.height += expandedH + NB.PILL_GAP;
+          node.metadata.height += expandedH;
         }
       });
 
@@ -809,8 +774,10 @@ export class D3Renderer implements RendererAdapter {
       .attr('ry', this.config.borderRadius)
       .attr('stroke-width', 2);
 
+
     enter.append('text')
-      .attr('font-family', 'Inter, sans-serif');
+      .attr('font-family', 'Inter, sans-serif')
+      .attr('xml:space', 'preserve');
 
     enter.append('g')
       .attr('class', 'image-container')
@@ -1177,7 +1144,8 @@ export class D3Renderer implements RendererAdapter {
 
     const codeBlocks = d.metadata.codeBlocks || [];
     const quoteBlocks = d.metadata.quoteBlocks || [];
-    if (codeBlocks.length === 0 && quoteBlocks.length === 0) {
+    const tableBlocks = d.metadata.tableBlocks || [];
+    if (codeBlocks.length === 0 && quoteBlocks.length === 0 && tableBlocks.length === 0) {
       nodeGroup.selectAll('g.note-blocks').remove();
       return;
     }
@@ -1204,10 +1172,12 @@ export class D3Renderer implements RendererAdapter {
       this.getFontWeight(depth)
     );
     const textBlockH = displayLines.length * textLineHeight;
+    const hasText = displayLines.length > 0;
 
-    // Y start: rect top + padding + text height + gap
+    // Y start: rect top + padding + text height
     const rectTop = -height / 2;
-    let blockY = rectTop + this.config.padding.y + textBlockH + NB.PILL_GAP;
+    let blockY = rectTop + this.config.padding.y + textBlockH;
+    if (hasText) blockY += NB.PILL_GAP;
     if (d.metadata.image) {
       blockY += (d.metadata.image.thumbHeight || 0) + LAYOUT_CONFIG.IMAGE.PADDING;
     }
@@ -1225,7 +1195,8 @@ export class D3Renderer implements RendererAdapter {
 
     const allBlocks = [
       ...codeBlocks.map((b, i) => ({ ref: b, type: 'code' as const, id: `code-${i}` })),
-      ...quoteBlocks.map((b, i) => ({ ref: b, type: 'quote' as const, id: `quote-${i}` }))
+      ...quoteBlocks.map((b, i) => ({ ref: b, type: 'quote' as const, id: `quote-${i}` })),
+      ...tableBlocks.map((b, i) => ({ ref: b, type: 'table' as const, id: `table-${i}` }))
     ];
 
     const blockSelections = blocksGroup.selectAll<SVGGElement, any>('g.note-block')
@@ -1266,15 +1237,24 @@ export class D3Renderer implements RendererAdapter {
         blockGroup.attr('transform', `translate(${rectX + thisRenderer.config.padding.x}, ${blockY})`);
       }
       const type = block.type;
+      const isExpanded = block.ref.expanded;
+      const rawContent = (type === 'code' ? block.ref.code : (type === 'quote' ? block.ref.text : '')) || '';
+      const contentLines = rawContent.split(/\r?\n/);
+      const lineH = type === 'code' ? NB.CODE_LINE_HEIGHT : (type === 'quote' ? NB.QUOTE_LINE_HEIGHT : NB.TABLE_LINE_HEIGHT);
+      const vPad = type === 'code' ? NB.CODE_V_PADDING : (type === 'quote' ? NB.QUOTE_V_PADDING : NB.TABLE_V_PADDING);
+      const headerH = (type === 'table') ? NB.TABLE_HEADER_HEIGHT : NB.CODE_HEADER_HEIGHT;
 
       // Calculate dimensions
-      const isExpanded = block.ref.expanded;
-      const rawContent = (type === 'code' ? block.ref.code : block.ref.text) || '';
-      const contentLines = rawContent.split(/\r?\n/);
-      const lineH = type === 'code' ? NB.CODE_LINE_HEIGHT : NB.QUOTE_LINE_HEIGHT;
-      const vPad = type === 'code' ? NB.CODE_V_PADDING : NB.QUOTE_V_PADDING;
-      const headerH = NB.CODE_HEADER_HEIGHT;
-      const expandedH = !isExpanded ? NB.PILL_HEIGHT : (headerH + vPad + contentLines.length * lineH + vPad);
+      let expandedH = NB.PILL_HEIGHT;
+      if (isExpanded) {
+        if (type === 'table') {
+          const headerRows = block.ref.headers?.length ? 1 : 0;
+          const totalRows = (block.ref.rows?.length || 0) + headerRows;
+          expandedH = headerH + (totalRows * NB.TABLE_ROW_HEIGHT) + (NB.TABLE_V_PADDING * 2);
+        } else {
+          expandedH = headerH + vPad + (contentLines.length * lineH) + vPad;
+        }
+      }
 
       // Transition the block group's position (for cascade moves)
       blockGroup.interrupt()
@@ -1337,12 +1317,14 @@ export class D3Renderer implements RendererAdapter {
       pillUpdate.select('text.label')
         .attr('font-family', type === 'code' ? NB.MONO_FONT : 'Inter, sans-serif')
         .attr('font-style', type === 'quote' ? 'italic' : 'normal')
-        .attr('fill', type === 'code' ? codeLang : quoteAccent)
-        .text(type === 'code' ? (block.ref.language || 'code') : 'quote');
+        .attr('fill', type === 'table' ? '#10b981' : (type === 'code' ? codeLang : quoteAccent))
+        .text(type === 'code' ? (block.ref.language || 'code') : type);
 
       pillUpdate.select('text.count')
         .attr('x', innerW - 8)
-        .text(`${contentLines.length} line${contentLines.length !== 1 ? 's' : ''}`);
+        .text(type === 'table' 
+            ? `${block.ref.rows?.length || 0} row${(block.ref.rows?.length || 0) !== 1 ? 's' : ''}` 
+            : `${(type === 'code' ? block.ref.code : block.ref.text || '').split('\n').length} line${(type === 'code' ? block.ref.code : block.ref.text || '').split('\n').length !== 1 ? 's' : ''}`);
 
       // ── 2. Expanded Header ──
       const header = blockGroup.selectAll<SVGGElement, any>('g.block-header')
@@ -1381,12 +1363,12 @@ export class D3Renderer implements RendererAdapter {
       headerUpdate.select('text.label')
         .attr('font-family', type === 'code' ? NB.MONO_FONT : 'Inter, sans-serif')
         .attr('font-style', type === 'quote' ? 'italic' : 'normal')
-        .attr('fill', type === 'code' ? codeLang : quoteAccent)
-        .text(type === 'code' ? (block.ref.language || 'code') : 'quote');
+        .attr('fill', type === 'table' ? '#10b981' : (type === 'code' ? codeLang : quoteAccent))
+        .text(type === 'code' ? (block.ref.language || 'code') : type);
 
-      // ── 3. Expanded Content Box ──
+      // ── 3. Expanded Code/Quote Content ──
       const content = blockGroup.selectAll<SVGTextElement, any>('text.block-content')
-        .data(isExpanded ? [block] : []);
+        .data(isExpanded && type !== 'table' ? [block] : []);
 
       content.exit().interrupt()
         .transition()
@@ -1422,13 +1404,98 @@ export class D3Renderer implements RendererAdapter {
         .data(contentLines);
 
       tspans.join('tspan')
-        .attr('x', 10) // Align with header label
-        .attr('dy', (line, i) => i === 0 ? headerH + vPad + (lineH * 0.8) : lineH)
+        .attr('x', type === 'code' ? 8 : (NB.QUOTE_BORDER_WIDTH + 8))
+        .attr('dy', (line, i) => i === 0 ? (headerH + vPad + lineH / 2) : lineH)
+        .attr('dominant-baseline', 'central')
         .text(line => {
           if (line.length === 0) return '\u00A0';
           // Use standard lines now that white-space: pre is active
           return type === 'code' && line.length > 58 ? `${line.substring(0, 56)}…` : line;
         });
+
+      // ── 4. Expanded Table Content ──
+      const tableContent = blockGroup.selectAll<SVGGElement, any>('g.table-content')
+        .data(isExpanded && type === 'table' ? [block] : []);
+
+      tableContent.exit().remove();
+      const tableEnter = tableContent.enter().append('g').attr('class', 'table-content').attr('opacity', 0);
+      
+      const tableUpdate = tableEnter.merge(tableContent as any);
+      tableUpdate.transition().duration(duration).attr('opacity', 1);
+
+      tableUpdate.each(function(b) {
+        const g = d3.select(this);
+        g.selectAll('*').remove();
+        
+        const headers = b.ref.headers || [];
+        const rows = b.ref.rows || [];
+        const alignments = b.ref.alignments || [];
+        const colCount = Math.max(headers.length, ...rows.map(r => r.length));
+        
+        // Evenly distribute columns within innerW
+        const finalColWidths = new Array(colCount).fill(innerW / colCount);
+
+        let runningY = headerH + NB.TABLE_V_PADDING;
+        const startY = runningY;
+        
+        // Helper to draw a row
+        const drawRow = (data: string[], isHeader: boolean) => {
+          let currentX = 0;
+          data.forEach((cell, i) => {
+            const colW = finalColWidths[i];
+            const align = alignments[i] || 'left';
+            
+            // Cell text
+            let textX = currentX + NB.TABLE_CELL_HPADDING;
+            if (align === 'center') textX = currentX + colW / 2;
+            else if (align === 'right') textX = currentX + colW - NB.TABLE_CELL_HPADDING;
+            
+            g.append('text')
+              .attr('x', textX)
+              .attr('y', runningY + NB.TABLE_ROW_HEIGHT / 2)
+              .attr('font-size', `${NB.TABLE_LINE_HEIGHT}px`)
+              .attr('font-weight', isHeader ? 'bold' : 'normal')
+              .attr('fill', isHeader ? (isDark ? '#f1f5f9' : '#1e293b') : (isDark ? '#cbd5e1' : '#475569'))
+              .attr('text-anchor', align === 'center' ? 'middle' : align === 'right' ? 'end' : 'start')
+              .attr('dominant-baseline', 'central')
+              .text(cell);
+            
+            currentX += colW;
+          });
+          
+          // Row separator
+          if (isHeader) {
+            g.append('line')
+              .attr('x1', 0)
+              .attr('y1', runningY + NB.TABLE_ROW_HEIGHT)
+              .attr('x2', innerW)
+              .attr('y2', runningY + NB.TABLE_ROW_HEIGHT)
+              .attr('stroke', isDark ? '#334155' : '#cbd5e1')
+              .attr('stroke-width', 1.5);
+          }
+          
+          runningY += NB.TABLE_ROW_HEIGHT;
+        };
+
+        if (headers.length > 0) drawRow(headers, true);
+        rows.forEach(r => drawRow(r, false));
+
+        // Vertical column separators
+        let runningX = 0;
+        finalColWidths.forEach((colW, i) => {
+          if (i === finalColWidths.length - 1) return;
+          runningX += colW;
+          g.append('line')
+            .attr('x1', runningX)
+            .attr('y1', startY)
+            .attr('x2', runningX)
+            .attr('y2', runningY)
+            .attr('stroke', isDark ? '#334155' : '#cbd5e1')
+            .attr('stroke-width', 1)
+            .style('stroke-dasharray', '2,2')
+            .attr('opacity', 0.5);
+        });
+      });
 
       blockY += expandedH + NB.PILL_GAP;
     });

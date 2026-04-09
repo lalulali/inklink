@@ -28,7 +28,7 @@ Whether you are writing a product spec, reviewing an architecture decision recor
 ## 🚀 Key Features
 
 ### 🗺️ Real-Time Markdown Mind Map
-Every heading (`#`, `##`, `###`) and list item in your Markdown automatically becomes a node in the mind map. Edit the file — the map updates instantly. No manual refresh required.
+Every heading (`#`, `##`, `###`) and list item in your Markdown automatically becomes a node in the mind map. Edit the file — the map updates instantly. **Version 0.1.6** features **Zero-Jitter Synchronization**, eliminating all visual shifting and "jumping" while you type for a seamless, flicker-free experience.
 
 ### 🔄 Real-Time Synchronization
 The mind map is live-synced with your editor buffer. It updates as you type, providing an instant visual preview of your document structure as it evolves. No manual refresh or save required.
@@ -42,7 +42,7 @@ The mind map is live-synced with your editor buffer. It updates as you type, pro
 Inklink identifies **Code Blocks** and **Quote Blocks** within your markdown and renders them as interactive, expandable elements directly on the mind map nodes.
 - **Collapsed View**: Blocks appear as clean, tonal-relief "pills" indicating the type and line count.
 - **Expanded View**: Blocks expand into full-width integrated containers with syntax labeling and italicized quotes.
-- **Micro-interactions**: Toggle any block by clicking its header or the pill. All labels, carets, and counts are vertically centered with symmetric padding for a premium, well-balanced look.
+- **Micro-interactions**: Toggle any block by clicking its header or the pill. All labels, carets, and counts are vertically centered with **Perfectly Balanced Padding** for a premium, well-balanced look.
 - **Dynamic Layout**: Mind map nodes automatically adjust their vertical distance and re-flow to accommodate expanded or collapsed blocks, ensuring the layout remains clean and readable without overlaps.
 - **State Persistence**: Interactive blocks maintain their expanded/collapsed state during live markdown edits, allowing for a seamless transitions between writing and thinking.
 - **Indentation Fidelity**: Uses `white-space: pre` to faithfully preserve complex indentation structures (tabs and spaces) inside code and quote blocks, ensuring technical snippets remain readable and accurate.

@@ -75,8 +75,8 @@ export function MarkdownSearchPanel({ view }: MarkdownSearchPanelProps) {
     if (!view) return;
     
     const query = new SearchQuery({
-      search: state.editorSearchQuery,
-      replace: state.editorReplaceQuery,
+      search: state.editorSearchRegex ? state.editorSearchQuery.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\r/g, '\r') : state.editorSearchQuery,
+      replace: state.editorSearchRegex ? state.editorReplaceQuery.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\r/g, '\r') : state.editorReplaceQuery,
       caseSensitive: state.editorSearchCaseSensitive,
       wholeWord: state.editorSearchWholeWord,
       regexp: state.editorSearchRegex,
@@ -116,7 +116,8 @@ export function MarkdownSearchPanel({ view }: MarkdownSearchPanelProps) {
     try {
         if (state.editorSearchRegex) {
             const flags = state.editorSearchCaseSensitive ? 'g' : 'gi';
-            const re = new RegExp(queryStr, flags);
+            const unescapedQuery = queryStr.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\r/g, '\r');
+            const re = new RegExp(unescapedQuery, flags);
             let match;
             while ((match = re.exec(docText)) !== null) {
                 matches.push({ from: match.index, to: match.index + match[0].length });
@@ -187,6 +188,19 @@ export function MarkdownSearchPanel({ view }: MarkdownSearchPanelProps) {
     return replacement;
   };
 
+  /**
+   * Helper to handle regex escape sequences in replace strings
+   * VS Code and other editors allow \n, \t, etc in regex replace
+   */
+  const processReplacement = (original: string, replacement: string) => {
+    let result = replacement;
+    if (state.editorSearchRegex) {
+        // Convert \n, \t, \r to literal characters
+        result = result.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\r/g, '\r');
+    }
+    return applyPreserveCase(original, result);
+  };
+
   const onReplace = () => {
     if (!view) return;
     const { state: editorState } = view;
@@ -220,7 +234,7 @@ export function MarkdownSearchPanel({ view }: MarkdownSearchPanelProps) {
         
         if (match) {
             const original = editorState.sliceDoc(match.from, match.to);
-            const replacement = applyPreserveCase(original, state.editorReplaceQuery);
+            const replacement = processReplacement(original, state.editorReplaceQuery);
             view.dispatch({
                 changes: { from: match.from, to: match.to, insert: replacement },
                 selection: { anchor: match.from + replacement.length },
@@ -257,7 +271,7 @@ export function MarkdownSearchPanel({ view }: MarkdownSearchPanelProps) {
             if (done) break;
             
             const original = editorState.sliceDoc(value.from, value.to);
-            const replacement = applyPreserveCase(original, state.editorReplaceQuery);
+            const replacement = processReplacement(original, state.editorReplaceQuery);
             changes.push({ from: value.from, to: value.to, insert: replacement });
         }
         

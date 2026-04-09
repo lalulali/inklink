@@ -442,13 +442,14 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 	const syncCollapsedStates = (oldTree: any, newTree: any) => {
 		if (!oldTree || !newTree) return;
 
-		// 1. Build a map of existing states (collapsed nodes + expanded code/quote blocks)
-		const states = new Map<string, { collapsed: boolean; codeBlocks?: boolean[]; quoteBlocks?: boolean[] }>();
+		// 1. Build a map of existing states (collapsed nodes + expanded code/quote/table blocks)
+		const states = new Map<string, { collapsed: boolean; codeBlocks?: boolean[]; quoteBlocks?: boolean[]; tableBlocks?: boolean[] }>();
 		const traverseOld = (n: any) => {
 			states.set(n.id, {
 				collapsed: n.collapsed,
 				codeBlocks: n.metadata?.codeBlocks?.map((b: any) => b.expanded),
 				quoteBlocks: n.metadata?.quoteBlocks?.map((b: any) => b.expanded),
+				tableBlocks: n.metadata?.tableBlocks?.map((b: any) => b.expanded),
 			});
 			n.children?.forEach(traverseOld);
 		};
@@ -474,6 +475,15 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 					n.metadata.quoteBlocks.forEach((b: any, i: number) => {
 						if (oldState.quoteBlocks![i] !== undefined) {
 							b.expanded = oldState.quoteBlocks![i];
+						}
+					});
+				}
+
+				// Sync table blocks expansion
+				if (oldState.tableBlocks && n.metadata?.tableBlocks) {
+					n.metadata.tableBlocks.forEach((b: any, i: number) => {
+						if (oldState.tableBlocks![i] !== undefined) {
+							b.expanded = oldState.tableBlocks![i];
 						}
 					});
 				}

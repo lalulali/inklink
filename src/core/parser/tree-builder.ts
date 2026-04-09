@@ -5,7 +5,7 @@
  */
 
 import { TreeNode, createTreeNode } from '../types/tree-node';
-import type { CodeBlockInfo, QuoteBlockInfo, ImageInfo } from '../types/tree-node';
+import type { CodeBlockInfo, QuoteBlockInfo, ImageInfo, TableBlockInfo } from '../types/tree-node';
 import {
   IndentationType,
   detectIndentation,
@@ -161,11 +161,17 @@ export function buildTree(
     const trimmed = (node.content || '').trim();
     const { cleanContent: afterCode, codeBlocks } = extractCodeBlocks(trimmed);
     const { cleanContent: afterQuote, quoteBlocks } = extractQuoteBlocks(afterCode);
-    const { cleanContent: afterImage, images } = extractImages(afterQuote);
+    const { cleanContent: afterTable, tableBlocks } = extractTableBlocks(afterQuote);
+    const { cleanContent: afterImage, images } = extractImages(afterTable);
     
-    node.metadata.displayContent = afterImage;
+    // Support literal \n and \t escape sequences in node content
+    node.metadata.displayContent = afterImage
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '    ');
+
     node.metadata.codeBlocks = codeBlocks;
     node.metadata.quoteBlocks = quoteBlocks;
+    node.metadata.tableBlocks = tableBlocks;
     node.metadata.image = images.length > 0 ? images[0] : undefined;
     
     node.children.forEach(applyExtraction);
@@ -480,4 +486,65 @@ export function getNodeDepth(root: TreeNode, target: TreeNode): number {
     }
   }
   return -1;
+}
+/**
+ * Extracts GFM table blocks from raw content.
+ */
+export function extractTableBlocks(raw: string): {
+  cleanContent: string;
+  tableBlocks: TableBlockInfo[];
+} {
+  const tableBlocks: TableBlockInfo[] = [];
+  
+  const cleanContent = raw.replace(
+    /(?:^|\n)((?:[ \t]*\|?[ \t]*[^\n|]+\|[^\n]*\n?)+)/g,
+    (match, block) => {
+        const lines = block.trim().split('\n').map((l: string) => l.trim()).filter(Boolean);
+        if (lines.length < 2) return match;
+
+        const separatorIdx = lines.findIndex((l: string) => 
+            /^[ \t]*\|?[ \t]*[:-]*---[:-]*([ \t]*\|[ \t]*[:-]*---[:-]*)*[ \t]*\|?[ \t]*$/.test(l)
+        );
+
+        if (separatorIdx === -1) return match;
+
+        let headerLine = '';
+        if (separatorIdx > 0) {
+            headerLine = lines[separatorIdx - 1];
+        }
+
+        const parseRow = (row: string): string[] => {
+            let content = row.trim();
+            if (content.startsWith('|')) content = content.substring(1);
+            if (content.endsWith('|')) content = content.substring(0, content.length - 1);
+            return content.split('|').map(s => s.trim());
+        };
+
+        const headers = headerLine ? parseRow(headerLine) : [];
+        const separator = lines[separatorIdx];
+        const sepParts = parseRow(separator);
+
+        const alignments: ('left' | 'center' | 'right')[] = sepParts.map(p => {
+            const hasLeft = p.indexOf(':') !== -1 && (p.indexOf('-') === -1 || p.indexOf(':') < p.indexOf('-'));
+            const hasRight = p.lastIndexOf(':') !== -1 && (p.lastIndexOf('-') === -1 || p.lastIndexOf(':') > p.lastIndexOf('-'));
+            if (hasLeft && hasRight) return 'center';
+            if (hasRight) return 'right';
+            return 'left';
+        });
+
+        const rows: string[][] = [];
+        for (let i = separatorIdx + 1; i < lines.length; i++) {
+            if (!lines[i].includes('|')) break; 
+            rows.push(parseRow(lines[i]));
+        }
+
+        const idx = tableBlocks.length;
+        tableBlocks.push({ headers, rows, alignments, expanded: false });
+        
+        const prefix = match.startsWith('\n') ? '\n' : '';
+        return `${prefix}[tableblock:${idx}]`;
+    }
+  );
+
+  return { cleanContent, tableBlocks };
 }

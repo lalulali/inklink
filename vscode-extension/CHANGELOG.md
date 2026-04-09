@@ -3,15 +3,22 @@
 All notable changes to the "inklink" extension will be documented in this file.
 
 ## [0.1.6] - 2026-04-09
-- Interactive Image Support: Standard Markdown image syntax `![alt](url)` now renders as professional, aspect-aware thumbnails directly on nodes.
-- Linked Image Lightbox: Enhanced fullscreen image viewer with zoom animations and a functional footer for images wrapped in Markdown links.
-- Smart URL Normalization: Automated protocol detection ensures external links (e.g. `google.com`) correctly trigger absolute navigation instead of local pathing.
-- Strict Image Extraction: Improved parser reliability that strictly requires the `!` prefix, preventing regular links from being mistakenly rendered as images.
-- High-Fidelity Block Indentation: Implemented `white-space: pre` rendering for Code and Quote blocks to faithfully preserve complex indentation structures (tabs/spaces).
-- Editor Shortcuts: Added VS Code-style keyboard shortcuts for Bold (Cmd+B), Italic (Cmd+I), and Strikethrough (Cmd+Shift+X) with robust syntax detection.
-- Solarized Monochromatic Theme: High-vibrancy "Neon" saturation and lightness thresholds specifically tuned for links on colored nodes.
-- Context-Aware Link Navigation: Local file links open in the primary editor area (preserving map side-by-side), while web links trigger the system browser.
-- Fixed Layout Glitches: Resolved edge cases where node padding and vertical alignment were inconsistent after image renders.
+- **Interactive Multimedia**:
+  - Full Support for **Markdown Images** (`![alt](url)`) rendered as professional, aspect-aware thumbnails directly on nodes.
+  - High-fidelity **Fullscreen Lightbox** with center-zoom animations and backdrop-blur foundations.
+  - **Linked Image Integration**: Images wrapped in links (`[![alt](img)](link)`) now feature functional "Open Link" handlers within the lightbox.
+- **Enhanced Document Blocks**:
+  - **Interactive Tables**: Support for expanded Table nodes with automatic column distribution and row synchronization.
+  - **Code & Quote Blocks**: Real-time expansion with interactive toggle "pills" that persist across edits.
+  - **High-Fidelity Indentation**: Faithful rendering of complex structures (preserving `\n`, `\t`, and spaces) using `white-space: pre`.
+- **Intelligent Link & Editing**:
+  - **Context-Aware Navigation**: Local file links open in the primary editor area, while web links route to the system browser.
+  - **Zero-Jitter Real-Time Editing**: Eliminated all layout "jumping" and shifts by synchronizing measurement logic.
+  - **Smart URL Normalization**: Automated protocol detection for absolute web navigation.
+- **Visual Refinement**:
+  - **Perfectly Balanced Padding**: Standardized 9px margins on all four sides for blocks, ensuring content is visually centered.
+  - **Solarized Monochromatic Theme**: Optimized "Neon" link legibility specifically tuned for high-saturation colored nodes.
+  - **Markdown-Aware Measurement**: Sub-pixel accurate line wrapping that correctly strips link syntax and accounts for formatting.
 
 ## [0.1.5] - 2026-04-02
 - Solid Flat Design: Replaced all `backdrop-blur` effects and transparent backgrounds with a solid, high-contrast design system across all side-sheet overlays
