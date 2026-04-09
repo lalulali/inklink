@@ -5,7 +5,7 @@
  */
 
 import { TreeNode, createTreeNode } from '../types/tree-node';
-import type { CodeBlockInfo, QuoteBlockInfo } from '../types/tree-node';
+import type { CodeBlockInfo, QuoteBlockInfo, ImageInfo } from '../types/tree-node';
 import {
   IndentationType,
   detectIndentation,
@@ -156,14 +156,18 @@ export function buildTree(
      throw new TreeBuildError('Failed to build tree: no nodes found', -1);
   }
 
-  // Post-process: extract code/quote blocks from every node's content
+  // Post-process: extract code/quote blocks and images from every node's content
   const applyExtraction = (node: TreeNode): void => {
     const trimmed = (node.content || '').trim();
     const { cleanContent: afterCode, codeBlocks } = extractCodeBlocks(trimmed);
     const { cleanContent: afterQuote, quoteBlocks } = extractQuoteBlocks(afterCode);
-    node.metadata.displayContent = afterQuote;
+    const { cleanContent: afterImage, images } = extractImages(afterQuote);
+    
+    node.metadata.displayContent = afterImage;
     node.metadata.codeBlocks = codeBlocks;
     node.metadata.quoteBlocks = quoteBlocks;
+    node.metadata.image = images.length > 0 ? images[0] : undefined;
+    
     node.children.forEach(applyExtraction);
   };
   orphans.forEach(applyExtraction);
@@ -187,6 +191,47 @@ export function buildTree(
   });
 
   return { root: virtualRoot, lineCount: lines.length, maxDepth: maxDepth + 1 };
+}
+
+/**
+ * Extracts markdown images from raw content.
+ * Supports:
+ * 1. Linked image: [![alt](url)](link)
+ * 2. Simple image: ![alt](url)
+ * 
+ * Note: Crucially requires the '!' prefix for both types.
+ */
+export function extractImages(raw: string): {
+  cleanContent: string;
+  images: ImageInfo[];
+} {
+  const images: ImageInfo[] = [];
+  
+  // 1. Linked image first (more specific)
+  // Regex matches: [![alt](img_url)](link_url)
+  let cleanContent = raw.replace(
+    /\[!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\)/g,
+    (_match, alt, url, link) => {
+      const idx = images.length;
+      images.push({ url, alt: alt || undefined, link });
+      return `[image:${idx}]`;
+    }
+  );
+
+  // 2. Simple image
+  // Regex matches: ![alt](img_url)
+  cleanContent = cleanContent.replace(
+    /!\[([^\]]*)\]\(([^)]+)\)/g,
+    (_match, alt, url) => {
+      // Avoid matching if it was already processed as part of a linked image
+      // (though linked images are already replaced by placeholders)
+      const idx = images.length;
+      images.push({ url, alt: alt || undefined });
+      return `[image:${idx}]`;
+    }
+  );
+
+  return { cleanContent, images };
 }
 
 /**

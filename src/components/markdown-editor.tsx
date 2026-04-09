@@ -22,7 +22,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { tags as t } from "@lezer/highlight";
 import { HighlightStyle, syntaxHighlighting, syntaxTree } from "@codemirror/language";
 import { indentWithTab, indentMore, indentLess, undoDepth, redoDepth, undo, redo } from "@codemirror/commands";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, ExternalLink, Copy, Check, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { globalState } from "@/core/state/state-manager";
 import { createMarkdownParser } from "@/core/parser/markdown-parser";
@@ -110,6 +110,89 @@ const lightColorfulHighlightStyle = HighlightStyle.define([
 	{ tag: t.monospace, color: "#50a14f" },
 ]);
 
+/* --- Link Popover Components --- */
+
+function LinkPopover({ url, onClose }: { url: string; onClose?: () => void }) {
+	const [copied, setCopied] = React.useState(false);
+
+	const handleCopy = (e: React.MouseEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		navigator.clipboard.writeText(url);
+		setCopied(true);
+		setTimeout(() => setCopied(false), 2000);
+	};
+
+	const handleOpen = (e: React.MouseEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		// Ensure URL has protocol
+		const href = url.match(/^[a-z]+:\/\//i) ? url : `https://${url}`;
+		window.open(href, "_blank", "noopener,noreferrer");
+		onClose?.();
+	};
+
+	return (
+		<div className="flex items-center gap-1 p-1.5 bg-popover border border-border rounded-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200 pointer-events-auto backdrop-blur-md min-w-[120px]">
+			<div className="px-2 py-1 text-[10px] max-w-[150px] truncate text-muted-foreground font-mono bg-muted/50 rounded-md mr-1 border border-border/20">
+				{url}
+			</div>
+			<div className="flex items-center gap-0.5">
+				<Button 
+					variant="ghost" 
+					size="icon" 
+					className="h-7 w-7 text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 transition-all rounded-md"
+					onClick={handleOpen}
+					title="Open Link"
+				>
+					<ExternalLink className="h-3.5 w-3.5" />
+				</Button>
+				<Button 
+					variant="ghost" 
+					size="icon" 
+					className="h-7 w-7 text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10 transition-all rounded-md"
+					onClick={handleCopy}
+					title="Copy Link"
+				>
+					{copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+				</Button>
+			</div>
+		</div>
+	);
+}
+
+function getLinkAt(state: any, pos: number) {
+	const tree = syntaxTree(state);
+	let node = tree.resolveInner(pos, -1);
+	
+	// Handle URL nodes directly
+	if (node.name === "URL" || node.name === "Url") {
+		return {
+			url: state.sliceDoc(node.from, node.to),
+			from: node.from,
+			to: node.to
+		};
+	}
+
+	// Walk up to find Link
+	let curr = node;
+	while (curr && curr.name !== "Document") {
+		if (curr.name === "Link") {
+			const urlNode = curr.getChild("URL") || curr.getChild("Url");
+			if (urlNode) {
+				return {
+					url: state.sliceDoc(urlNode.from, urlNode.to),
+					from: curr.from,
+					to: curr.to
+				};
+			}
+		}
+		curr = curr.parent!;
+	}
+
+	return null;
+}
+
 const revealHighlightStyle = Decoration.mark({ 
 	attributes: { 
 		style: "background-color: rgba(255, 230, 0, 0.3); border: 1px solid rgba(255, 215, 0, 0.4); border-radius: 2px;" 
@@ -124,6 +207,7 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 	const editorRef = React.useRef<any>(null);
 	const [editorView, setEditorView] = React.useState<EditorView | null>(null);
 	const [revealHighlight, setRevealHighlight] = React.useState<{ from: number; to: number } | null>(null);
+	const [activeLink, setActiveLink] = React.useState<{ url: string; x: number; y: number } | null>(null);
 	const { autoSave } = useWebPlatform();
 	const isDark = resolvedTheme === "dark";
 
@@ -1156,6 +1240,27 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 							updateSearchStats(update.view);
 						}
 
+						// Link Popover Logic
+						if (update.selectionSet || update.docChanged) {
+							const head = update.state.selection.main.head;
+							const link = getLinkAt(update.state, head);
+							
+							if (link && update.view.hasFocus) {
+								const coords = update.view.coordsAtPos(head);
+								if (coords) {
+									setActiveLink({
+										url: link.url,
+										x: coords.left,
+										y: coords.top
+									});
+								} else {
+									setActiveLink(null);
+								}
+							} else if (activeLink) {
+								setActiveLink(null);
+							}
+						}
+
 						// Update global history status for toolbar parity
 						if (update.docChanged) {
 							const canUndo = undoDepth(update.state) > 0;
@@ -1275,6 +1380,22 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 					</button>
 				))}
 			</div>
+
+			{/* Link Popover Overlay */}
+			{activeLink && (
+				<div 
+					className="fixed z-40 pointer-events-none" 
+					style={{ 
+						left: activeLink.x, 
+						top: activeLink.y + 24 // Offset below cursor
+					}}
+				>
+					<LinkPopover 
+						url={activeLink.url} 
+						onClose={() => setActiveLink(null)} 
+					/>
+				</div>
+			)}
 		</div>
 	);
 }

@@ -45,6 +45,7 @@ export interface ImageInfo {
   link?: string;
   width?: number;        // Original width
   height?: number;       // Original height
+  aspect?: number;       // Aspect ratio (width / height)
   thumbWidth?: number;   // Calculated thumbnail width
   thumbHeight?: number;  // Calculated thumbnail height
 }

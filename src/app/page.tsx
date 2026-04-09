@@ -11,6 +11,7 @@ import { globalState } from '@/core/state/state-manager';
 import { Toolbar } from "@/components/toolbar";
 import { Canvas } from "@/components/canvas";
 import { Minimap } from "@/components/minimap";
+import { ImageOverlay } from "@/components/image-overlay";
 import { SearchPanel } from "@/components/search-panel";
 import { KeyboardHandler } from "@/components/keyboard-handler";
 import { StatusBar } from "@/components/status-bar";
@@ -194,6 +195,7 @@ export default function Home() {
       <FilePermissionDialog />
       <RecoveryDialog />
       <SettingsDialog />
+      <ImageOverlay />
       {/* Persistent global notification layer */}
       <Toaster />
 

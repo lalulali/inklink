@@ -74,11 +74,13 @@ export interface RendererAdapter {
    */
   onNodeUpdate(callback: (nodeId: string) => void): void;
 
-  /**
-   * Register callback for node link click events
-   * @param callback - Function called with the clicked link URL
-   */
   onNodeLinkClick?(callback: (url: string) => void): void;
+
+  /**
+   * Register callback for node image click events (for lightbox)
+   * @param callback - Function called with image URL, alt text, and optional link
+   */
+  onNodeImageClick?(callback: (url: string, alt?: string, link?: string) => void): void;
 
   /**
    * Register callback for block toggle (collapse/expand) events

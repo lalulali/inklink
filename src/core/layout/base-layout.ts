@@ -71,7 +71,24 @@ export abstract class BaseLayout implements LayoutAlgorithm {
     }
     
     const res = textWidth + (24 * scale); // padding.x * 2 (12 * 0.75 * 2 = 18)
-    return Math.min(res, maxWidthLimit);
+    let finalWidth = Math.min(res, maxWidthLimit);
+
+    // Account for images in width
+    if (node.metadata.image) {
+      const image = node.metadata.image;
+      const imgConfig = LAYOUT_CONFIG.IMAGE;
+      const dims = image.thumbWidth; // D3Renderer should have hydrated this or we calculate it
+      
+      // If thumbWidth is available in metadata, use it
+      if (dims) {
+        finalWidth = Math.max(finalWidth, dims + (24 * scale));
+      } else {
+        // Approximate if not yet calculated by renderer
+        finalWidth = Math.max(finalWidth, imgConfig.MAX_WIDTH + (24 * scale));
+      }
+    }
+
+    return finalWidth;
   }
 
   /**
@@ -126,6 +143,24 @@ export abstract class BaseLayout implements LayoutAlgorithm {
     }
 
     let totalHeight = (lineCount * lineHeight) + (16 * scale);
+
+    // Account for images in height
+    if (node.metadata.image) {
+      const image = node.metadata.image;
+      const imgConfig = LAYOUT_CONFIG.IMAGE;
+      const thumbH = image.thumbHeight;
+      
+      if (thumbH) {
+        totalHeight += thumbH;
+      } else {
+        // Fallback or heuristic if not yet measured
+        totalHeight += imgConfig.MAX_HEIGHT;
+      }
+
+      if (content.length > 0) {
+        totalHeight += imgConfig.PADDING;
+      }
+    }
 
     // Account for Note Blocks (Code/Quote)
     const NB = LAYOUT_CONFIG.NOTE_BLOCK;

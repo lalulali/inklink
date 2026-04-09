@@ -32,8 +32,8 @@ export const LAYOUT_CONFIG = {
 
   // Image Thumbnail Constraints
   IMAGE: {
-    MAX_WIDTH: 240,       // Max allowed width for thumbnails
-    MAX_HEIGHT: 180,      // Max allowed height for thumbnails
+    MAX_WIDTH: 180,       // Max allowed width for thumbnails
+    MAX_HEIGHT: 120,      // Max allowed height for thumbnails
     PADDING: 4,           // Inner padding for the image frame
     CORNER_RADIUS: 4,     // Roundness of image container
     BORDER_WIDTH: 1.5,    // Border thickness for image frame

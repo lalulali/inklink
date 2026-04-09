@@ -339,7 +339,7 @@ export function Toolbar({
 
 	return (
 		<div
-			className="flex h-14 w-full items-center gap-2 border-b bg-background px-4 overflow-x-auto no-scrollbar"
+			className="flex h-14 w-full items-center gap-2 border-b bg-background px-4 overflow-x-auto no-scrollbar relative z-[60]"
 			id="inklink-toolbar"
 		>
 			<TooltipProvider delayDuration={isMobile ? 999999 : 400}>

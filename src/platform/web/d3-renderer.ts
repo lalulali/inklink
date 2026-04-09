@@ -10,6 +10,7 @@ import { TreeNode, Position, NodeChange, Transform } from '@/core/types';
 import { ViewportCuller } from './viewport-culler';
 import { ColorManager } from '@/core/theme/color-manager';
 import { LAYOUT_CONFIG } from '@/core/layout/layout-config';
+import { imageDimensionStore } from '@/core/utils/image-store';
 
 /**
  * Web implementation of RendererAdapter using D3.js
@@ -38,7 +39,7 @@ export class D3Renderer implements RendererAdapter {
   private readonly config = {
     padding: {
       x: 12 * 0.75, // 9
-      y: 8 * 0.75   // 6 (increased from 6)
+      y: 12 * 0.75   // 9 (increased to match x)
     },
     margin: {
       x: 40 * 0.75, // 30
@@ -100,8 +101,8 @@ export class D3Renderer implements RendererAdapter {
     const atomicRegex = /(!?\[(?:[^\[\]]|\[[^\[\]]*\])*\]\([^)]+\)|\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|~~.*?~~)/g;
 
     rawLines.forEach(rawLine => {
-      // Strip note block placeholders — they are rendered separately by renderNoteBlocks
-      const line = rawLine.replace(/\[(codeblock|quoteblock):\d+\]/g, '').trim();
+      // Strip all internal placeholders (code, quote, image)
+      const line = rawLine.replace(/\[(codeblock|quoteblock|image):\d+\]/g, '').trim();
 
       // Only skip if it was a placeholder line. If it was a natural blank line, keep it.
       if (!line && rawLine.match(/\[(codeblock|quoteblock):\d+\]/)) return;
@@ -246,6 +247,13 @@ export class D3Renderer implements RendererAdapter {
           }
         }
       }, { passive: false });
+
+    // Subscribe to image store updates to trigger re-layout when images load
+    imageDimensionStore.subscribe(() => {
+      if (this.lastRoot) {
+        this.nodeUpdateCallback(this.lastRoot.id);
+      }
+    });
   }
 
   /**
@@ -323,102 +331,7 @@ export class D3Renderer implements RendererAdapter {
     const ctx = this.measureCtx;
 
     // Heuristic measurement for nodes
-    allNodes.forEach(node => {
-      const depth = node.depth || 0;
-      const fontSize = this.getFontSize(depth);
-      const fontWeight = this.getFontWeight(depth);
-      const lineHeight = this.getLineHeight(depth);
-      const rootMaxW = (depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH : Infinity) - (this.config.padding.x * 2);
-
-      if (ctx) ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
-
-      // Use the unified wrapText helper for accurate line count and width
-      const displayContent = (node as any).metadata?.displayContent ?? node.content;
-      const displayLines = this.wrapText(displayContent, rootMaxW, fontSize, fontWeight);
-      let maxWidth = 0;
-
-      displayLines.forEach(line => {
-        const segments = this.parseMarkdownLine(line);
-        let lineWidth = 0;
-        segments.forEach(seg => {
-          if (ctx) {
-            ctx.font = `${seg.bold ? 'bold ' : fontWeight} ${seg.italic ? 'italic ' : ''}${fontSize}px Inter, sans-serif`;
-            lineWidth += ctx.measureText(seg.text).width;
-          } else {
-            lineWidth += seg.text.length * (fontSize * 0.6);
-          }
-        });
-        maxWidth = Math.max(maxWidth, lineWidth);
-      });
-
-      node.metadata.width = maxWidth + (this.config.padding.x * 2);
-      node.metadata.height = (displayLines.length * lineHeight) + (this.config.padding.y * 2);
-
-      // Account for images in measurement
-      if (node.metadata.image) {
-        const image = node.metadata.image;
-        const imgConfig = LAYOUT_CONFIG.IMAGE;
-
-        // Use aspect ratio to calculate thumbnail dimensions
-        const w = image.width || imgConfig.MAX_WIDTH;
-        const h = image.height || imgConfig.MAX_HEIGHT;
-        const scale = Math.min(1, imgConfig.MAX_WIDTH / w, imgConfig.MAX_HEIGHT / h);
-
-        image.thumbWidth = w * scale;
-        image.thumbHeight = h * scale;
-
-        if (image.thumbWidth > maxWidth) {
-          maxWidth = image.thumbWidth;
-          node.metadata.width = maxWidth + (this.config.padding.x * 2);
-        }
-        node.metadata.height += image.thumbHeight + imgConfig.PADDING;
-      }
-
-      // Account for code/quote note blocks in height
-      const NB = LAYOUT_CONFIG.NOTE_BLOCK;
-      const codeBlocks = node.metadata.codeBlocks || [];
-      const quoteBlocks = node.metadata.quoteBlocks || [];
-      const allNoteBlocks: Array<{ expanded: boolean; content: string; isQuote: boolean }> = [
-        ...codeBlocks.map(b => ({ expanded: b.expanded, content: b.code, isQuote: false })),
-        ...quoteBlocks.map(b => ({ expanded: b.expanded, content: b.text, isQuote: true })),
-      ];
-
-      if (allNoteBlocks.length > 0) {
-        let maxNoteWidth = 180 * 0.75; // Baseline width for minimum pill display
-        node.metadata.height += NB.PILL_GAP; // gap above first block
-
-        allNoteBlocks.forEach(block => {
-          if (!block.expanded) {
-            node.metadata.height += NB.PILL_HEIGHT + NB.PILL_GAP;
-          } else {
-            const lines = (block.content || '').split('\n');
-
-            // Calculate note block lines width
-            const fontRef = block.isQuote ? `${NB.QUOTE_LINE_HEIGHT}px Inter, sans-serif` : `${NB.CODE_LINE_HEIGHT}px ${NB.MONO_FONT.replace(/'/g, "")}`;
-            if (ctx) ctx.font = fontRef;
-            lines.forEach(line => {
-              let lineWidth = 0;
-              if (ctx) {
-                lineWidth = ctx.measureText(line).width + (block.isQuote ? NB.QUOTE_BORDER_WIDTH + 16 : 16);
-              } else {
-                lineWidth = line.length * ((block.isQuote ? NB.QUOTE_LINE_HEIGHT : NB.CODE_LINE_HEIGHT) * 0.6) + 16;
-              }
-              if (lineWidth > maxNoteWidth) maxNoteWidth = lineWidth;
-            });
-
-            const vPad = block.isQuote ? NB.QUOTE_V_PADDING : NB.CODE_V_PADDING;
-            const lineH = block.isQuote ? NB.QUOTE_LINE_HEIGHT : NB.CODE_LINE_HEIGHT;
-            const expandedH = NB.CODE_HEADER_HEIGHT + vPad + (lines.length * lineH) + vPad;
-            node.metadata.height += expandedH + NB.PILL_GAP;
-          }
-        });
-
-        if (maxNoteWidth > maxWidth) {
-          maxWidth = maxNoteWidth;
-          node.metadata.width = maxWidth + (this.config.padding.x * 2);
-        }
-      }
-    });
+    allNodes.forEach(node => this.measureNode(node));
 
     // Temporarily disabled culling to ensure reliable initial render
     const nodesToRender = allNodes;
@@ -429,6 +342,148 @@ export class D3Renderer implements RendererAdapter {
 
     this.renderLinks(linksToRender, positions);
     this.renderNodes(nodesToRender, positions);
+  }
+
+  /**
+   * Calculates the width and height of a node based on its content, images, and note blocks.
+   */
+  private measureNode(node: TreeNode): void {
+    if (!this.measureCtx) {
+      const canvas = document.createElement('canvas');
+      this.measureCtx = canvas.getContext('2d');
+    }
+    const ctx = this.measureCtx;
+
+    const depth = node.depth || 0;
+    const fontSize = this.getFontSize(depth);
+    const fontWeight = this.getFontWeight(depth);
+    const lineHeight = this.getLineHeight(depth);
+    const rootMaxW = (depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH : Infinity) - (this.config.padding.x * 2);
+
+    if (ctx) ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
+
+    // Use the unified wrapText helper for accurate line count and width
+    let displayContent = (node as any).metadata?.displayContent ?? node.content;
+    
+    // Strip [image:N] placeholders from the rendered text to avoid clutter
+    displayContent = displayContent.replace(/\[image:\d+\]/gi, '').trim();
+
+    const displayLines = this.wrapText(displayContent, rootMaxW, fontSize, fontWeight);
+    let maxWidth = 0;
+
+    displayLines.forEach(line => {
+      const segments = this.parseMarkdownLine(line);
+      let lineWidth = 0;
+      segments.forEach(seg => {
+        if (ctx) {
+          ctx.font = `${seg.bold ? 'bold ' : fontWeight} ${seg.italic ? 'italic ' : ''}${fontSize}px Inter, sans-serif`;
+          lineWidth += ctx.measureText(seg.text).width;
+        } else {
+          lineWidth += seg.text.length * (fontSize * 0.6);
+        }
+      });
+      maxWidth = Math.max(maxWidth, lineWidth);
+    });
+
+    const hasText = displayContent.length > 0;
+    node.metadata.width = maxWidth + (this.config.padding.x * 2);
+    node.metadata.height = (hasText ? (displayLines.length * lineHeight) : 0) + (this.config.padding.y * 2);
+
+    // Account for images in measurement
+    if (node.metadata.image) {
+      const image = node.metadata.image;
+      const imgConfig = LAYOUT_CONFIG.IMAGE;
+
+      // Try to get dimensions from store
+      const dims = imageDimensionStore.getDimensions(image.url);
+      if (dims) {
+        image.width = dims.width;
+        image.height = dims.height;
+        image.aspect = dims.aspect;
+      }
+
+      // Base dimensions: Use 0 as placeholder if not loaded to allow collapsing/expansion
+      const w = image.width || 0;
+      const h = image.height || 0;
+      
+      let scale = 1;
+      if (w > 0 && h > 0) {
+        const ratioW = imgConfig.MAX_WIDTH / w;
+        const ratioH = imgConfig.MAX_HEIGHT / h;
+
+        if (w > imgConfig.MAX_WIDTH || h > imgConfig.MAX_HEIGHT) {
+          scale = Math.min(ratioW, ratioH);
+        }
+        
+        image.thumbWidth = w * scale;
+        image.thumbHeight = h * scale;
+      } else {
+        // While loading or if failed, use a small fixed placeholder
+        // If the loading set is empty and cache is empty for this URL, it means it failed
+        const isActuallyLoading = imageDimensionStore.isLoading(image.url);
+        image.thumbWidth = isActuallyLoading ? 40 : 0;
+        image.thumbHeight = isActuallyLoading ? 30 : 0;
+      }
+
+      // Update node height: Add thumbnail height
+      const thumbH = image.thumbHeight ?? 0;
+      const thumbW = image.thumbWidth ?? 0;
+      node.metadata.height += thumbH;
+      // Add gap only if there is text AND image is non-zero
+      if (hasText && thumbH > 0) {
+        node.metadata.height += imgConfig.PADDING;
+      }
+      
+      // Update node width: max(textWidth, thumbWidth)
+      if (thumbW > maxWidth) {
+        node.metadata.width = thumbW + (this.config.padding.x * 2);
+      }
+    }
+
+    // Account for code/quote note blocks in height
+    const NB = LAYOUT_CONFIG.NOTE_BLOCK;
+    const codeBlocks = node.metadata.codeBlocks || [];
+    const quoteBlocks = node.metadata.quoteBlocks || [];
+    const allNoteBlocks: Array<{ expanded: boolean; content: string; isQuote: boolean }> = [
+      ...codeBlocks.map(b => ({ expanded: b.expanded, content: b.code, isQuote: false })),
+      ...quoteBlocks.map(b => ({ expanded: b.expanded, content: b.text, isQuote: true })),
+    ];
+
+    if (allNoteBlocks.length > 0) {
+      let maxNoteWidth = 180 * 0.75; // Baseline width for minimum pill display
+      node.metadata.height += NB.PILL_GAP; // gap above first block
+
+      allNoteBlocks.forEach(block => {
+        if (!block.expanded) {
+          node.metadata.height += NB.PILL_HEIGHT + NB.PILL_GAP;
+        } else {
+          const lines = (block.content || '').split('\n');
+
+          // Calculate note block lines width
+          const fontRef = block.isQuote ? `${NB.QUOTE_LINE_HEIGHT}px Inter, sans-serif` : `${NB.CODE_LINE_HEIGHT}px ${NB.MONO_FONT.replace(/'/g, "")}`;
+          if (ctx) ctx.font = fontRef;
+          lines.forEach(line => {
+            let lineWidth = 0;
+            if (ctx) {
+              lineWidth = ctx.measureText(line).width + (block.isQuote ? NB.QUOTE_BORDER_WIDTH + 16 : 16);
+            } else {
+              lineWidth = line.length * ((block.isQuote ? NB.QUOTE_LINE_HEIGHT : NB.CODE_LINE_HEIGHT) * 0.6) + 16;
+            }
+            if (lineWidth > maxNoteWidth) maxNoteWidth = lineWidth;
+          });
+
+          const vPad = block.isQuote ? NB.QUOTE_V_PADDING : NB.CODE_V_PADDING;
+          const lineH = block.isQuote ? NB.QUOTE_LINE_HEIGHT : NB.CODE_LINE_HEIGHT;
+          const expandedH = NB.CODE_HEADER_HEIGHT + vPad + (lines.length * lineH) + vPad;
+          node.metadata.height += expandedH + NB.PILL_GAP;
+        }
+      });
+
+      if (maxNoteWidth > maxWidth) {
+        maxWidth = maxNoteWidth;
+        node.metadata.width = maxWidth + (this.config.padding.x * 2);
+      }
+    }
   }
 
   /**
@@ -591,6 +646,7 @@ export class D3Renderer implements RendererAdapter {
   private nodeToggleCallback: (nodeId: string) => void = () => { };
   private nodeUpdateCallback: (nodeId: string) => void = () => { };
   private nodeLinkClickCallback: (url: string) => void = () => { };
+  private nodeImageClickCallback: (url: string, alt?: string, link?: string) => void = () => { };
   private blockToggleCallback: (nodeId: string) => void = () => { };
 
   /**
@@ -628,6 +684,13 @@ export class D3Renderer implements RendererAdapter {
    */
   onNodeLinkClick(callback: (url: string) => void): void {
     this.nodeLinkClickCallback = callback;
+  }
+
+  /**
+   * Register callback for node image click events (for lightbox)
+   */
+  onNodeImageClick(callback: (url: string, alt?: string, link?: string) => void): void {
+    this.nodeImageClickCallback = callback;
   }
 
   /**
@@ -749,6 +812,10 @@ export class D3Renderer implements RendererAdapter {
     enter.append('text')
       .attr('font-family', 'Inter, sans-serif');
 
+    enter.append('g')
+      .attr('class', 'image-container')
+      .append('image');
+
     // UPDATE with transition — staggered by depth for cascade feel
     const update = enter.merge(nodeGroups);
 
@@ -820,9 +887,11 @@ export class D3Renderer implements RendererAdapter {
         const height = (d as any).metadata?.height || 0;
 
         let yOffset = -height / 2 + thisRenderer.config.padding.y;
-        if (d.metadata.image) {
-          yOffset += (d.metadata.image.thumbHeight || 0) + LAYOUT_CONFIG.IMAGE.PADDING;
-        }
+        const image = d.metadata.image;
+        const imgH = (image && (image.thumbHeight ?? 0) > 0) ? (image.thumbHeight ?? 0) : 0;
+        const hasText = displayLines.length > 0;
+        const imgGap = (imgH > 0 && hasText) ? LAYOUT_CONFIG.IMAGE.PADDING : 0;
+        yOffset += imgH + imgGap;
         const textOffset = yOffset + textH / 2;
 
         const duration = thisRenderer.config.animationDuration;
@@ -884,7 +953,48 @@ export class D3Renderer implements RendererAdapter {
     update.each(function (d) {
       const duration = thisRenderer.config.animationDuration;
       const staggerDelay = (d.depth || 0) * thisRenderer.config.staggerDelay;
-      thisRenderer.renderImages(d3.select(this) as any, d, positions, duration, staggerDelay);
+      
+      // Image rendering logic
+      const image = d.metadata.image;
+      const container = d3.select(this).select<SVGGElement>('g.image-container');
+
+      if (!image) {
+        container.interrupt().attr('opacity', 0);
+      } else {
+        const width = (d as any).metadata?.width || 0;
+        const imgW = image.thumbWidth || 0;
+        const imgH = image.thumbHeight || 0;
+        const height = (d as any).metadata?.height || 0;
+
+        let rectX: number;
+        if (thisRenderer.isVertical) {
+          rectX = -width / 2;
+        } else {
+          const pos = positions.get(d.id) || { x: 0, y: 0 };
+          const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
+          if (!parentPos) rectX = -width / 2;
+          else if (pos.x < parentPos.x) rectX = -width;
+          else rectX = 0;
+        }
+
+        container.interrupt()
+          .transition()
+          .duration(duration)
+          .delay(staggerDelay)
+          .ease(d3.easeCubicOut)
+          .attr('opacity', 1)
+          .attr('transform', `translate(${rectX + (width - imgW) / 2}, ${-height / 2 + thisRenderer.config.padding.y})`);
+
+        const img = container.select<SVGImageElement>('image')
+          .attr('width', imgW)
+          .attr('height', imgH)
+          .attr('href', image.url)
+          .on('click', (event) => {
+            event.stopPropagation();
+            thisRenderer.nodeImageClickCallback(image.url, image.alt, image.link);
+          });
+      }
+
       thisRenderer.renderNoteBlocks(d3.select(this) as any, d, positions, duration, staggerDelay);
     });
 
@@ -1050,82 +1160,6 @@ export class D3Renderer implements RendererAdapter {
         if (d.depth === 0) return '#444444'; // Match the subtle root background
         return d.color || '#f1f5f9';
       });
-  }
-
-  /**
-   * Render code and quote note blocks within a node group
-   */
-  private renderImages(
-    nodeGroup: d3.Selection<SVGGElement, TreeNode, SVGGElement, unknown>,
-    d: TreeNode,
-    positions: Map<string, Position>,
-    duration: number,
-    delay: number
-  ): void {
-    const image = d.metadata.image;
-    if (!image) {
-      nodeGroup.selectAll('g.image-container').remove();
-      return;
-    }
-
-    const width = (d as any).metadata?.width || 0;
-    const height = (d as any).metadata?.height || 0;
-    const imgW = image.thumbWidth || 0;
-    const imgH = image.thumbHeight || 0;
-
-    // Compute left-x of the node rect
-    let rectX: number;
-    if (this.isVertical) {
-      rectX = -width / 2;
-    } else {
-      const pos = positions.get(d.id) || { x: 0, y: 0 };
-      const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
-      if (!parentPos) rectX = -width / 2;
-      else if (pos.x < parentPos.x) rectX = -width;
-      else rectX = 0;
-    }
-
-    const rectTop = -height / 2;
-    const imgTop = rectTop + this.config.padding.y;
-
-    let container = nodeGroup.select<SVGGElement>('g.image-container');
-    if (container.empty()) {
-      container = nodeGroup.append('g')
-        .attr('class', 'image-container')
-        .attr('clip-path', `url(#clip-${d.id})`);
-    }
-
-    container.interrupt()
-      .transition()
-      .duration(duration)
-      .ease(d3.easeCubicOut)
-      .attr('opacity', 1)
-      .attr('transform', `translate(${rectX + (width - imgW) / 2}, ${imgTop})`);
-
-    let img = container.select<SVGImageElement>('image');
-    if (img.empty()) {
-      img = container.append('image')
-        .attr('preserveAspectRatio', 'xMidYMid meet')
-        .style('cursor', 'pointer');
-    }
-
-    img.attr('width', imgW)
-       .attr('height', imgH)
-       .attr('href', image.url);
-
-    // Add border for image
-    let border = container.select<SVGRectElement>('rect.image-border');
-    if (border.empty()) {
-      border = container.append('rect').attr('class', 'image-border').attr('fill', 'none');
-    }
-
-    const imgConfig = LAYOUT_CONFIG.IMAGE;
-    border.attr('width', imgW)
-      .attr('height', imgH)
-      .attr('rx', imgConfig.CORNER_RADIUS)
-      .attr('ry', imgConfig.CORNER_RADIUS)
-      .attr('stroke', this.isDarkMode ? '#475569' : '#cbd5e1')
-      .attr('stroke-width', imgConfig.BORDER_WIDTH);
   }
 
   private renderNoteBlocks(
@@ -1584,7 +1618,7 @@ export class D3Renderer implements RendererAdapter {
     parts.forEach(part => {
       if (!part) return;
 
-      if (part.startsWith('[') || part.startsWith('![')) {
+      if ((part.startsWith('[') || part.startsWith('![')) && part.includes('](')) {
         // Link or Image block
         const isImage = part.startsWith('!');
         const lastClosingBracket = part.lastIndexOf(']');

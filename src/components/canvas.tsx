@@ -15,7 +15,7 @@ import { LayoutFactory } from '@/core/layout/layout-factory';
 import { useTheme } from 'next-themes';
 import { useWebPlatform } from '@/platform/web/web-platform-context';
 import { useFileDrop } from '@/hooks/use-file-drop';
-import { cn } from '@/lib/utils';
+import { cn, normalizeUrl } from '@/lib/utils';
 
 import { getVsCodeApi } from '@/platform/vscode/vscode-api';
 
@@ -116,6 +116,15 @@ export function Canvas() {
           globalState.setState({ tree: { ...s.tree } });
         }
       });
+
+      // Handle node image clicks (trigger lightbox)
+      if (renderer.onNodeImageClick) {
+        renderer.onNodeImageClick((url, alt, link) => {
+          window.dispatchEvent(new CustomEvent('inklink-image-preview', {
+            detail: { url, alt, link }
+          }));
+        });
+      }
 
       // Handle link clicks
       if (renderer.onNodeLinkClick) {
