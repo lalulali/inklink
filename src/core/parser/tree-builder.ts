@@ -13,6 +13,29 @@ import {
   IndentationError,
 } from './indentation';
 
+/**
+ * Persistent map from structural path-key → stable node ID.
+ * Survives across parses so that nodes keep the same ID as long as
+ * their position in the tree is unchanged.
+ *
+ * Path-key format: "root::0::1" means
+ *   - child at index 0 of root, then child at index 1 of that node.
+ * The virtual root always uses the key "root".
+ */
+const _pathToId: Map<string, string> = new Map();
+
+/**
+ * Returns the stable ID for a given path-key, creating one if it doesn't exist yet.
+ */
+function getOrCreateId(pathKey: string): string {
+  let id = _pathToId.get(pathKey);
+  if (!id) {
+    id = `node_${Math.random().toString(36).slice(2, 11)}`;
+    _pathToId.set(pathKey, id);
+  }
+  return id;
+}
+
 export interface LineInfo {
   text: string;
   index: number;
@@ -58,10 +81,16 @@ export function buildTree(
   const orphans: TreeNode[] = [];
   const stack: TreeNode[] = [];
   let maxDepth = 0;
-  let nodeCounter = 0;  // Sequential counter for stable IDs during minor edits
   let lastHeaderDepth = -1;
   let isFenced = false;
   let contentStartColumn = 0;
+
+  // Track the child-index counters per parent path-key so we can build stable path-keys.
+  // e.g. childIndexOf.get("root") = 2 means root currently has 2 children assigned.
+  const childIndexOf: Map<string, number> = new Map();
+
+  // Collect all path-keys used in this parse so we can prune stale entries afterwards.
+  const usedPathKeys: Set<string> = new Set();
 
   for (let i = 0; i < lines.length; i++) {
     const { text: line } = lines[i];
@@ -109,8 +138,9 @@ export function buildTree(
       content = trimmed;
       contentStartColumn = line.length - trimmed.length;
     } else {
-      // Continuation of a node: strip only as much as the node's baseline indentation
-      const stripCount = Math.min(line.length, contentStartColumn);
+      // Continuation of a node: strip only as much leading whitespace as the node's baseline indentation
+      const leadingWhitespace = line.length - line.trimStart().length;
+      const stripCount = Math.min(leadingWhitespace, contentStartColumn);
       content = line.substring(stripCount);
     }
 
@@ -118,7 +148,31 @@ export function buildTree(
 
     // A node is created if it's an initiator OR if it's the very first line of the tree
     if (isInitiator || orphans.length === 0) {
-      const node = createTreeNode(content, currentDepth, `node_${nodeCounter++}`);
+      // --- Stable ID via path-key ---
+      // Determine parent path-key BEFORE modifying the stack.
+      let parentPathKey: string;
+      if (orphans.length === 0) {
+        // This will become the (sole/first) root.
+        parentPathKey = '__none__';
+      } else {
+        // Peek at what the parent will be after popping.
+        let peekIdx = stack.length - 1;
+        while (peekIdx >= 0 && stack[peekIdx].depth >= currentDepth) {
+          peekIdx--;
+        }
+        parentPathKey = peekIdx >= 0 ? (stack[peekIdx] as any).__pathKey : '__orphan__';
+      }
+
+      const siblingIndex = childIndexOf.get(parentPathKey) ?? 0;
+      childIndexOf.set(parentPathKey, siblingIndex + 1);
+
+      const pathKey = orphans.length === 0 ? 'root' : `${parentPathKey}::${siblingIndex}`;
+      usedPathKeys.add(pathKey);
+      const stableId = getOrCreateId(pathKey);
+
+      const node = createTreeNode(content, currentDepth, stableId);
+      // Attach the path-key so children can reference it.
+      (node as any).__pathKey = pathKey;
 
       if (orphans.length === 0) {
         orphans.push(node);
@@ -154,6 +208,13 @@ export function buildTree(
 
   if (orphans.length === 0) {
      throw new TreeBuildError('Failed to build tree: no nodes found', -1);
+  }
+
+  // Prune stale entries from the persistent path-key map so it doesn't grow unboundedly.
+  for (const key of Array.from(_pathToId.keys())) {
+    if (!usedPathKeys.has(key)) {
+      _pathToId.delete(key);
+    }
   }
 
   // Post-process: extract code/quote blocks and images from every node's content
@@ -233,6 +294,18 @@ export function extractImages(raw: string): {
       // (though linked images are already replaced by placeholders)
       const idx = images.length;
       images.push({ url, alt: alt || undefined });
+      return `[image:${idx}]`;
+    }
+  );
+
+  // 3. HTML image tags
+  cleanContent = cleanContent.replace(
+    /<(?:img|image)\b[^>]*src=["']([^"']+)["'][^>]*\/?>/gi,
+    (_match, url) => {
+      const altMatch = _match.match(/alt=["']([^"']+)["']/i);
+      const alt = altMatch ? altMatch[1] : undefined;
+      const idx = images.length;
+      images.push({ url, alt });
       return `[image:${idx}]`;
     }
   );

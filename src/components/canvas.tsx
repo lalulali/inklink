@@ -322,7 +322,7 @@ export function Canvas() {
   const lastLayoutRef = useRef(state.layoutDirection);
 
   /**
-   * Trigger Layout Calculation and Rendering
+   * Trigger Layout Calculation and Rendering — only fires when tree structure/direction changes
    */
   useEffect(() => {
     if (rendererRef.current && containerRef.current) {
@@ -343,7 +343,19 @@ export function Canvas() {
         lastTreeRef.current = null;
       }
     }
-  }, [state.tree, state.layoutDirection, state.isDarkMode]);
+  }, [state.tree, state.layoutDirection]);
+
+  /**
+   * Visual-only refresh when dark mode changes — avoids full layout recalculation
+   */
+  useEffect(() => {
+    if (rendererRef.current && lastTreeRef.current && containerRef.current) {
+      const positions = globalState.getState().layoutPositions;
+      if (positions) {
+        rendererRef.current.render(lastTreeRef.current, positions, state.isDarkMode);
+      }
+    }
+  }, [state.isDarkMode]);
 
   return (
     <div 

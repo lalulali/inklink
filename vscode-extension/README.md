@@ -48,6 +48,17 @@ Inklink identifies **Code Blocks** and **Quote Blocks** within your markdown and
 - **Indentation Fidelity**: Uses `white-space: pre` to faithfully preserve complex indentation structures (tabs and spaces) inside code and quote blocks, ensuring technical snippets remain readable and accurate.
 - **Stitch Design System**: Adheres to a borderless, tonal-relief aesthetic with 6px rounded corners, ensuring blocks feel like a natural extension of the node.
 
+### 🖼️ Interactive Multimedia
+Inklink renders **Markdown Images** directly on your mind map nodes, turning plain documentation into a rich visual reference.
+- **Thumbnail Previews**: Images are rendered as aspect-aware thumbnails with smart scaling, integrated seamlessly into the node structure.
+- **Fullscreen Lightbox**: Click any image to open a high-fidelity lightbox with center-zoom animations, backdrop-blur effects, and full-resolution viewing.
+- **Linked Image Integration**: Images wrapped in links are intelligently detected, allowing you to open the original URL directly from the lightbox view.
+
+### 📊 Interactive Tables
+Structured data is no longer hidden in text. Inklink identifies **Markdown Tables** and renders them as interactive integrated nodes.
+- **Column Synchronization**: Table columns are automatically distributed across the node width with robust overflow handling.
+- **Visual Consistency**: Tables adhere to the "Stitch" design language with tonal-relief row highlighting and consistent alignment.
+
 ### 🧭 Multiple Layout Directions
 Choose how your mind map flows:
 - **Two-Sided (Balanced)** — branches spread left and right

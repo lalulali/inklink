@@ -15,7 +15,14 @@ import CodeMirror, {
 	ViewUpdate,
 	ViewPlugin,
 } from "@uiw/react-codemirror";
-import { Prec, EditorSelection, RangeSetBuilder } from "@codemirror/state";
+import { 
+	autocompletion, 
+	CompletionContext, 
+	acceptCompletion, 
+	completionStatus,
+	startCompletion
+} from "@codemirror/autocomplete";
+import { Prec, EditorSelection, RangeSetBuilder, Transaction } from "@codemirror/state";
 import { markdown as mdLang } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { oneDark } from "@codemirror/theme-one-dark";
@@ -109,6 +116,128 @@ const lightColorfulHighlightStyle = HighlightStyle.define([
 	{ tag: t.url, color: "#0184bc" },
 	{ tag: t.monospace, color: "#50a14f" },
 ]);
+
+/* --- HTML Tag Autocomplete & Sync Features --- */
+
+const EXTENDED_HTML_TAG_INFO: Record<string, string> = {
+	"a": "link",
+	"br": "line break",
+	"sub": "subscript",
+	"sup": "superscript",
+	"kbd": "keyboard key",
+	"details": "collapsible",
+	"summary": "toggle label",
+	"mark": "highlight",
+	"u": "underline",
+	"div": "container",
+	"span": "wrapper",
+	"p": "paragraph",
+	"center": "center align",
+	"ul": "bullet list",
+	"li": "list item",
+	"ol": "ordered list",
+	"em": "italic",
+	"i": "italic",
+	"strong": "bold text",
+	"b": "bold text",
+	"image": "image tag",
+	"img": "image tag"
+};
+
+/**
+ * Custom HTML tag completion source limited to specific extended tags
+ */
+function htmlTagCompletionSource(context: CompletionContext) {
+	// Trigger on < and </ followed by optional letters
+	let word = context.matchBefore(/<\/?[a-zA-Z]*/);
+	
+	// If no match found, don't trigger
+	if (!word) return null;
+	
+	// If the match is empty and it wasn't an explicit trigger (like Ctrl+Space), don't show
+	if (word.from === word.to && !context.explicit) return null;
+	
+	// If the match is just "<" or "</", we want to show all options
+	const isClosing = word.text.startsWith('</');
+	const options = Object.keys(EXTENDED_HTML_TAG_INFO).map(tag => ({ 
+		label: `${tag} - ${EXTENDED_HTML_TAG_INFO[tag]}`, 
+		type: "tag",
+		apply: isClosing ? tag + ">" : (tag === "br" ? tag + ">" : 
+			(tag === "a" ? 'a href="">' : 
+			((tag === "img" || tag === "image") ? tag + ' src="">' : tag + ">")))
+	}));
+
+	return {
+		from: word.from + (isClosing ? 2 : 1),
+		options: options,
+		validFor: /^[a-zA-Z]*$/,
+		filter: true
+	};
+}
+
+/**
+ * Synchronized HTML Tags Plugin
+ * Monitors changes to opening/closing tags and updates their counterparts
+ */
+const syncTagsPlugin = ViewPlugin.fromClass(class {
+	update(update: ViewUpdate) {
+		if (!update.docChanged || update.transactions.some(tr => tr.annotation(Transaction.userEvent) === "sync")) return;
+		
+		let changes: { from: number; to: number; insert: string }[] = [];
+		const state = update.state;
+
+		update.changes.iterChanges((fromA, toA, fromB, toB) => {
+			const tree = syntaxTree(state);
+			let node = tree.resolveInner(toB, -1);
+			
+			// Find TagName node
+			while (node && node.name !== "TagName" && node.parent) {
+				node = node.parent;
+			}
+			
+			if (node && node.name === "TagName") {
+				const tag = node.parent;
+				if (tag && (tag.name === "OpenTag" || tag.name === "CloseTag")) {
+					const element = tag.parent;
+					if (element) {
+						const other = tag.name === "OpenTag" ? element.getChild("CloseTag") : element.getChild("OpenTag");
+						if (other) {
+							const otherName = other.getChild("TagName");
+							if (otherName) {
+								const newName = state.sliceDoc(node.from, node.to);
+								if (state.sliceDoc(otherName.from, otherName.to) !== newName) {
+									changes.push({ from: otherName.from, to: otherName.to, insert: newName });
+								}
+							}
+						}
+					}
+				}
+			}
+		});
+
+		if (changes.length > 0) {
+			update.view.dispatch({
+				changes,
+				annotations: Transaction.userEvent.of("sync")
+			});
+		}
+	}
+});
+
+/**
+ * Tab-to-Accept Completion Keymap
+ */
+const autocompleteTabKeymap = Prec.highest(keymap.of([
+	{
+		key: "Tab",
+		run: (view) => {
+			if (completionStatus(view.state) === "active") {
+				return acceptCompletion(view);
+			}
+			return false;
+		}
+	}
+]));
 
 /* --- Link Popover Components --- */
 
@@ -1242,6 +1371,18 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 						search(),
 						searchHighlightPlugin,
 						revealHighlightPlugin,
+						autocompletion({ override: [htmlTagCompletionSource] }),
+						autocompleteTabKeymap,
+						syncTagsPlugin,
+						EditorView.updateListener.of((update) => {
+							if (update.docChanged && update.transactions.some(tr => tr.isUserEvent("delete.backward"))) {
+								const head = update.state.selection.main.head;
+								const before = update.state.sliceDoc(Math.max(0, head - 2), head);
+								if (before === "<" || before.endsWith("<") || before === "</") {
+									startCompletion(update.view);
+								}
+							}
+						}),
 					]}
 					onChange={onChange}
 					onUpdate={(update) => {
