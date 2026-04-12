@@ -5,6 +5,8 @@ const nextConfig = {
   turbopack: {
     root: '.',
   },
+  // Required for Docker standalone deployment
+  output: 'standalone',
 };
 
 module.exports = nextConfig;
