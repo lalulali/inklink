@@ -150,6 +150,35 @@ npm run build
 npm start
 ```
 
+### Docker
+
+**Pull and run the published image:**
+
+```bash
+docker run --rm -p 3000:3000 olprog/inklink:latest
+```
+
+Then open [http://localhost:3000](http://localhost:3000).
+
+**Build the image locally:**
+
+```bash
+docker build -t inklink .
+docker run --rm -p 3000:3000 inklink
+```
+
+**Image details:**
+- Base: `alpine:3.23` + Node.js runtime (~116 MB)
+- Runs as a non-root user (`nextjs`)
+- Built with Next.js [standalone output](https://nextjs.org/docs/app/api-reference/config/next-config-js/output) — no `node_modules` install needed at runtime
+- All OS packages are upgraded at build time (`apk upgrade`) to eliminate known CVEs
+
+**Scan for vulnerabilities:**
+
+```bash
+trivy image olprog/inklink:latest
+```
+
 ### Run Tests
 
 ```bash
