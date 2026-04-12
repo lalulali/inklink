@@ -173,6 +173,9 @@ export function buildTree(
       const node = createTreeNode(content, currentDepth, stableId);
       // Attach the path-key so children can reference it.
       (node as any).__pathKey = pathKey;
+      // Store which source line this node originated from (0-based index)
+      node.metadata.sourceLine = lines[i].index;
+      node.metadata.sourceLineEnd = lines[i].index;
 
       if (orphans.length === 0) {
         orphans.push(node);
@@ -200,8 +203,10 @@ export function buildTree(
       let targetNode = stack[stack.length - 1];
       if (targetNode) {
           targetNode.content += '\n' + content;
+          targetNode.metadata.sourceLineEnd = lines[i].index;
       } else if (orphans.length > 0) {
           orphans[orphans.length - 1].content += '\n' + content;
+          orphans[orphans.length - 1].metadata.sourceLineEnd = lines[i].index;
       }
     }
   }
@@ -273,10 +278,18 @@ export function extractImages(raw: string): {
   images: ImageInfo[];
 } {
   const images: ImageInfo[] = [];
-  
+
+  // Mask inline code spans so their contents are never parsed as HTML/markdown
+  const inlineCodeStore: string[] = [];
+  const masked = raw.replace(/`[^`]*`/g, (match) => {
+    const idx = inlineCodeStore.length;
+    inlineCodeStore.push(match);
+    return `\x00INLINECODE${idx}\x00`;
+  });
+
   // 1. Linked image first (more specific)
   // Regex matches: [![alt](img_url)](link_url)
-  let cleanContent = raw.replace(
+  let cleanContent = masked.replace(
     /\[!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\)/g,
     (_match, alt, url, link) => {
       const idx = images.length;
@@ -290,8 +303,6 @@ export function extractImages(raw: string): {
   cleanContent = cleanContent.replace(
     /!\[([^\]]*)\]\(([^)]+)\)/g,
     (_match, alt, url) => {
-      // Avoid matching if it was already processed as part of a linked image
-      // (though linked images are already replaced by placeholders)
       const idx = images.length;
       images.push({ url, alt: alt || undefined });
       return `[image:${idx}]`;
@@ -309,6 +320,9 @@ export function extractImages(raw: string): {
       return `[image:${idx}]`;
     }
   );
+
+  // Restore inline code spans
+  cleanContent = cleanContent.replace(/\x00INLINECODE(\d+)\x00/g, (_, i) => inlineCodeStore[parseInt(i)]);
 
   return { cleanContent, images };
 }

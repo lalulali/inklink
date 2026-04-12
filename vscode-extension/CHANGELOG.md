@@ -2,6 +2,22 @@
 
 All notable changes to the "inklink" extension will be documented in this file.
 
+## [0.2.0] - 2026-04-12
+### **The "Navigate Your Knowledge" Update**
+This version transforms Inklink into a professional-grade navigational tool for complex documents, introducing advanced camera logic and strict layout physics.
+
+- **Precision Navigation (Minimap v2)**:
+  - **Intelligent Auto-Focus**: The minimap now maintains a high-resolution "neighborhood" view around your active viewport, automatically scaling to keep nodes readable even in massive maps.
+  - **Power Zoom (The Fly-Over)**: Dragging the minimap viewport now triggers a smooth, context-aware zoom-out to the global overview, "diving" back into detail when you release.
+  - **Structural Skeleton**: Added a branching skeleton layer to the minimap to preserve branch context at all zoom levels.
+  - **Hierarchical Pills**: Replaced uniform dots with depth-aware rounded pills. Root and Level-1 nodes are now visually weighted for immediate orientation.
+- **Advanced Layout Physics (Layout 2.0)**:
+  - **Strict Balance Mode**: Refactored the Two-Sided distribution algorithm to ensure perfect node parity between left and right branches (max difference of 1).
+  - **Panning Constraints**: Implemented flexible workspace bounds with a 200px buffer. Inklink now prevents you from getting "lost" in infinite space while allowing ample room for content growth.
+- **Performance & Smoothness**:
+  - **Delta-Correct Scrubber**: Refined the minimap drag logic to provide a perfect 1:1 mouse-to-world movement ratio, eliminating jitter during scale transitions.
+  - **Optimized Culling**: Improved viewport culling logic to handle 1000+ nodes with zero impact on interface responsiveness.
+
 ## [0.1.6] - 2026-04-09
 - **Interactive Multimedia**:
   - Full Support for **Markdown Images** (`![alt](url)`) rendered as professional, aspect-aware thumbnails directly on nodes.

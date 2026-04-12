@@ -44,6 +44,7 @@ export interface TableBlockInfo {
   rows: string[][];
   alignments: ('left' | 'center' | 'right')[];
   expanded: boolean;
+  colWidths?: number[];
 }
 
 /**
@@ -75,6 +76,8 @@ export interface NodeMetadata {
   quoteBlocks?: QuoteBlockInfo[];
   tableBlocks?: TableBlockInfo[];
   displayContent?: string;
+  sourceLine?: number;   // 0-based start line index
+  sourceLineEnd?: number; // 0-based end line index
 }
 
 /**
@@ -103,6 +106,8 @@ export function createTreeNode(content: string, depth: number, id?: string): Tre
       codeBlocks: [],
       quoteBlocks: [],
       tableBlocks: [],
+      sourceLine: -1,
+      sourceLineEnd: -1,
     },
   };
 }

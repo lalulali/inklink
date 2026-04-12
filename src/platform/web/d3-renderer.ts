@@ -11,12 +11,15 @@ import { ViewportCuller } from './viewport-culler';
 import { ColorManager, RendererColors } from '@/core/theme/color-manager';
 import { LAYOUT_CONFIG } from '@/core/layout/layout-config';
 import { imageDimensionStore } from '@/core/utils/image-store';
-import { 
-  wrapText, 
-  getNoteBlockFontSize, 
-  getNoteBlockFontWeight, 
+import {
+  wrapText,
+  getNoteBlockFontSize,
+  getNoteBlockFontWeight,
   getNoteBlockLineHeight,
-  parseMarkdownLine
+  parseMarkdownLine,
+  measureRichTextWidth,
+  getHeadingFontSize,
+  getHeadingLineHeight
 } from '@/core/utils/text-rendering';
 
 /**
@@ -31,6 +34,7 @@ export class D3Renderer implements RendererAdapter {
   private culler = new ViewportCuller();
   private lastRoot: TreeNode | null = null;
   private lastPositions: Map<string, Position> | null = null;
+  private lastCullingUpdate: number = 0;
   private highlightIds: Set<string> = new Set();
   private selectedNodeId: string | null = null;
   private isVertical: boolean = false;
@@ -80,15 +84,16 @@ export class D3Renderer implements RendererAdapter {
    * Helper to wrap text into lines based on maximum width.
    * This is Markdown-aware to ensure links are treated as atomic units and don't wrap mid-line.
    */
-  private wrapText(text: string, maxWidth: number, fontSize: number, fontWeight: string): string[] {
-    const measure = (txt: string, font: string) => {
-      if (this.measureCtx) {
-        this.measureCtx.font = font;
-        return this.measureCtx.measureText(txt).width;
+  private wrapText(text: string, maxWidth: number, fontSize: number, fontWeight: string, fontFamily: string = 'Inter, sans-serif'): string[] {
+    const ctx = this.measureCtx;
+    const measure = (t: string, f: string) => {
+      if (ctx) {
+        ctx.font = f;
+        return ctx.measureText(t).width;
       }
-      return txt.length * (fontSize * 0.6); // Fallback
+      return t.length * (fontSize * 0.6);
     };
-    return wrapText(text, maxWidth, fontSize, fontWeight, measure);
+    return wrapText(text, maxWidth, fontSize, fontWeight, measure, fontFamily);
   }
 
   /**
@@ -135,13 +140,35 @@ export class D3Renderer implements RendererAdapter {
             scale: event.transform.k,
           });
         }
+
+        // Feature: Viewport Culling Update
+        // Re-render to update culled nodes if we have enough nodes to justify it
+        if (this.lastRoot && ((this.lastRoot as any)._allNodesCount || 0) > 30) {
+          const now = Date.now();
+          if (now - this.lastCullingUpdate > 200) { // 200ms throttle for smoothness
+            this.lastCullingUpdate = now;
+            this.render(this.lastRoot, this.lastPositions!, this.isDarkMode);
+          }
+        }
       })
       .on('end', () => {
         this.svg?.style('cursor', 'grab');
+        // Final render on end to ensure all visible nodes are present
+        if (this.lastRoot && this.lastPositions) {
+          this.render(this.lastRoot, this.lastPositions, this.isDarkMode);
+        }
       });
 
+    this.zoom.clickDistance(8);
     this.svg.call(this.zoom)
       .style('cursor', 'grab')
+      .on('click', () => {
+         // Clear selection if clicking canvas background
+         if (this.nodeClickCallback) this.nodeClickCallback('');
+      })
+      // CRITICAL FIX: Add a click distance threshold to prevent micro-movements (common during lag)
+      // from being interpreted as a pan start, which suppresses the local click event.
+      .filter(() => true) // allow all events
       // Override default wheel behavior to support custom Pan/Zoom combinations
       .on('wheel.zoom', (event: WheelEvent) => {
         // Prevent default browser scrolling
@@ -235,27 +262,56 @@ export class D3Renderer implements RendererAdapter {
 
     // Heuristic measurement for nodes
     const allNodes = this.flattenTree(root);
+    (root as any)._allNodesCount = allNodes.length; // Store for throttled culling checks
 
     // Update zoom translate extent based on actual map bounds with padding
     // This allows the "canvas to grow on the fly" as content is added or expanded.
     if (this.zoom && this.svg) {
       let minX = 0, maxX = 0, minY = 0, maxY = 0;
+      const rootPos = positions.get(root.id) || { x: 0, y: 0 };
+
       allNodes.forEach(node => {
         const pos = positions.get(node.id);
         if (pos) {
           const w = (node as any).metadata?.width || 100;
           const h = (node as any).metadata?.height || 40;
-          minX = Math.min(minX, pos.x - w);
-          maxX = Math.max(maxX, pos.x + w);
-          minY = Math.min(minY, pos.y - h);
-          maxY = Math.max(maxY, pos.y + h);
+          
+          // More precise bound calculation based on side
+          if (this.isVertical) {
+            minX = Math.min(minX, pos.x - w / 2);
+            maxX = Math.max(maxX, pos.x + w / 2);
+            minY = Math.min(minY, pos.y - h / 2);
+            maxY = Math.max(maxY, pos.y + h / 2);
+          } else {
+            // Horizontal: pos.x is inner edge for branches, center for root
+            if (pos.x > rootPos.x) { // Right side
+              minX = Math.min(minX, pos.x);
+              maxX = Math.max(maxX, pos.x + w);
+            } else if (pos.x < rootPos.x) { // Left side
+              minX = Math.min(minX, pos.x - w);
+              maxX = Math.max(maxX, pos.x);
+            } else { // Root
+              minX = Math.min(minX, pos.x - w / 2);
+              maxX = Math.max(maxX, pos.x + w / 2);
+            }
+            minY = Math.min(minY, pos.y - h / 2);
+            maxY = Math.max(maxY, pos.y + h / 2);
+          }
         }
       });
+      
+      const view = this.getViewportBounds();
+      
+      // Calculate effective extent: map bounds + buffer, but at least viewport size
+      // to ensure small maps can still be panned/centered freely.
+      const extMinX = Math.min(minX - LAYOUT_CONFIG.PANNING.BUFFER_X, -view.width / 2);
+      const extMaxX = Math.max(maxX + LAYOUT_CONFIG.PANNING.BUFFER_X, view.width / 2);
+      const extMinY = Math.min(minY - LAYOUT_CONFIG.PANNING.BUFFER_Y, -view.height / 2);
+      const extMaxY = Math.max(maxY + LAYOUT_CONFIG.PANNING.BUFFER_Y, view.height / 2);
 
-      // Add 2000px padding to the calculated bounds for freedom of movement
       this.zoom.translateExtent([
-        [minX - 2000, minY - 2000],
-        [maxX + 2000, maxY + 2000]
+        [extMinX, extMinY],
+        [extMaxX, extMaxY]
       ]);
     }
 
@@ -302,7 +358,11 @@ export class D3Renderer implements RendererAdapter {
     const imageUrl = node.metadata.image?.url ?? '';
     const codeCount = (node.metadata.codeBlocks ?? []).reduce((s: number, b: any) => s + (b.expanded ? 1 : 0) + b.code.length, 0);
     const quoteCount = (node.metadata.quoteBlocks ?? []).reduce((s: number, b: any) => s + (b.expanded ? 1 : 0) + b.text.length, 0);
-    const tableCount = (node.metadata.tableBlocks ?? []).reduce((s: number, b: any) => s + (b.expanded ? 1 : 0), 0);
+    const tableContentKey = (node.metadata.tableBlocks ?? []).reduce((s: number, b: any) => {
+      const hLen = (b.headers ?? []).reduce((acc: number, h: string) => acc + (h?.length || 0), 0);
+      const rLen = (b.rows ?? []).reduce((acc: number, r: any[]) => acc + r.reduce((ra: number, c: any) => ra + (String(c)?.length || 0), 0), 0);
+      return s + (b.expanded ? 1 : 0) + hLen + rLen;
+    }, 0);
     // Include image dimension state so the cache is busted once the image loads
     let imageState = 'none';
     if (imageUrl) {
@@ -315,7 +375,7 @@ export class D3Renderer implements RendererAdapter {
         imageState = 'pending';
       }
     }
-    return `${node.depth}|${display.length}|${imageUrl}|${imageState}|${codeCount}|${quoteCount}|${tableCount}`;
+    return `${node.depth}|${display.length}|${imageUrl}|${imageState}|${codeCount}|${quoteCount}|${tableContentKey}`;
   }
 
   /**
@@ -335,6 +395,25 @@ export class D3Renderer implements RendererAdapter {
     if (cached && cached.contentKey === contentKey) {
       node.metadata.width = cached.width;
       node.metadata.height = cached.height;
+      // Even on cache hit, re-populate thumbWidth/thumbHeight on the (possibly fresh) image object
+      if (node.metadata.image) {
+        const image = node.metadata.image;
+        const imgConfig = LAYOUT_CONFIG.IMAGE;
+        const dims = imageDimensionStore.getDimensions(image.url);
+        const w = dims?.width || 0;
+        const h = dims?.height || 0;
+        if (w > 0 && h > 0) {
+          const ratioW = imgConfig.MAX_WIDTH / w;
+          const ratioH = imgConfig.MAX_HEIGHT / h;
+          const scale = (w > imgConfig.MAX_WIDTH || h > imgConfig.MAX_HEIGHT) ? Math.min(ratioW, ratioH) : 1;
+          image.thumbWidth = w * scale;
+          image.thumbHeight = h * scale;
+        } else {
+          const isActuallyLoading = imageDimensionStore.isLoading(image.url);
+          image.thumbWidth = isActuallyLoading ? 40 : 0;
+          image.thumbHeight = isActuallyLoading ? 30 : 0;
+        }
+      }
       return;
     }
 
@@ -346,11 +425,11 @@ export class D3Renderer implements RendererAdapter {
 
     if (ctx) ctx.font = `${fontWeight} ${fontSize}px Inter, sans-serif`;
 
-    // Use the unified wrapText helper for accurate line count and width
-    let displayContent = (node as any).metadata?.displayContent ?? node.content;
-    
-    // Strip internal placeholders from the rendered text to avoid clutter
-    displayContent = displayContent.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/gi, '').trim();
+    // Calculate the display text by stripping out internal placeholders
+    let displayContent = ((node as any).metadata?.displayContent ?? node.content ?? '');
+    // Strip leading list markers from actual display if they were caught in the content
+    displayContent = displayContent.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/gi, '');
+    displayContent = displayContent.split('\n').map((line: string) => line.replace(/^(\s*)[-*+]\s*\[([ xX])\]/, '$1[$2]')).join('\n').trim();
 
     const displayLines = this.wrapText(displayContent, rootMaxW, fontSize, fontWeight);
     let maxWidth = 0;
@@ -360,12 +439,13 @@ export class D3Renderer implements RendererAdapter {
       let lineWidth = 0;
       segments.forEach(seg => {
         if (ctx) {
-          const segFontSize = (seg.subscript || seg.superscript) ? fontSize * 0.7 : fontSize;
+          const segFontSize = seg.heading ? getHeadingFontSize(seg.heading) : ((seg.subscript || seg.superscript) ? fontSize * 0.7 : fontSize);
           const segFontFamily = seg.keyboard ? LAYOUT_CONFIG.NOTE_BLOCK.MONO_FONT : 'Inter, sans-serif';
-          ctx.font = `${seg.bold ? 'bold ' : fontWeight} ${seg.italic ? 'italic ' : ''}${segFontSize}px ${segFontFamily}`;
-          lineWidth += ctx.measureText(seg.text).width;
+          const textToMeasure = seg.checkbox ? '☑ ' : seg.text;
+          ctx.font = `${(seg.bold || (seg.heading && seg.heading <= 3)) ? 'bold ' : fontWeight} ${seg.italic ? 'italic ' : ''}${segFontSize}px ${segFontFamily}`;
+          lineWidth += ctx.measureText(textToMeasure).width;
         } else {
-          const segFontSize = (seg.subscript || seg.superscript) ? fontSize * 0.7 : fontSize;
+          const segFontSize = seg.heading ? getHeadingFontSize(seg.heading) : ((seg.subscript || seg.superscript) ? fontSize * 0.7 : fontSize);
           lineWidth += seg.text.length * (segFontSize * 0.6);
         }
       });
@@ -374,7 +454,23 @@ export class D3Renderer implements RendererAdapter {
 
     const hasText = displayContent.length > 0;
     node.metadata.width = maxWidth + (this.config.padding.x * 2);
-    node.metadata.height = (hasText ? (displayLines.length * lineHeight) : 0) + (this.config.padding.y * 2);
+    
+    let totalTextHeight = 0;
+    displayLines.forEach(line => {
+      const lineSegments = parseMarkdownLine(line);
+      const maxLineH = lineSegments.reduce((max, seg) => {
+        const h = seg.heading ? getHeadingLineHeight(seg.heading) : lineHeight;
+        return Math.max(max, h);
+      }, 0);
+      totalTextHeight += maxLineH || lineHeight;
+    });
+    node.metadata.height = (hasText ? totalTextHeight : 0) + (this.config.padding.y * 2);
+
+    // Prepare note blocks info early for height/gap calculation
+    const codeBlocks = node.metadata.codeBlocks || [];
+    const quoteBlocks = node.metadata.quoteBlocks || [];
+    const tableBlocks = node.metadata.tableBlocks || [];
+    const hasNoteBlocks = codeBlocks.length > 0 || quoteBlocks.length > 0 || tableBlocks.length > 0;
 
     // Account for images in measurement
     if (node.metadata.image) {
@@ -392,7 +488,7 @@ export class D3Renderer implements RendererAdapter {
       // Base dimensions: Use 0 as placeholder if not loaded to allow collapsing/expansion
       const w = image.width || 0;
       const h = image.height || 0;
-      
+
       let scale = 1;
       if (w > 0 && h > 0) {
         const ratioW = imgConfig.MAX_WIDTH / w;
@@ -401,7 +497,7 @@ export class D3Renderer implements RendererAdapter {
         if (w > imgConfig.MAX_WIDTH || h > imgConfig.MAX_HEIGHT) {
           scale = Math.min(ratioW, ratioH);
         }
-        
+
         image.thumbWidth = w * scale;
         image.thumbHeight = h * scale;
       } else {
@@ -410,28 +506,33 @@ export class D3Renderer implements RendererAdapter {
         const isActuallyLoading = imageDimensionStore.isLoading(image.url);
         image.thumbWidth = isActuallyLoading ? 40 : 0;
         image.thumbHeight = isActuallyLoading ? 30 : 0;
+        if (!isActuallyLoading && !image.thumbWidth) {
+          // Failed to load placeholder dimensions
+          image.thumbWidth = 40;
+          image.thumbHeight = 30;
+          (image as any).failed = true;
+        }
       }
 
       // Update node height: Add thumbnail height
       const thumbH = image.thumbHeight ?? 0;
       const thumbW = image.thumbWidth ?? 0;
       node.metadata.height += thumbH;
-      // Add gap only if there is text AND image is non-zero
-      if (hasText && thumbH > 0) {
+
+      // Add gap if there is text OR note blocks below the image
+      if (thumbH > 0 && (hasText || hasNoteBlocks)) {
         node.metadata.height += imgConfig.PADDING;
       }
-      
+
       // Update node width: max(textWidth, thumbWidth)
       if (thumbW > maxWidth) {
-        node.metadata.width = thumbW + (this.config.padding.x * 2);
+        maxWidth = thumbW;
+        node.metadata.width = maxWidth + (this.config.padding.x * 2);
       }
     }
 
     // Account for code/quote note blocks in height
     const NB = LAYOUT_CONFIG.NOTE_BLOCK;
-    const codeBlocks = node.metadata.codeBlocks || [];
-    const quoteBlocks = node.metadata.quoteBlocks || [];
-    const tableBlocks = node.metadata.tableBlocks || [];
     const allNoteBlocks: Array<{ expanded: boolean; content: string; isQuote: boolean; isTable: boolean; headers?: string[]; rows?: string[][] }> = [
       ...codeBlocks.map(b => ({ expanded: b.expanded, content: b.code, isQuote: false, isTable: false })),
       ...quoteBlocks.map(b => ({ expanded: b.expanded, content: b.text, isQuote: true, isTable: false })),
@@ -441,58 +542,98 @@ export class D3Renderer implements RendererAdapter {
     if (allNoteBlocks.length > 0) {
       let maxNoteWidth = 180 * 0.75; // Baseline width for minimum pill display
       allNoteBlocks.forEach((block, idx) => {
-        if (hasText || idx > 0) {
+        if (hasText || node.metadata.image || idx > 0) {
           node.metadata.height += NB.PILL_GAP;
         }
 
         if (!block.expanded) {
           node.metadata.height += NB.PILL_HEIGHT;
         } else if (block.isTable) {
-          // Table height
-          const headerRows = block.headers?.length ? 1 : 0;
-          const totalRows = (block.rows?.length || 0) + headerRows;
-          const tableH = NB.TABLE_HEADER_HEIGHT + (totalRows * NB.TABLE_ROW_HEIGHT) + (NB.TABLE_V_PADDING * 2);
-          node.metadata.height += tableH;
+          // Table height calculation with support for multi-line cells (\n, \n literal, <br>)
+          let totalTableHeight = NB.TABLE_HEADER_HEIGHT + (NB.TABLE_V_PADDING * 2);
+          const getCellLines = (txt: string, maxWidth?: number) => {
+            const rawLines = (txt || '').replace(/<br\s*\/?>/gi, '\n').replace(/\\n/g, '\n').replace(/\\t/g, '    ').replace(/\t/g, '    ').split(/\r?\n/);
+            if (maxWidth === undefined) return rawLines;
+            return rawLines.flatMap((line: string) => this.wrapText(line, maxWidth, NB.TABLE_LINE_HEIGHT, '400', 'Inter, sans-serif'));
+          };
 
-          // Table width (sum of max column widths)
           const colCount = Math.max(block.headers?.length || 0, ...(block.rows?.map(r => r.length) || [0]));
+          const colWidths = new Array(colCount).fill(0);
+          const MAX_COL_W = 120; // Maximum width before wrapping a column
+
           if (colCount > 0) {
-            const colWidths = new Array(colCount).fill(0);
             if (ctx) ctx.font = `${NB.TABLE_LINE_HEIGHT}px Inter, sans-serif`;
 
-            block.headers?.forEach((h, i) => {
-              const w = ctx ? ctx.measureText(h).width : h.length * NB.TABLE_LINE_HEIGHT * 0.6;
-              colWidths[i] = Math.max(colWidths[i], w + NB.TABLE_CELL_HPADDING * 2);
-            });
-            block.rows?.forEach(row => {
+            // First pass: measure natural widths for columns (capped at MAX_COL_W)
+            const measureCol = (row: string[]) => {
               row.forEach((cell, i) => {
-                const w = ctx ? ctx.measureText(cell).width : cell.length * NB.TABLE_LINE_HEIGHT * 0.6;
-                colWidths[i] = Math.max(colWidths[i], w + NB.TABLE_CELL_HPADDING * 2);
+                const lines = getCellLines(cell);
+                lines.forEach(line => {
+                  const w = measureRichTextWidth(line, NB.TABLE_LINE_HEIGHT, '400', (t, f) => {
+                    if (ctx) { ctx.font = f; return ctx.measureText(t).width; }
+                    return t.length * NB.TABLE_LINE_HEIGHT * 0.6;
+                  });
+                  colWidths[i] = Math.max(colWidths[i], Math.min(w + NB.TABLE_CELL_HPADDING * 2, MAX_COL_W));
+                });
               });
+            };
+
+            if (block.headers) measureCol(block.headers);
+            block.rows?.forEach(row => measureCol(row));
+
+            // Second pass: Calculate row heights based on wrapped lines
+            if (block.headers?.length) {
+              let maxLinesInHeader = 1;
+              block.headers.forEach((h, i) => {
+                maxLinesInHeader = Math.max(maxLinesInHeader, getCellLines(h, colWidths[i] - NB.TABLE_CELL_HPADDING * 2).length);
+              });
+              totalTableHeight += NB.TABLE_HEADER_HEIGHT + (maxLinesInHeader - 1) * NB.TABLE_LINE_HEIGHT;
+            }
+
+            block.rows?.forEach(row => {
+              let maxLinesInRow = 1;
+              row.forEach((cell, i) => {
+                maxLinesInRow = Math.max(maxLinesInRow, getCellLines(cell, colWidths[i] - NB.TABLE_CELL_HPADDING * 2).length);
+              });
+              totalTableHeight += NB.TABLE_ROW_HEIGHT + (maxLinesInRow - 1) * NB.TABLE_LINE_HEIGHT;
             });
-            const maxIndividualColWidth = Math.max(...colWidths);
-            const totalTableW = maxIndividualColWidth * colCount;
+
+            node.metadata.height += totalTableHeight;
+
+            // Store colWidths for rendering
+            if (tableBlocks[idx - codeBlocks.length - quoteBlocks.length]) {
+              tableBlocks[idx - codeBlocks.length - quoteBlocks.length].colWidths = colWidths;
+            }
+
+            const totalTableW = colWidths.reduce((sum, w) => sum + w, 0);
             if (totalTableW > maxNoteWidth) maxNoteWidth = totalTableW;
           }
         } else {
           // Code/Quote block height
-          const lines = (block.content || '').split('\n');
+          const lineH = block.isQuote ? NB.QUOTE_LINE_HEIGHT : NB.CODE_LINE_HEIGHT;
+          const blockFontFamily = block.isQuote ? 'Inter, sans-serif' : NB.MONO_FONT.replace(/'/g, "");
+          
+          // Use same wrapping logic as renderNoteBlocks to ensure height matches
+          const wrapW = NB.MAX_WIDTH - (block.isQuote ? 24 : 16);
+          const lines = (block.content || '').split(/\r?\n/).flatMap((line: string) =>
+            this.wrapText(line, wrapW, lineH, 'normal', blockFontFamily)
+          );
 
           // Calculate note block lines width
-          const fontRef = block.isQuote ? `${NB.QUOTE_LINE_HEIGHT}px Inter, sans-serif` : `${NB.CODE_LINE_HEIGHT}px ${NB.MONO_FONT.replace(/'/g, "")}`;
+          const fontRef = `${lineH}px ${blockFontFamily}`;
           if (ctx) ctx.font = fontRef;
+          
           lines.forEach(line => {
             let lineWidth = 0;
             if (ctx) {
               lineWidth = ctx.measureText(line).width + (block.isQuote ? NB.QUOTE_BORDER_WIDTH + 16 : 16);
             } else {
-              lineWidth = line.length * ((block.isQuote ? NB.QUOTE_LINE_HEIGHT : NB.CODE_LINE_HEIGHT) * 0.6) + 16;
+              lineWidth = line.length * (lineH * 0.6) + 16;
             }
             if (lineWidth > maxNoteWidth) maxNoteWidth = lineWidth;
           });
 
           const vPad = block.isQuote ? NB.QUOTE_V_PADDING : NB.CODE_V_PADDING;
-          const lineH = block.isQuote ? NB.QUOTE_LINE_HEIGHT : NB.CODE_LINE_HEIGHT;
           const expandedH = NB.CODE_HEADER_HEIGHT + vPad + (lines.length * lineH) + vPad;
           node.metadata.height += expandedH;
         }
@@ -531,7 +672,6 @@ export class D3Renderer implements RendererAdapter {
       .style('stroke', (d) => {
         if (this.selectedNodeId === d.id) return RendererColors.border.selected;
         if (this.highlightIds.has(d.id)) return this.config.highlightColor;
-        if ((d as any).metadata?.codeBlocks?.length > 0 || (d as any).metadata?.quoteBlocks?.length > 0) return 'none';
         if (this.isDarkMode) {
           if (d.depth === 0) return RendererColors.border.rootDark;
           return RendererColors.border.branchDark;
@@ -575,38 +715,69 @@ export class D3Renderer implements RendererAdapter {
    * Focus and center viewport on a specific node
    */
   focusNode(nodeId: string, skipBrowserFocus: boolean = false): void {
-    if (!this.svg || !this.zoom || !this.g) return;
+    if (!this.svg || !this.zoom || !this.g || !this.lastRoot || !this.lastPositions) return;
 
-    // Find node elements
-    const node = this.g.select<SVGGElement>(`g.node[data-id="${nodeId}"]`);
-    if (node.empty()) return;
+    // Use filter instead of CSS selector to be resilient to complex IDs (with colons/dots)
+    const nodes = this.g.selectAll<SVGGElement, TreeNode>('g.node')
+      .filter((d) => d.id === nodeId);
+    const nodeElement = nodes.empty() ? null : nodes.node();
 
-    // Trigger browser focus for accessibility only if requested
-    const nodeElement = node.node() as SVGGElement;
-    if (nodeElement && !skipBrowserFocus) {
-      nodeElement.focus();
-    }
+    // Get target position from cache
+    const pos = this.lastPositions.get(nodeId);
+    if (!pos) return;
 
     const bounds = this.getViewportBounds();
-    const pos = this.lastPositions?.get(nodeId);
-    if (!pos || !nodeElement) return;
+    let x = pos.x;
+    let y = pos.y;
 
-    // Calculate visual center of the node to handle large/card nodes correctly
-    const bbox = nodeElement.getBBox();
-
-    const x = pos.x + bbox.x + bbox.width / 2;
-    const y = pos.y + bbox.y + bbox.height / 2;
+    if (nodeElement) {
+      // Use actual center if node is in DOM
+      const bbox = nodeElement.getBBox();
+      x = pos.x + bbox.x + bbox.width / 2;
+      y = pos.y + bbox.y + bbox.height / 2;
+      if (!skipBrowserFocus) nodeElement.focus();
+    } else {
+      // Fallback: estimate center from metadata if node is culled
+      const findNode = (n: TreeNode): TreeNode | null => {
+        if (n.id === nodeId) return n;
+        if (n.children) {
+          for (const c of n.children) {
+            const res = findNode(c);
+            if (res) return res;
+          }
+        }
+        return null;
+      };
+      
+      const nodeData = findNode(this.lastRoot);
+      if (nodeData) {
+        const w = (nodeData as any).metadata?.width || 0;
+        const h = (nodeData as any).metadata?.height || 0;
+        if (this.isVertical) {
+          x = pos.x; y = pos.y;
+        } else {
+          const rootPos = this.lastPositions.get(this.lastRoot.id) || { x: 0, y: 0 };
+          x = pos.x < rootPos.x ? pos.x - w / 2 : (pos.x > rootPos.x ? pos.x + w / 2 : pos.x);
+        }
+      }
+    }
 
     this.svg.transition()
-      .duration(750)
-      .ease(d3.easeCubicOut)
+      .duration(500) // Faster transition for navigation responsiveness
+      .ease(d3.easeQuadOut)
       .call(
         this.zoom.transform,
         d3.zoomIdentity
           .translate(bounds.width / 2, bounds.height / 2)
           .scale(1.5)
           .translate(-x, -y)
-      );
+      )
+      .on('end', () => {
+        // Ensure the focused node is rendered if it was previously culled
+        if (this.lastRoot && this.lastPositions) {
+          this.render(this.lastRoot, this.lastPositions, this.isDarkMode);
+        }
+      });
   }
 
   /**
@@ -863,18 +1034,6 @@ export class D3Renderer implements RendererAdapter {
           targetPos;
 
         return `translate(${startPos.x}, ${startPos.y})`;
-      })
-      .on('click', (event, d) => {
-        event.stopPropagation();
-        this.nodeClickCallback(d.id);
-      })
-      .on('dblclick', (event, d) => {
-        event.stopPropagation();
-        this.nodeDoubleClickCallback(d.id);
-      })
-      .on('focus', (_, d) => {
-        // When focused via keyboard, trigger selection
-        this.nodeClickCallback(d.id);
       });
 
     // Create unique clip path per node to prevent block text overflows during animation
@@ -891,7 +1050,6 @@ export class D3Renderer implements RendererAdapter {
       .attr('ry', this.config.borderRadius)
       .attr('stroke-width', 2);
 
-
     enter.append('text')
       .attr('font-family', 'Inter, sans-serif')
       .attr('xml:space', 'preserve');
@@ -900,15 +1058,25 @@ export class D3Renderer implements RendererAdapter {
       .attr('class', 'image-container')
       .append('image');
 
-    // UPDATE with transition — staggered by depth for cascade feel
+    // UPDATE
     const update = enter.merge(nodeGroups);
 
     update.attr('data-id', (d) => d.id)
-      .interrupt() // Prevent queuing jitter
+      .on('click', (event, d) => {
+        event.stopPropagation();
+        this.nodeClickCallback(d.id);
+      })
+      .on('dblclick', (event, d) => {
+        event.stopPropagation();
+        this.nodeDoubleClickCallback(d.id);
+      })
+      .on('focus', (_, d) => {
+        this.nodeClickCallback(d.id);
+      })
+      .interrupt()
       .transition()
       .duration(this.config.animationDuration)
       .ease(d3.easeCubicOut)
-      .delay(0)
       .attr('opacity', 1)
       .attr('transform', (d) => {
         const pos = positions.get(d.id) || { x: 0, y: 0 };
@@ -916,13 +1084,15 @@ export class D3Renderer implements RendererAdapter {
       });
 
     update.select('text')
-      .each(function (d) {
+      .each(function (this: any, d: any) {
         const textElement = d3.select(this);
         const depth = d.depth || 0;
         const fontSize = thisRenderer.getFontSize(depth);
         const fontWeight = thisRenderer.getFontWeight(depth);
 
-        const displayContent = (d as any).metadata?.displayContent ?? d.content;
+        let displayContent = ((d as any).metadata?.displayContent ?? d.content ?? '');
+        displayContent = displayContent.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/gi, '');
+        displayContent = displayContent.split('\n').map((line: string) => line.replace(/^(\s*)[-*+]\s*\[([ xX])\]/, '$1[$2]')).join('\n').trim();
         const displayLines = thisRenderer.wrapText(
           displayContent,
           depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH - (thisRenderer.config.padding.x * 2) : Infinity,
@@ -967,7 +1137,17 @@ export class D3Renderer implements RendererAdapter {
 
         // 2. Vertical centering offset calculation
         const totalLines = displayLines.length;
-        const textH = totalLines * thisRenderer.getLineHeight(depth);
+        const lineHeight = thisRenderer.getLineHeight(depth);
+        let totalTextHeight = 0;
+        displayLines.forEach(line => {
+          const lineSegments = parseMarkdownLine(line);
+          const maxLineH = lineSegments.reduce((max, seg) => {
+            const h = seg.heading ? getHeadingLineHeight(seg.heading) : lineHeight;
+            return Math.max(max, h);
+          }, 0);
+          totalTextHeight += maxLineH || lineHeight;
+        });
+        const textH = totalTextHeight;
         const height = (d as any).metadata?.height || 0;
 
         let yOffset = -height / 2 + thisRenderer.config.padding.y;
@@ -994,25 +1174,77 @@ export class D3Renderer implements RendererAdapter {
         tspanUpdate.attr('x', (line) => {
           const segments = lineSegments.get(line) ?? [];
           const isCentered = segments.some(s => s.center);
-          
+
           if (isCentered) {
             if (thisRenderer.isVertical) return 0;
             // For horizontal layout, center of the node rect
             const width = (d as any).metadata?.width || 0;
             const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
             const pos = positions.get(d.id) || { x: 0, y: 0 };
-            
+
             if (!parentPos) return 0;
             if (pos.x < parentPos.x) return -width / 2;
             return width / 2;
           }
           return x;
         })
-        .style('text-anchor', (line) => {
-          const segments = lineSegments.get(line) ?? [];
-          return segments.some(s => s.center) ? 'middle' : null;
-        })
-        .attr('dy', (line, i) => i === 0 ? `${0.35 - (totalLines - 1) * 0.625}em` : '1.25em');
+          .style('text-anchor', (line) => {
+            const segments = lineSegments.get(line) ?? [];
+            return segments.some(s => s.center) ? 'middle' : null;
+          })
+          .attr('dy', (line, i) => i === 0 ? `${0.35 - (totalLines - 1) * 0.625}em` : '1.25em')
+          .style('visibility', line => {
+            const trimmed = line.trim();
+            return (trimmed === '---' || trimmed === '***' || trimmed === '___') ? 'hidden' : 'visible';
+          });
+
+        // Render dividers for hr markers - use a stable join for the lines themselves
+        if (!this.parentNode) return;
+        const nodeG = d3.select(this.parentNode as SVGGElement);
+        const dividersData = displayLines.map((line, i) => ({ line: line.trim(), i })).filter(d =>
+          d.line === '---' || d.line === '***' || d.line === '___'
+        );
+        const dividers = nodeG.selectAll<SVGLineElement, any>('line.hr-divider')
+          .data(dividersData, d => `${d.line}-${d.i}`);
+
+        dividers.exit().remove();
+
+        dividers.enter().append('line')
+          .attr('class', 'hr-divider')
+          .merge(dividers)
+          .each(function (dInfo) {
+            const { line, i } = dInfo;
+            const width = (d as any).metadata?.width || 0;
+            const isCentered = thisRenderer.isVertical || d.depth === 0;
+
+            // Calculate absolute Y coordinate relative to the block top
+            const blockTop = -height / 2 + thisRenderer.config.padding.y + imgH + imgGap;
+            const lineY = blockTop + (i * lineHeight) + (lineHeight / 2);
+
+            const pos = positions.get(d.id) || { x: 0, y: 0 };
+            const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
+            let startX: number;
+            if (isCentered) {
+              startX = -width / 2;
+            } else if (parentPos && pos.x < parentPos.x) {
+              // Left-side nodes in horizontal layout have origin at the right edge
+              startX = -width;
+            } else {
+              // Right-side nodes or standard layout have origin at the left edge
+              startX = 0;
+            }
+
+            d3.select(this)
+              .style('pointer-events', 'none')
+              .attr('x1', startX + 12)
+              .attr('x2', startX + width - 12)
+              .attr('y1', lineY)
+              .attr('y2', lineY)
+              .attr('stroke', 'white')
+              .attr('stroke-opacity', 0.9)
+              .attr('stroke-width', 1.5)
+              .attr('stroke-dasharray', (line === '***' || line === '___') ? '3,3' : 'none');
+          });
 
         // 4. Stable join for rich text segments (bold, italic, links)
         tspanUpdate.each(function (line) {
@@ -1032,22 +1264,47 @@ export class D3Renderer implements RendererAdapter {
 
           const segUpdate = segEnter.merge(segmentJoin);
 
-          segUpdate.text(s => s.text)
-            .style('font-weight', s => s.bold ? 'bold' : thisRenderer.getFontWeight(depth))
+          segUpdate.text(s => {
+            if (s.checkbox) return s.checked ? '☑ ' : '☐ ';
+            return s.text;
+          })
+            .style('font-weight', s => s.bold ? 'bold' : (s.heading && s.heading <= 3) ? 'bold' : thisRenderer.getFontWeight(depth))
             .style('font-style', s => s.italic ? 'italic' : 'normal')
             .style('text-decoration', s => (s.underline || s.link) ? 'underline' : (s.strikethrough ? 'line-through' : 'none'))
-            .style('font-size', s => (s.subscript || s.superscript) ? `${fontSize * 0.7}px` : `${fontSize}px`)
-            .attr('baseline-shift', s => s.subscript ? 'sub' : (s.superscript ? 'super' : 'baseline'))
+            .style('font-size', s => s.heading ? `${getHeadingFontSize(s.heading)}px` : ((s.subscript || s.superscript) ? `${fontSize * 0.7}px` : `${fontSize}px`))
             .style('fill', s => {
+              if (s.checkbox) return 'white';
               if (s.link) return ColorManager.getLinkColor(nodeFill);
               if (s.highlight) return RendererColors.inline.highlightText;
               return null;
             })
-            .each(function(s) {
+            .attr('baseline-shift', s => s.subscript ? 'sub' : (s.superscript ? 'super' : 'baseline'))
+            .each(function (s) {
               if (s.highlight || s.keyboard) {
                 const seg = d3.select(this);
-                if (s.highlight) seg.style('fill', RendererColors.inline.highlightFill).style('font-weight', 'bold');
-                if (s.keyboard) seg.style('font-family', LAYOUT_CONFIG.NOTE_BLOCK.MONO_FONT).style('fill', thisRenderer.isDarkMode ? RendererColors.inline.kbdDark : RendererColors.inline.kbdLight);
+                if (s.highlight) {
+                  seg.style('fill', RendererColors.inline.highlightText)
+                    .style('font-weight', 'semibold')
+                    .style('stroke', RendererColors.inline.highlightFill)
+                    .style('stroke-width', '2.5px')
+                    .style('stroke-opacity', 1)
+                    .style('stroke-linecap', 'round')
+                    .style('stroke-linejoin', 'round')
+                    .style('paint-order', 'stroke fill');
+                }
+                if (s.keyboard) {
+                  seg.style('font-family', LAYOUT_CONFIG.NOTE_BLOCK.MONO_FONT);
+                  // Use dynamic link-style color if on a colored background for better contrast
+                  const isColored = d.depth > 0 && d.color;
+                  if (isColored && !thisRenderer.isDarkMode) {
+                    seg.style('fill', ColorManager.getLinkColor(nodeFill));
+                  } else if (d.depth === 0 && !thisRenderer.isDarkMode) {
+                    // Root in light mode is dark, so use a light code color
+                    seg.style('fill', '#e2e8f0');
+                  } else {
+                    seg.style('fill', thisRenderer.isDarkMode ? RendererColors.inline.kbdDark : RendererColors.inline.kbdLight);
+                  }
+                }
               }
               if (s.center) {
                 // Centering inline is non-trivial in a flow. We'll skip for now or try to nudge.
@@ -1062,8 +1319,7 @@ export class D3Renderer implements RendererAdapter {
                 event.stopPropagation();
                 // Simple toggle for details if we had a state, for now just a click feedback
               }
-            })
-            .on('dblclick', event => event.stopPropagation());
+            });
         });
       })
       .attr('font-size', (d) => `${thisRenderer.getFontSize(d.depth)}px`)
@@ -1079,7 +1335,7 @@ export class D3Renderer implements RendererAdapter {
     update.each(function (d) {
       const duration = thisRenderer.config.animationDuration;
       const staggerDelay = (d.depth || 0) * thisRenderer.config.staggerDelay;
-      
+
       // Image rendering logic
       const image = d.metadata.image;
       const container = d3.select(this).select<SVGGElement>('g.image-container');
@@ -1114,11 +1370,32 @@ export class D3Renderer implements RendererAdapter {
         const img = container.select<SVGImageElement>('image')
           .attr('width', imgW)
           .attr('height', imgH)
-          .attr('href', image.url)
+          .attr('href', (image as any).failed ? '' : image.url)
+          .attr('opacity', (image as any).failed ? 0 : 1)
           .on('click', (event) => {
             event.stopPropagation();
             thisRenderer.nodeImageClickCallback(image.url, image.alt, image.link);
           });
+
+        const errorPlaceholder = container.selectAll('g.error-placeholder').data((image as any).failed ? [image] : []);
+        errorPlaceholder.exit().remove();
+        const errEnter = errorPlaceholder.enter().append('g').attr('class', 'error-placeholder');
+        errEnter.append('rect')
+          .attr('width', imgW)
+          .attr('height', imgH)
+          .attr('rx', 4)
+          .attr('fill', thisRenderer.isDarkMode ? '#450a0a' : '#fef2f2')
+          .attr('stroke', '#ef4444')
+          .attr('stroke-width', 1);
+        errEnter.append('text')
+          .attr('x', imgW / 2)
+          .attr('y', imgH / 2)
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'central')
+          .attr('fill', '#ef4444')
+          .style('font-size', '10px')
+          .style('font-weight', 'bold')
+          .text('404');
       }
 
       thisRenderer.renderNoteBlocks(d3.select(this) as any, d, positions, duration, staggerDelay);
@@ -1137,11 +1414,11 @@ export class D3Renderer implements RendererAdapter {
       .attr('x', function (d) {
         // Reuse same geometry as the background rect
         const width = (d as any).metadata?.width || 0;
-        if (thisRenderer.isVertical) return -width / 2;
+        if (thisRenderer.isVertical || d.depth === 0) return -width / 2;
         const pos = positions.get(d.id) || { x: 0, y: 0 };
         const parentPos = d.parent ? (positions.get(d.parent.id) || { x: 0, y: 0 }) : null;
-        if (!parentPos || pos.x >= parentPos.x) return 0;
-        return -width;
+        if (!parentPos || pos.x < parentPos.x) return -width;
+        return 0;
       })
       .attr('y', (d) => -((d as any).metadata?.height || 0) / 2);
 
@@ -1183,7 +1460,6 @@ export class D3Renderer implements RendererAdapter {
       .style('stroke', (d) => {
         if (this.selectedNodeId === d.id) return RendererColors.border.selected;
         if (this.highlightIds.has(d.id)) return this.config.highlightColor;
-        if ((d as any).metadata?.codeBlocks?.length > 0 || (d as any).metadata?.quoteBlocks?.length > 0) return 'none';
         if (thisRenderer.isDarkMode) {
           if (d.depth === 0) return RendererColors.border.rootDark;
           return RendererColors.border.branchDark;
@@ -1313,20 +1589,36 @@ export class D3Renderer implements RendererAdapter {
 
     const textFontSize = this.getFontSize(depth);
     const textLineHeight = this.getLineHeight(depth);
-    const displayContent = (d as any).metadata?.displayContent || d.content;
-    const displayLines = this.wrapText(
+    let displayContent = ((d as any).metadata?.displayContent ?? d.content ?? '');
+    displayContent = displayContent.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/gi, '').trim();
+    const displayLines = thisRenderer.wrapText(
       displayContent,
       depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH - this.config.padding.x * 2 : Infinity,
       textFontSize,
       this.getFontWeight(depth)
     );
-    const textBlockH = displayLines.length * textLineHeight;
+    let totalTextHeight = 0;
+    displayLines.forEach(line => {
+      const lineSegments = parseMarkdownLine(line);
+      const maxLineH = lineSegments.reduce((max, seg) => {
+        const h = seg.heading ? getHeadingLineHeight(seg.heading) : textLineHeight;
+        return Math.max(max, h);
+      }, 0);
+      totalTextHeight += maxLineH || textLineHeight;
+    });
+    const textBlockH = totalTextHeight;
     const hasText = displayLines.length > 0;
 
     // Y start: rect top + padding + text height
     const rectTop = -height / 2;
     let blockY = rectTop + this.config.padding.y + textBlockH;
-    if (hasText) blockY += NB.PILL_GAP;
+    
+    // Consistent gap logic: if anything is above the note blocks, we need a PILL_GAP.
+    // This matches the measurement logic in measureNode.
+    if (hasText || d.metadata.image) {
+      blockY += NB.PILL_GAP;
+    }
+    
     if (d.metadata.image) {
       blockY += (d.metadata.image.thumbHeight || 0) + LAYOUT_CONFIG.IMAGE.PADDING;
     }
@@ -1361,6 +1653,15 @@ export class D3Renderer implements RendererAdapter {
     const quoteTextC = isDark ? RC.quoteTextDark : RC.quoteTextLight;
     const innerW = width - this.config.padding.x * 2;
 
+    const nodeFill = (() => {
+      if (isDark) {
+        if (depth === 0) return RendererColors.node.rootFillDark;
+        return ColorManager.getThemeShade(d.color, true) || RendererColors.node.branchFallbackDark;
+      }
+      if (depth === 0) return RendererColors.node.rootFillLight;
+      return d.color || RendererColors.node.branchFallbackLight;
+    })();
+
     // EXIT: fade out and remove
     blockSelections.exit()
       .transition()
@@ -1389,8 +1690,11 @@ export class D3Renderer implements RendererAdapter {
       const type = block.type;
       const isExpanded = block.ref.expanded;
       const rawContent = (type === 'code' ? block.ref.code : (type === 'quote' ? block.ref.text : '')) || '';
-      const contentLines = rawContent.split(/\r?\n/);
       const lineH = type === 'code' ? NB.CODE_LINE_HEIGHT : (type === 'quote' ? NB.QUOTE_LINE_HEIGHT : NB.TABLE_LINE_HEIGHT);
+      const blockFontFamily = type === 'code' ? NB.MONO_FONT.replace(/'/g, "") : 'Inter, sans-serif';
+      const contentLines = rawContent.split(/\r?\n/).flatMap((line: string) =>
+        thisRenderer.wrapText(line, NB.MAX_WIDTH - (type === 'code' ? 16 : 24), lineH, 'normal', blockFontFamily)
+      );
       const vPad = type === 'code' ? NB.CODE_V_PADDING : (type === 'quote' ? NB.QUOTE_V_PADDING : NB.TABLE_V_PADDING);
       const headerH = (type === 'table') ? NB.TABLE_HEADER_HEIGHT : NB.CODE_HEADER_HEIGHT;
 
@@ -1398,9 +1702,32 @@ export class D3Renderer implements RendererAdapter {
       let expandedH = NB.PILL_HEIGHT;
       if (isExpanded) {
         if (type === 'table') {
-          const headerRows = block.ref.headers?.length ? 1 : 0;
-          const totalRows = (block.ref.rows?.length || 0) + headerRows;
-          expandedH = headerH + (totalRows * NB.TABLE_ROW_HEIGHT) + (NB.TABLE_V_PADDING * 2);
+          let totalTableHeight = NB.TABLE_HEADER_HEIGHT + (NB.TABLE_V_PADDING * 2);
+          const colWidths = block.ref.colWidths || [];
+          const getCellLines = (txt: string, maxWidth?: number) => {
+            const rawLines = (txt || '').replace(/<br\s*\/?>/gi, '\n').replace(/\\n/g, '\n').replace(/\\t/g, '    ').replace(/\t/g, '    ').split(/\r?\n/);
+            if (maxWidth === undefined || maxWidth <= 0) return rawLines;
+            return rawLines.flatMap((line: string) => thisRenderer.wrapText(line, maxWidth, NB.TABLE_LINE_HEIGHT, '400', 'Inter, sans-serif'));
+          };
+
+          if (block.ref.headers?.length) {
+            let maxLinesInHeader = 1;
+            block.ref.headers.forEach((h: string, i: number) => {
+              const colW = colWidths[i] || (innerW / (block.ref.headers?.length || 1));
+              maxLinesInHeader = Math.max(maxLinesInHeader, getCellLines(h, colW - NB.TABLE_CELL_HPADDING * 2).length);
+            });
+            totalTableHeight += NB.TABLE_HEADER_HEIGHT + (maxLinesInHeader - 1) * NB.TABLE_LINE_HEIGHT;
+          }
+
+          block.ref.rows?.forEach((row: string[]) => {
+            let maxLinesInRow = 1;
+            row.forEach((cell, i) => {
+              const colW = colWidths[i] || (innerW / (row.length || 1));
+              maxLinesInRow = Math.max(maxLinesInRow, getCellLines(cell, colW - NB.TABLE_CELL_HPADDING * 2).length);
+            });
+            totalTableHeight += NB.TABLE_ROW_HEIGHT + (maxLinesInRow - 1) * NB.TABLE_LINE_HEIGHT;
+          });
+          expandedH = totalTableHeight;
         } else {
           expandedH = headerH + vPad + (contentLines.length * lineH) + vPad;
         }
@@ -1411,7 +1738,7 @@ export class D3Renderer implements RendererAdapter {
         .transition()
         .duration(duration)
         .ease(d3.easeCubicOut)
-        .delay(0)
+        .delay(delay)
         .attr('opacity', 1)
         .attr('transform', `translate(${rectX + thisRenderer.config.padding.x}, ${blockY})`);
 
@@ -1424,22 +1751,22 @@ export class D3Renderer implements RendererAdapter {
         .transition()
         .duration(duration)
         .ease(d3.easeCubicOut)
-        .delay(0)
+        .delay(delay)
         .attr('width', innerW)
         .attr('height', expandedH)
         .attr('fill', isExpanded ? expandedBg : pillBg);
 
       // Clean up background selection
-      bgRect.style('cursor', isExpanded ? 'default' : 'pointer')
+      bgRect.style('cursor', 'pointer')
+        // Prevent pan start when clicking directly on the block to avoid zoom interference
+        .on('pointerdown', (e) => e.stopPropagation())
         .on('click', (event: any) => {
-          if (!isExpanded) {
-            event.stopPropagation();
-            block.ref.expanded = true;
-            // Notify the application to trigger a layout recalculation
-            thisRenderer.nodeUpdateCallback(d.id);
-          }
+          event.stopPropagation();
+          // Toggle expansion on click for both collapsed and expanded states
+          block.ref.expanded = !isExpanded;
+          // Notify the application to trigger a layout recalculation
+          thisRenderer.nodeUpdateCallback(d.id);
         })
-        .on('dblclick', (event: any) => event.stopPropagation());
 
       // ── 1. Collapsed Pill Elements (only when !isExpanded) ──
       const pillContent = blockGroup.selectAll<SVGGElement, any>('g.pill-content')
@@ -1472,9 +1799,9 @@ export class D3Renderer implements RendererAdapter {
 
       pillUpdate.select('text.count')
         .attr('x', innerW - 8)
-        .text(type === 'table' 
-            ? `${block.ref.rows?.length || 0} row${(block.ref.rows?.length || 0) !== 1 ? 's' : ''}` 
-            : `${(type === 'code' ? block.ref.code : block.ref.text || '').split('\n').length} line${(type === 'code' ? block.ref.code : block.ref.text || '').split('\n').length !== 1 ? 's' : ''}`);
+        .text(type === 'table'
+          ? `${block.ref.rows?.length || 0} row${(block.ref.rows?.length || 0) !== 1 ? 's' : ''}`
+          : `${(type === 'code' ? block.ref.code : block.ref.text || '').split('\n').length} line${(type === 'code' ? block.ref.code : block.ref.text || '').split('\n').length !== 1 ? 's' : ''}`);
 
       // ── 2. Expanded Header ──
       const header = blockGroup.selectAll<SVGGElement, any>('g.block-header')
@@ -1539,7 +1866,7 @@ export class D3Renderer implements RendererAdapter {
         .interrupt()
         .attr('x', 0)
         .attr('y', 0)
-        .transition().duration(duration).delay(0).attr('opacity', 1);
+        .transition().duration(duration).delay(delay).attr('opacity', 1);
 
       const blockFontStyle = type === 'quote' ? 'italic' : 'normal';
 
@@ -1561,8 +1888,7 @@ export class D3Renderer implements RendererAdapter {
         .attr('dominant-baseline', 'central')
         .text(line => {
           if (line.length === 0) return '\u00A0';
-          // Use standard lines now that white-space: pre is active
-          return type === 'code' && line.length > 58 ? `${line.substring(0, 56)}…` : line;
+          return line;
         });
 
       // ── 4. Expanded Table Content ──
@@ -1571,64 +1897,123 @@ export class D3Renderer implements RendererAdapter {
 
       tableContent.exit().remove();
       const tableEnter = tableContent.enter().append('g').attr('class', 'table-content').attr('opacity', 0);
-      
+
       const tableUpdate = tableEnter.merge(tableContent as any);
       tableUpdate.transition().duration(duration).attr('opacity', 1);
 
-      tableUpdate.each(function(b) {
+      tableUpdate.each(function (b) {
         const g = d3.select(this);
-        g.selectAll('*').remove();
         
+        // Stabilize table rendering to prevent flickering during unrelated node updates
+        const tableKey = `${b.id}-${b.ref.headers?.join('|')}-${b.ref.rows?.length}-${b.ref.expanded}-${innerW}`;
+        if (g.attr('data-last-key') === tableKey) return;
+        g.attr('data-last-key', tableKey);
+
+        g.selectAll('*').remove();
+
         const headers = b.ref.headers || [];
         const rows = b.ref.rows || [];
         const alignments = b.ref.alignments || [];
         const colCount = Math.max(headers.length, ...rows.map(r => r.length));
-        
-        // Evenly distribute columns within innerW
-        const finalColWidths = new Array(colCount).fill(innerW / colCount);
+
+        // Use proportionally calculated column widths if available, otherwise fallback to even distribution
+        let finalColWidths: number[];
+        const measuredColWidths = b.ref.colWidths;
+        if (measuredColWidths && measuredColWidths.length >= colCount) {
+          const totalMeasured = measuredColWidths.slice(0, colCount).reduce((s: number, w: number) => s + w, 0);
+          const scale = innerW / Math.max(totalMeasured, 1);
+          finalColWidths = measuredColWidths.slice(0, colCount).map((w: number) => w * scale);
+        } else {
+          finalColWidths = new Array(colCount).fill(innerW / colCount);
+        }
 
         let runningY = headerH + NB.TABLE_V_PADDING;
         const startY = runningY;
-        
+
         // Helper to draw a row
         const drawRow = (data: string[], isHeader: boolean) => {
           let currentX = 0;
+
+          // Pre-processing to handle \n, \n literal, <br>, and \t
+          const getCellLines = (txt: string, maxWidth?: number) => {
+            const rawLines = (txt || '').replace(/<br\s*\/?>/gi, '\n').replace(/\\n/g, '\n').replace(/\\t/g, '    ').replace(/\t/g, '    ').split(/\r?\n/);
+            if (maxWidth === undefined || maxWidth <= 0) return rawLines;
+            return rawLines.flatMap((line: string) => thisRenderer.wrapText(line, maxWidth, NB.TABLE_LINE_HEIGHT, '400', 'Inter, sans-serif'));
+          };
+
+          // Determine the max number of lines in this row to calculate row height
+          let maxLinesInRow = 1;
+          data.forEach((cell, i) => {
+            const colW = finalColWidths[i];
+            maxLinesInRow = Math.max(maxLinesInRow, getCellLines(cell, colW - NB.TABLE_CELL_HPADDING * 2).length);
+          });
+
+          const baseHeight = isHeader ? NB.TABLE_HEADER_HEIGHT : NB.TABLE_ROW_HEIGHT;
+          const rowH = baseHeight + (maxLinesInRow - 1) * NB.TABLE_LINE_HEIGHT;
+
           data.forEach((cell, i) => {
             const colW = finalColWidths[i];
             const align = alignments[i] || 'left';
-            
-            // Cell text
-            let textX = currentX + NB.TABLE_CELL_HPADDING;
-            if (align === 'center') textX = currentX + colW / 2;
-            else if (align === 'right') textX = currentX + colW - NB.TABLE_CELL_HPADDING;
-            
-            g.append('text')
-              .attr('x', textX)
-              .attr('y', runningY + NB.TABLE_ROW_HEIGHT / 2)
-              .attr('font-size', `${NB.TABLE_LINE_HEIGHT}px`)
-              .attr('font-weight', isHeader ? 'bold' : 'normal')
-              .attr('fill', isHeader
-                ? (isDark ? RendererColors.noteBlock.tableHeaderDark : RendererColors.noteBlock.tableHeaderLight)
-                : (isDark ? RendererColors.noteBlock.tableCellDark : RendererColors.noteBlock.tableCellLight))
-              .attr('text-anchor', align === 'center' ? 'middle' : align === 'right' ? 'end' : 'start')
-              .attr('dominant-baseline', 'central')
-              .text(cell);
-            
+            const lines = getCellLines(cell, colW - NB.TABLE_CELL_HPADDING * 2);
+            const numLines = lines.length;
+
+            lines.forEach((line, lineIdx) => {
+              // Cell text alignment
+              let textX = currentX + NB.TABLE_CELL_HPADDING;
+              if (align === 'center') textX = currentX + colW / 2;
+              else if (align === 'right') textX = currentX + colW - NB.TABLE_CELL_HPADDING;
+
+              // Vertical centering for the block of lines within the row
+              const startY = runningY + (rowH - (numLines - 1) * NB.TABLE_LINE_HEIGHT) / 2;
+              const lineY = startY + (lineIdx * NB.TABLE_LINE_HEIGHT);
+
+              const textElement = g.append('text')
+                .attr('x', textX)
+                .attr('y', lineY)
+                .attr('font-size', `${NB.TABLE_LINE_HEIGHT}px`)
+                .attr('fill', isHeader
+                  ? (isDark ? RendererColors.noteBlock.tableHeaderDark : RendererColors.noteBlock.tableHeaderLight)
+                  : (isDark ? RendererColors.noteBlock.tableCellDark : RendererColors.noteBlock.tableCellLight))
+                .attr('text-anchor', align === 'center' ? 'middle' : align === 'right' ? 'end' : 'start')
+                .attr('dominant-baseline', 'central');
+
+              const segments = parseMarkdownLine(line);
+              segments.forEach(seg => {
+                textElement.append('tspan')
+                  .text(seg.text)
+                  .style('font-weight', (isHeader || seg.bold) ? 'bold' : 'normal')
+                  .style('font-style', seg.italic ? 'italic' : 'normal')
+                  .style('text-decoration', seg.strikethrough ? 'line-through' : (seg.underline || seg.link ? 'underline' : 'none'))
+                  .style('fill', seg.link ? ColorManager.getLinkColor(nodeFill) : (seg.highlight ? RendererColors.inline.highlightText : ''))
+                  .each(function () {
+                    if (seg.highlight) {
+                      d3.select(this)
+                        .style('stroke', RendererColors.inline.highlightFill)
+                        .style('stroke-width', '2.5px')
+                        .style('stroke-opacity', 0.75)
+                        .style('stroke-linecap', 'round')
+                        .style('stroke-linejoin', 'round')
+                        .style('paint-order', 'stroke fill');
+                    }
+                  });
+              });
+            });
+
             currentX += colW;
           });
-          
+
           // Row separator
           if (isHeader) {
             g.append('line')
               .attr('x1', 0)
-              .attr('y1', runningY + NB.TABLE_ROW_HEIGHT)
+              .attr('y1', runningY + rowH)
               .attr('x2', innerW)
-              .attr('y2', runningY + NB.TABLE_ROW_HEIGHT)
+              .attr('y2', runningY + rowH)
               .attr('stroke', isDark ? RendererColors.noteBlock.tableDividerDark : RendererColors.noteBlock.tableDividerLight)
               .attr('stroke-width', 1.5);
           }
-          
-          runningY += NB.TABLE_ROW_HEIGHT;
+
+          runningY += rowH;
         };
 
         if (headers.length > 0) drawRow(headers, true);

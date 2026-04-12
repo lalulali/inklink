@@ -129,6 +129,7 @@ const EXTENDED_HTML_TAG_INFO: Record<string, string> = {
 	"summary": "toggle label",
 	"mark": "highlight",
 	"u": "underline",
+	"code": "mono code",
 	"div": "container",
 	"span": "wrapper",
 	"p": "paragraph",
@@ -162,9 +163,34 @@ function htmlTagCompletionSource(context: CompletionContext) {
 	const options = Object.keys(EXTENDED_HTML_TAG_INFO).map(tag => ({ 
 		label: `${tag} - ${EXTENDED_HTML_TAG_INFO[tag]}`, 
 		type: "tag",
-		apply: isClosing ? tag + ">" : (tag === "br" ? tag + ">" : 
-			(tag === "a" ? 'a href="">' : 
-			((tag === "img" || tag === "image") ? tag + ' src="">' : tag + ">")))
+		apply: (view: EditorView, completion: any, from: number, to: number) => {
+			const tag = completion.label.split(' - ')[0];
+			let insert = '';
+			let cursorOffset = 0;
+			
+			if (isClosing) {
+				insert = tag + ">";
+				cursorOffset = insert.length;
+			} else if (tag === "br") {
+				insert = "br>";
+				cursorOffset = 3;
+			} else if (tag === "img" || tag === "image") {
+				insert = tag + ' src="">';
+				cursorOffset = tag.length + 7; // inside src=""
+			} else if (tag === "a") {
+				insert = 'a href=""></a>';
+				cursorOffset = 8; // inside href=""
+			} else {
+				insert = tag + "></" + tag + ">";
+				cursorOffset = tag.length + 1; // between ><
+			}
+			
+			view.dispatch({
+				changes: { from, to, insert },
+				selection: { anchor: from + cursorOffset },
+				userEvent: "input.complete"
+			});
+		}
 	}));
 
 	return {
@@ -188,7 +214,7 @@ const syncTagsPlugin = ViewPlugin.fromClass(class {
 
 		update.changes.iterChanges((fromA, toA, fromB, toB) => {
 			const tree = syntaxTree(state);
-			let node = tree.resolveInner(toB, -1);
+			let node = tree.resolveInner(fromB, 1);
 			
 			// Find TagName node
 			while (node && node.name !== "TagName" && node.parent) {
@@ -221,6 +247,42 @@ const syncTagsPlugin = ViewPlugin.fromClass(class {
 				annotations: Transaction.userEvent.of("sync")
 			});
 		}
+	}
+});
+
+/**
+ * Auto-close Tags Plugin
+ * Automatically inserts a closing tag when '>' is typed after an opening tag name
+ */
+const autoCloseTagPlugin = EditorView.domEventHandlers({
+	keydown(event, view) {
+		if (event.key === ">") {
+			const { state } = view;
+			const { from, to } = state.selection.main;
+			if (from !== to) return false;
+			
+			// Match <tag
+			const before = state.sliceDoc(Math.max(0, from - 15), from);
+			const match = before.match(/<([a-zA-Z1-6]+)$/);
+			
+			if (match) {
+				const tag = match[1].toLowerCase();
+				// Don't auto-close self-closing tags or if it's already a closing tag
+				if (tag === "br" || tag === "img" || tag === "image" || before.includes("</")) return false;
+				
+				if (EXTENDED_HTML_TAG_INFO[tag]) {
+					setTimeout(() => {
+						const pos = view.state.selection.main.from;
+						view.dispatch({
+							changes: { from: pos, insert: `</${tag}>` },
+							selection: { anchor: pos },
+							userEvent: "input.type"
+						});
+					}, 0);
+				}
+			}
+		}
+		return false;
 	}
 });
 
@@ -463,12 +525,10 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 						const queryStr = s.editorSearchQuery;
 						if (!queryStr) return Decoration.none;
 
-						const docText = view.state.doc.toString();
 						const builder = new RangeSetBuilder<Decoration>();
-						const selection = view.state.selection.main;
+						const docText = view.state.doc.toString();
 
 						const addMatch = (from: number, to: number) => {
-							if (from === selection.from && to === selection.to) return;
 							builder.add(from, to, searchHighlightStyle);
 						};
 
@@ -626,11 +686,15 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 	 * Helper to ensurefocused node's path is expanded
 	 */
 	const expandPathToLine = (root: any, lineIndex: number) => {
-		const targetId = `line_${lineIndex}`;
 		const expand = (n: any): boolean => {
-			if (n.id === targetId) return true;
+			// Corrected: Check metadata.sourceLine range instead of using a fake ID
+			if (typeof n.metadata?.sourceLine === 'number' && typeof n.metadata?.sourceLineEnd === 'number') {
+				if (lineIndex >= n.metadata.sourceLine && lineIndex <= n.metadata.sourceLineEnd) {
+					return true;
+				}
+			}
+			
 			if (!n.children) return false;
-
 			let found = false;
 			for (const child of n.children) {
 				if (expand(child)) {
@@ -638,10 +702,7 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 					break;
 				}
 			}
-
-			if (found) {
-				n.collapsed = false;
-			}
+			if (found) n.collapsed = false;
 			return found;
 		};
 		expand(root);
@@ -747,61 +808,65 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 	// Handle programmatic reveals (from canvas double click)
 	React.useEffect(() => {
 		const handleReveal = (e: any) => {
-			const { content, nodeId } = e.detail;
+			const { content, nodeId, sourceLine } = e.detail;
 			if (!editorRef.current?.view) return;
 
 			const view = editorRef.current.view;
 			const state = view.state;
 
-			// Attempt 1: If ID is in "line_N" format, jump directly to line
-			if (nodeId && nodeId.startsWith("line_")) {
-				const lineIdx = parseInt(nodeId.replace("line_", ""));
-				// CodeMirror lines are 1-based
-				const lineNum = lineIdx + 1;
+			// Clear previous highlight immediately to indicate new action
+			setRevealHighlight(null);
 
+			// Attempt 1: Jump directly to sourceLine (0-based index)
+			// If it's a root/virtual node with no line, or if explicit -1, default to 0 for better UX
+			let lineIdx = sourceLine ?? -1;
+			if (lineIdx === -1 && nodeId && (nodeId.includes('root') || nodeId.includes('virtual'))) {
+				lineIdx = 0;
+			}
+
+			if (lineIdx >= 0) {
+				const lineNum = lineIdx + 1; // CodeMirror lines are 1-based
 				if (lineNum <= state.doc.lines) {
 					try {
 						const line = state.doc.line(lineNum);
-						
-						// Detect bullet points and markers to exclude them from the highlight if needed
+
+						// Detect bullet points and markers to exclude them from the highlight
 						const lineMatch = line.text.match(/^(\s*([-*+]|\d+\.)\s*(\[[ xX]\])?\s*)/);
 						const prefixLength = lineMatch ? lineMatch[0].length : 0;
 
-						// Highlight the content portion found in the node (or the whole line if empty)
-						const findIndex = line.text.indexOf(content);
+						// Highlight the content portion found in the node (or the whole line)
+						const findIndex = content ? line.text.indexOf(content) : -1;
 						const highlightFrom = findIndex !== -1 ? line.from + findIndex : line.from + prefixLength;
 						const highlightTo = findIndex !== -1 ? highlightFrom + content.length : line.to;
 
-						// Put cursor at the end of the line
 						const cursorPosition = line.to;
-
 						view.dispatch({
 							selection: { anchor: cursorPosition, head: cursorPosition },
 							effects: [EditorView.scrollIntoView(cursorPosition, { y: 'start', yMargin: 20 })],
 							userEvent: "select.reveal",
 						});
 
-						// Trigger persistent highlight (will clear on typing or cursor move)
 						setRevealHighlight({ from: highlightFrom, to: highlightTo });
-
 						view.focus();
 						return;
-					} catch (e) {
-						console.error("Failed to jump to line by index:", e);
+					} catch (err) {
+						console.error("Failed to jump to sourceLine:", err);
 					}
 				}
 			}
 
-			// Attempt 2: Fallback to global string search if index is invalid or virtual
+			// Attempt 2: Fallback to global string search
+			const firstLine = (content || '').split('\n')[0].trim();
+			if (!firstLine) return;
 			const doc = state.doc.toString();
-			const index = doc.indexOf(content);
+			const index = doc.indexOf(firstLine);
 			if (index !== -1) {
 				view.dispatch({
-					selection: { anchor: index, head: index + content.length },
+					selection: { anchor: index, head: index + firstLine.length },
 					effects: [EditorView.scrollIntoView(index, { y: 'start', yMargin: 20 })],
 					userEvent: "select.reveal",
 				});
-				setRevealHighlight({ from: index, to: index + content.length });
+				setRevealHighlight({ from: index, to: index + firstLine.length });
 				view.focus();
 			}
 		};
@@ -1083,7 +1148,7 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 				const text = line.text;
 
 				// Match markers at the START of the physical line
-				const match = /^(\s*)(?:(?:\*|-|\+|\d+\.|#+)\s+)/.exec(text);
+				const match = /^(\s*)(?:(?:\*|-|\+|\d+\.|#+|>)\s+)/.exec(text);
 				let indent = "";
 
 				if (match) {
@@ -1107,15 +1172,17 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 			key: "Enter",
 			run: (view) => {
 				const { state } = view;
+				if (!state.selection.main.empty) return false;
 				const head = state.selection.main.head;
 				const line = state.doc.lineAt(head);
 				const text = line.text;
 
-				// 1. Match empty markers for outdenting (existing behavior)
-				const emptyMarkerMatch = text.match(/^(\s*)(\*|-|\+|\d+\.)\s*$/);
+				// 1. Match empty markers for outdenting or clearing (Enter 2 times behavior)
+				const emptyMarkerMatch = text.match(/^(\s*)(\*|-|\+|\d+\.|>)\s*$/);
 				if (emptyMarkerMatch) {
 					const indent = emptyMarkerMatch[1];
 					if (indent.length >= 2) {
+						// Outdent behavior if indented
 						const newIndent = indent.substring(2);
 						const marker = emptyMarkerMatch[2];
 						view.dispatch({
@@ -1130,40 +1197,43 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 						});
 						return true;
 					} else {
+						// Clear marker behavior if at base indent
 						view.dispatch({
 							changes: { from: line.from, to: line.to, insert: "" },
 							selection: { anchor: line.from },
 						});
+						// Return false to let the default Enter behavior insert a newline on the cleared line
 						return false;
 					}
 				}
 
-				// 2. Auto-continue list behavior (Direct marker on current line)
-				const continueMatch = text.match(/^(\s*)(\*|-|\+|\d+\.)\s+(.+)$/);
+				// 2. Auto-continue list or quote behavior (Direct marker on current line)
+				const continueMatch = text.match(/^(\s*)(\*|-|\+|\d+\.|>)\s+(.+)$/);
 				if (continueMatch) {
 					const indent = continueMatch[1];
 					let marker = continueMatch[2];
 					if (/^\d+\.$/.test(marker)) {
-						marker = parseInt(marker) + 1 + ".";
+						marker = (parseInt(marker) + 1) + ".";
 					}
 					const prefix = `\n${indent}${marker} `;
 					view.dispatch({
 						changes: { from: head, insert: prefix },
 						selection: { anchor: head + prefix.length },
+						scrollIntoView: true,
 					});
 					return true;
 				}
 
 				// 3. New behavior: Shift-Enter was used previously (current line is purely indented)
 				// If the current line is indented but has NO marker, we look UP to find the parent marker
-				const pureIndentMatch = /^(\s+)[^\s\*\-\+#\d]/.exec(text);
+				const pureIndentMatch = /^(\s+)[^\s\*\-\+#\d>]/.exec(text);
 				if (pureIndentMatch) {
 					const currentIndent = pureIndentMatch[1];
 					// Search backwards for the line that started this list item
 					for (let l = line.number - 1; l >= 1; l--) {
 						const prevLine = state.doc.line(l);
 						const prevText = prevLine.text;
-						const markerMatch = /^(\s*)(\*|-|\+|\d+\.)\s+/.exec(prevText);
+						const markerMatch = /^(\s*)(\*|-|\+|\d+\.|>)\s+/.exec(prevText);
 
 						if (markerMatch) {
 							const markerIndent = markerMatch[1];
@@ -1199,6 +1269,7 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 			key: "Backspace",
 			run: (view) => {
 				const { state } = view;
+				if (!state.selection.main.empty) return false;
 				const head = state.selection.main.head;
 				const line = state.doc.lineAt(head);
 
@@ -1374,6 +1445,7 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 						autocompletion({ override: [htmlTagCompletionSource] }),
 						autocompleteTabKeymap,
 						syncTagsPlugin,
+						autoCloseTagPlugin,
 						EditorView.updateListener.of((update) => {
 							if (update.docChanged && update.transactions.some(tr => tr.isUserEvent("delete.backward"))) {
 								const head = update.state.selection.main.head;
@@ -1432,9 +1504,16 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 								(tr) => tr.isUserEvent("select") || tr.isUserEvent("input"),
 							)
 						) {
-							// Clear the yellow highlight if user moves cursor manually
-							const isExternalReveal = update.transactions.some(tr => tr.isUserEvent("select.reveal"));
-							if (!isExternalReveal && revealHighlight) {
+							// Clear the yellow highlight only if user interacts manually (pointer/keyboard/input)
+							const isReveal = update.transactions.some(tr => tr.isUserEvent("select.reveal"));
+							const isManualInteraction = update.transactions.some(tr => 
+								tr.isUserEvent("select.pointer") || 
+								tr.isUserEvent("select.keyboard") ||
+								tr.isUserEvent("input") ||
+								tr.isUserEvent("delete")
+							);
+
+							if (isManualInteraction && !isReveal && revealHighlight) {
 								setRevealHighlight(null);
 							}
 
@@ -1445,7 +1524,7 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 							// Find the initiator line if the current line is a continuation line
 							window.dispatchEvent(
 								new CustomEvent("inklink-canvas-focus-node", {
-									detail: { nodeId: `line_${lineIndex}` },
+									detail: { lineIndex },
 								}),
 							);
 						}

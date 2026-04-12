@@ -56,10 +56,10 @@ And now, with the **VS Code extension**, you can think right inside your editor 
 ## Core Features
 
 ### 🗺️ Real-Time Markdown Mind Map
-Every heading (`#`, `##`, `###`) and list item in your Markdown automatically becomes a node in the mind map. Edit the file — the map updates instantly. **Version 0.1.6** features **Zero-Jitter Synchronization**, eliminating all visual shifting and "jumping" while you type for a seamless, flicker-free experience.
+Every heading (`#`, `##`, `###`) and list item in your Markdown automatically becomes a node in the mind map. Edit the file — the map updates instantly. **Version 0.2.0** features **Precision Navigation** and **Zero-Jitter Synchronization**, eliminating all visual shifting while providing a high-fidelity "Neighborhood" view for even the largest documents.
 
 ### 🔗 Bidirectional Navigation
-**Double-click any node** to jump directly to the corresponding source line in the editor, temporarily highlighting the text. The connection between visual and text is always live — edit the markdown, the map updates; navigate the map, the editor follows.
+**Double-click any node** to jump directly to the corresponding source line in the editor, temporarily highlighting the text. The connection between visual and text is always live — edit the markdown, the map updates; navigate the map, the editor follows. **Version 0.2.0** includes throttled, lag-free synchronization for extremely large files (1000+ nodes).
 
 ### 📝 Interactive Markdown Note Blocks
 Inklink identifies **Code Blocks** and **Quote Blocks** within your markdown and renders them as interactive, expandable elements directly on the mind map nodes.
@@ -82,15 +82,21 @@ Structured data is no longer hidden in text. Inklink identifies **Markdown Table
 - **Column Synchronization**: Table columns are automatically distributed across the node width with robust overflow handling.
 - **Visual Consistency**: Tables adhere to the "Stitch" design language with tonal-relief row highlighting and consistent alignment.
 
-### 🧭 Multiple Layout Directions
-Choose how your map flows: balanced two-sided, left-to-right, or right-to-left. Each layout uses a height-based algorithm for clean, non-overlapping node spacing.
+### 🧭 Multiple Layout Directions & Physics
+Choose how your map flows: balanced two-sided, left-to-right, or right-to-left. 
+- **Strict Parity**: The **Two-Sided (Balanced)** layout features a height-aware distribution algorithm that ensures perfect node parity between left and right branches (max difference of 1).
+- **Panning Constraints**: Inklink now enforces flexible workspace bounds with a 200px buffer, ensuring you always stay oriented within your "Neighborhood" and preventing the map from getting lost in infinite space.
 
 | Balanced | Left to Right | Right to Left |
 |:---:|:---:|:---:|
 | ![](public/screenshots/balance.png) | ![](public/screenshots/left%20to%20right.png) | ![](public/screenshots/Right%20to%20left.png) |
 
-### 🔭 Lighthouse Minimap
-A purpose-built **navigation minimap** in the bottom-right corner keeps you oriented even on the largest mind maps. The active viewport is highlighted using an inverted overlay — the rest of the map is dimmed, so your position is always unmistakable. A center grab handle and a guaranteed minimum viewport size ensure the minimap is always interactive, no matter how far you are zoomed out.
+### 🔭 Lighthouse Minimap v2: "Navigate Your Knowledge"
+A professional-grade **navigation minimap** in the bottom-right corner designed for deep-document navigation.
+- **Intelligent Auto-Focus**: The minimap no longer shows just a tiny star-chart. It maintains a high-resolution "Neighborhood" focus around your viewport, providing clear branch visibility even in 1000+ node maps.
+- **Power Zoom (The Fly-Over)**: Dragging the viewport rectangle instantly and smoothly zooms out to a Global Overview, allowing you to "fly" across branches and "dive" back into local detail upon release.
+- **Structural Skeleton**: A branching skeleton layer preserves structural context at all zoom levels.
+- **Hierarchical Pills**: Nodes are rendered as depth-aware rounded pills. Root and Level-1 nodes are visually weighted so the "spine" of your document is always unmistakable.
 
 ### 🔍 Professional Search & Replace
 A VS Code-style find and replace panel with full keyboard shortcuts (`Cmd+Shift+F` / `Cmd+Shift+H`), overlapping match support, regex, match-case, whole-word, and preserve-case modes.

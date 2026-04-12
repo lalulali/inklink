@@ -47,29 +47,29 @@ class ImageDimensionStore {
 
   private loadImage(url: string) {
     this.loading.add(url);
-    
+
     // In a browser environment, use the Image object
     const img = new Image();
-    
+
     img.onload = () => {
       const width = img.naturalWidth;
       const height = img.naturalHeight;
       const aspect = (width && height) ? width / height : 1;
-      
-      console.log(`[ImageStore] Loaded: ${url} (${width}x${height})`);
+
+      // console.log(`[ImageStore] Loaded: ${url} (${width}x${height})`);
       this.cache.set(url, { width, height, aspect });
       this.loading.delete(url);
       this.notify();
     };
-    
+
     img.onerror = (e) => {
-      console.error(`[ImageStore] Error loading: ${url}`, e);
+      //console.error(`[ImageStore] Error loading: ${url}`, e);
       this.loading.delete(url);
       this.notify();
     };
 
     img.src = url;
-    console.log(`[ImageStore] Loading: ${url}`);
+    // console.log(`[ImageStore] Loading: ${url}`);
   }
 
   private notify() {

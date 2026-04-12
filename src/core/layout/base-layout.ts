@@ -150,11 +150,16 @@ export abstract class BaseLayout implements LayoutAlgorithm {
         } else {
           // Code/Quote width
           const contentStr = block.type === 'code' ? (block as any).code : (block as any).text;
-          const lines = (contentStr || '').split('\n');
-          const font = block.type === 'quote' ? `${NB.QUOTE_LINE_HEIGHT}px Inter, sans-serif` : `${NB.CODE_LINE_HEIGHT}px ${NB.MONO_FONT.replace(/'/g, "")}`;
+          const lineHValue = block.type === 'code' ? NB.CODE_LINE_HEIGHT : NB.QUOTE_LINE_HEIGHT;
+          const blockFontFamily = block.type === 'quote' ? 'Inter, sans-serif' : NB.MONO_FONT.replace(/'/g, "");
           
-          if (ctx) ctx.font = font;
-          lines.forEach((line: string) => {
+          const blockLines = (contentStr || '').split(/\r?\n/).flatMap((line: string) => 
+            wrapText(line, NB.MAX_WIDTH - (block.type === 'code' ? 16 : 24), lineHValue, 'normal', measureFn, blockFontFamily)
+          );
+
+          const fontString = `normal ${lineHValue}px ${blockFontFamily}`;
+          if (ctx) ctx.font = fontString;
+          blockLines.forEach((line: string) => {
             const lw = ctx ? ctx.measureText(line).width : line.length * (block.type === 'quote' ? NB.QUOTE_LINE_HEIGHT : NB.CODE_LINE_HEIGHT) * 0.6;
             const totalLw = lw + (block.type === 'quote' ? NB.QUOTE_BORDER_WIDTH + 16 : 16);
             if (totalLw > maxBlockWidth) maxBlockWidth = totalLw;
@@ -252,10 +257,16 @@ export abstract class BaseLayout implements LayoutAlgorithm {
             totalHeight += NB.TABLE_HEADER_HEIGHT + (totalRows * NB.TABLE_ROW_HEIGHT) + (NB.TABLE_V_PADDING * 2);
           } else {
             const blockLinesContent = (block.type === 'code' ? (block as any).code : (block as any).text) || '';
-            const blockLineCount = blockLinesContent.split('\n').length;
             const vPad = block.type === 'code' ? NB.CODE_V_PADDING : NB.QUOTE_V_PADDING;
             const lineHValue = block.type === 'code' ? NB.CODE_LINE_HEIGHT : NB.QUOTE_LINE_HEIGHT;
-            totalHeight += NB.CODE_HEADER_HEIGHT + vPad + (blockLineCount * lineHValue) + vPad;
+            const blockFontFamily = block.type === 'code' ? NB.MONO_FONT.replace(/'/g, "") : 'Inter, sans-serif';
+            
+            // Calculate wrapped lines for accurate height
+            const blockLines = blockLinesContent.split(/\r?\n/).flatMap((line: string) => 
+              wrapText(line, NB.MAX_WIDTH - (block.type === 'code' ? 16 : 24), lineHValue, 'normal', measureFn, blockFontFamily)
+            );
+            
+            totalHeight += NB.CODE_HEADER_HEIGHT + vPad + (blockLines.length * lineHValue) + vPad;
           }
         } else {
           totalHeight += NB.PILL_HEIGHT;

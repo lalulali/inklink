@@ -28,10 +28,10 @@ Whether you are writing a product spec, reviewing an architecture decision recor
 ## 🚀 Key Features
 
 ### 🗺️ Real-Time Markdown Mind Map
-Every heading (`#`, `##`, `###`) and list item in your Markdown automatically becomes a node in the mind map. Edit the file — the map updates instantly. **Version 0.1.6** features **Zero-Jitter Synchronization**, eliminating all visual shifting and "jumping" while you type for a seamless, flicker-free experience.
+Every heading (`#`, `##`, `###`) and list item in your Markdown automatically becomes a node in the mind map. Edit the file — the map updates instantly. **Version 0.2.0** features **Precision Navigation** and **Zero-Jitter Synchronization**, providing a high-fidelity "Neighborhood" view of your document structure as you type.
 
 ### 🔄 Real-Time Synchronization
-The mind map is live-synced with your editor buffer. It updates as you type, providing an instant visual preview of your document structure as it evolves. No manual refresh or save required.
+The mind map is live-synced with your editor buffer. It updates as you type, providing an instant visual preview of your document structure as it evolves. **Version 0.2.0** uses throttled rendering for extreme performance on 1000+ node files.
 
 ### 🔗 Bidirectional Editor ↔ Map Navigation
 - **Double-click any node** → your VS Code editor jumps to the exact line and highlights it briefly
@@ -59,18 +59,23 @@ Structured data is no longer hidden in text. Inklink identifies **Markdown Table
 - **Column Synchronization**: Table columns are automatically distributed across the node width with robust overflow handling.
 - **Visual Consistency**: Tables adhere to the "Stitch" design language with tonal-relief row highlighting and consistent alignment.
 
-### 🧭 Multiple Layout Directions
+### 🧭 Multiple Layout Directions & Physics
 Choose how your mind map flows:
-- **Two-Sided (Balanced)** — branches spread left and right
+- **Two-Sided (Strict Balance)** — A height-aware algorithm ensures perfect parity between left and right branches (max difference of 1 node).
 - **Left-to-Right** — classic reading direction
 - **Right-to-Left** — for RTL workflows or alternative perspectives
+- **Panning Constraints** — workspace bounds with a 200px buffer keep you oriented in your Neighborhood while preventing "ghost" panning into infinite space.
 
 | Balanced | Left to Right | Right to Left |
 |:---:|:---:|:---:|
 | ![](../public/screenshots/balance.png) | ![](../public/screenshots/left%20to%20right.png) | ![](../public/screenshots/Right%20to%20left.png) |
 
-### 🔭 Lighthouse Minimap
-A smart minimap in the bottom-right corner keeps you oriented on even the largest mind maps. The current viewport is highlighted with an inverted overlay so your position is always unmistakable — even when zoomed out to see thousands of nodes.
+### 🔭 Lighthouse Minimap v2: "Navigate Your Knowledge"
+A professional-grade **navigation minimap** designed for deep-document navigation.
+- **Intelligent Auto-Focus**: Maintains a high-resolution "Neighborhood" view around your active viewport, automatically scaling to keep nodes readable in massive maps.
+- **Power Zoom (The Fly-Over)**: Dragging the viewport rectangle triggers a smooth, context-aware zoom-out to the Global Overview, "diving" back into detail when you release.
+- **Structural Skeleton**: A branching skeleton layer preserves structural context at all zoom levels.
+- **Hierarchical Pills**: Depth-aware rounded pills weighted by level (Root/Child) for immediate structural orientation.
 
 ### 🔍 Canvas Search
 Find any node by text directly on the mind map canvas. Navigate through results with keyboard shortcuts.

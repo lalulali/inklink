@@ -11,7 +11,7 @@ import { TreeNode, Position, Transform, BoundingBox } from '@/core/types';
  * Implements lazy rendering by identifying visible nodes with a buffer
  */
 export class ViewportCuller {
-  private readonly buffer = 100; // Buffer in pixels to avoid pop-in
+  private readonly buffer = 1000; // Buffer in pixels to avoid pop-in
 
   /**
    * Determine which nodes are visible in the current viewport

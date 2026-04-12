@@ -29,6 +29,7 @@ export function Canvas() {
   const [state, setState] = React.useState(globalState.getState());
   const { resolvedTheme } = useTheme();
   const internalTransform = useRef(state.transform);
+  const lastFocusTime = useRef(0);
   
   const { autoSave } = useWebPlatform();
 
@@ -82,12 +83,13 @@ export function Canvas() {
            // 1. Show editor
            window.dispatchEvent(new CustomEvent('inklink-editor-show'));
            // 2. Reveal in editor
-           // Delay slightly to allow editor to mount if it was hidden
-           setTimeout(() => {
-             window.dispatchEvent(new CustomEvent('inklink-editor-reveal', { 
-               detail: { content: node.content, nodeId } 
-             }));
-           }, 50);
+           window.dispatchEvent(new CustomEvent('inklink-editor-reveal', { 
+             detail: { 
+               content: node.content, 
+               nodeId,
+               sourceLine: node.metadata?.sourceLine ?? -1,
+             } 
+           }));
         }
       });
 
@@ -205,13 +207,41 @@ export function Canvas() {
     window.addEventListener('inklink-reset-view', handleResetView);
 
     const handleFocusNode = (e: any) => {
-      const { nodeId } = e.detail;
+      const { nodeId, lineIndex } = e.detail;
       if (!rendererRef.current) return;
+
+      // Throttle rapid focus requests from cursor navigation (e.g. holding Down arrow)
+      const now = Date.now();
+      if (now - lastFocusTime.current < 50 && !nodeId) return;
+      lastFocusTime.current = now;
 
       const s = globalState.getState();
       if (!s.tree) return;
 
       let treeChanged = false;
+      let targetNodeId = nodeId;
+
+      // If we only have a lineIndex (from editor navigation), find the corresponding node ID
+      if (!targetNodeId && typeof lineIndex === 'number') {
+        const findNodeByLine = (node: any, line: number): string | null => {
+          if (node.children) {
+            for (const child of node.children) {
+              const res = findNodeByLine(child, line);
+              if (res) return res;
+            }
+          }
+          if (typeof node.metadata?.sourceLine === 'number' && typeof node.metadata?.sourceLineEnd === 'number') {
+            if (line >= node.metadata.sourceLine && line <= node.metadata.sourceLineEnd) {
+              return node.id;
+            }
+          }
+          return null;
+        };
+        targetNodeId = findNodeByLine(s.tree, lineIndex);
+      }
+
+      if (!targetNodeId) return;
+
       const updateTree = (node: any, targetId: string): any => {
         if (node.id === targetId) return node;
         if (!node.children) return null;
@@ -227,16 +257,20 @@ export function Canvas() {
         return null;
       };
 
-      const newTree = updateTree(s.tree, nodeId);
+      const newTree = updateTree(s.tree, targetNodeId);
       if (newTree && treeChanged) {
         globalState.setState({ tree: newTree });
+        // Wait for React to apply tree state and for renderer useEffect to recalculate positions
         setTimeout(() => {
-          (rendererRef.current as any).focusNode?.(nodeId, true);
-          globalState.setState({ selectedNode: nodeId });
+          if (rendererRef.current) {
+            (rendererRef.current as any).focusNode?.(targetNodeId, true);
+          }
+          globalState.setState({ selectedNode: targetNodeId });
         }, 150);
       } else if (newTree) {
-        (rendererRef.current as any).focusNode?.(nodeId, true);
-        globalState.setState({ selectedNode: nodeId });
+        // If node was already expanded, skip state update and focus immediately
+        (rendererRef.current as any).focusNode?.(targetNodeId, true);
+        globalState.setState({ selectedNode: targetNodeId });
       }
     };
 

@@ -58,10 +58,17 @@ export const LAYOUT_CONFIG = {
     QUOTE_V_PADDING: 10 * 0.75,    // Top+bottom padding inside expanded quote
     QUOTE_BORDER_WIDTH: 3 * 0.75, // Width of left accent border
     TABLE_LINE_HEIGHT: 12 * 0.75,  // Line height for table cells
-    TABLE_HEADER_HEIGHT: 20 * 0.75, 
+    TABLE_HEADER_HEIGHT: 20 * 0.75,
     TABLE_ROW_HEIGHT: 22 * 0.75,
     TABLE_V_PADDING: 10 * 0.75,
-    TABLE_CELL_HPADDING: 8 * 0.75,
+    TABLE_CELL_HPADDING: 12 * 0.75,
     MONO_FONT: "'JetBrains Mono', 'Fira Code', 'Courier New', monospace",
+    MAX_WIDTH: 300,               // Default max width for note blocks before wrapping
+  },
+
+  // Panning Constraints
+  PANNING: {
+    BUFFER_X: 400,                // Maximum panning buffer beyond left/right edges
+    BUFFER_Y: 200,                // Maximum panning buffer beyond top/bottom edges
   },
 };

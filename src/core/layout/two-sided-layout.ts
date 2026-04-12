@@ -33,16 +33,34 @@ export class TwoSidedLayout extends BaseLayout {
     // We avoid dynamic re-balancing (sorting by height) which causes nodes to "jump" sides.
     const left: TreeNode[] = [];
     const right: TreeNode[] = [];
+    let leftTotalHeight = 0;
+    let rightTotalHeight = 0;
 
-    root.children.forEach((child, index) => {
-      // Split branches based on index % 2. 
-      // This is the most stable deterministic layout: 
-      // - Child 0, 2, 4... stay on the Right
-      // - Child 1, 3, 5... stay on the Left
-      if (index % 2 === 0) {
-        right.push(child);
-      } else {
+    // Distribute level 1 nodes greedily while strictly balancing the count of nodes on each side.
+    // Constraint: Level 1 node count must be balanced; total nodes on the Right side can 
+    // be at most 1 more than the Left side (for odd counts).
+    root.children.forEach((child) => {
+      const height = this.getSubtreeHeight(child);
+      const countDiff = right.length - left.length;
+
+      if (countDiff === 0) {
+        // Equal counts: add to the side with less cumulative subtree height.
+        // We favor the RIGHT side for ties to ensure it takes the 'extra' node for odd counts.
+        if (rightTotalHeight <= leftTotalHeight) {
+          right.push(child);
+          rightTotalHeight += height + this.nodeSpacing;
+        } else {
+          left.push(child);
+          leftTotalHeight += height + this.nodeSpacing;
+        }
+      } else if (countDiff > 0) {
+        // Right side has more nodes: must add to the Left to keep the counts balanced.
         left.push(child);
+        leftTotalHeight += height + this.nodeSpacing;
+      } else {
+        // Left side has more nodes: must add to the Right to keep the counts balanced.
+        right.push(child);
+        rightTotalHeight += height + this.nodeSpacing;
       }
     });
 
