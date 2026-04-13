@@ -340,6 +340,7 @@ function renderMathToUnicode(latex: string): string {
     '\\\\times': '×',
     '\\\\div': '÷',
     '\\\\cdot': '·',
+    '\\\\pm': '±',
     '\\\\mp': '∓',
     '\\\\oplus': '⊕',
     '\\\\otimes': '⊗',
