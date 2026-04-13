@@ -241,6 +241,8 @@ export const RendererColors = {
     kbdLight: '#475569',
     /** Keyboard span text in dark mode */
     kbdDark: '#cbd5e1',
+    /** Bullet color for lists */
+    bullet: '#ffffff',
   },
 
   // ── Note block (code / quote / table) ───────────────────────────────────
@@ -291,5 +293,29 @@ export const RendererColors = {
     tableDividerDark: '#334155',
     /** Table/column divider line in light mode */
     tableDividerLight: '#cbd5e1',
+  },
+
+  // ── Minimap ─────────────────────────────────────────────────────────────
+  minimap: {
+    /** Container background in dark mode */
+    bgDark: '#1E1E1E',
+    /** Container background in light mode */
+    bgLight: '#f1f5f9',
+    /** Skeleton link color in dark mode */
+    linkDark: 'rgba(255, 255, 255, 0.1)',
+    /** Skeleton link color in light mode */
+    linkLight: 'rgba(0, 0, 0, 0.06)',
+    /** Default node pill color */
+    nodeDefault: '#94a3b8',
+    /** Non-visible area overlay in dark mode */
+    overlayDark: 'rgba(0, 0, 0, 0.4)',
+    /** Non-visible area overlay in light mode */
+    overlayLight: 'rgba(0, 0, 0, 0.2)',
+    /** Viewport rectangle fill */
+    viewportFill: 'rgba(59, 130, 246, 0.2)',
+    /** Viewport rectangle stroke */
+    viewportStroke: '#3b82f6',
+    /** Viewport handle fill */
+    handleFill: '#3b82f6',
   },
 } as const;

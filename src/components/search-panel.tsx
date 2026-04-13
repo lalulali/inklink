@@ -100,6 +100,7 @@ export function SearchPanel() {
       className={cn(
         "absolute z-40 flex items-center gap-1.5 md:gap-3 rounded-full border bg-background p-1.5 md:p-3 shadow-2xl transition-all duration-300 animate-in slide-in-from-top-2 fade-in",
         "left-4 right-4 top-4 md:left-auto md:right-6 md:top-6",
+        "max-[463px]:left-0 max-[463px]:right-0 max-[463px]:top-0 max-[463px]:h-full max-[463px]:rounded-none max-[463px]:items-start max-[463px]:p-4",
         state.isCanvasSearchOpen ? "scale-100 opacity-100" : "scale-95 opacity-0"
       )}
       id="inklink-search-panel"

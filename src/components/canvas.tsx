@@ -15,7 +15,9 @@ import { LayoutFactory } from '@/core/layout/layout-factory';
 import { useTheme } from 'next-themes';
 import { useWebPlatform } from '@/platform/web/web-platform-context';
 import { useFileDrop } from '@/hooks/use-file-drop';
-import { cn, normalizeUrl } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { Zap as ZapIcon, BookOpen, Keyboard } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 import { getVsCodeApi } from '@/platform/vscode/vscode-api';
 
@@ -172,8 +174,15 @@ export function Canvas() {
         } else if (prevWidth === 0 && prevHeight === 0) {
           const currentTransform = globalState.getState().transform;
           if (currentTransform.x === 0 && currentTransform.y === 0) {
+            // Feature: Default zoom for narrow resolutions (e.g. phones)
+            const isNarrow = width < 464;
             globalState.setState({
-               transform: { ...currentTransform, x: width / 2, y: height / 2 }
+               transform: { 
+                 ...currentTransform, 
+                 x: width / 2, 
+                 y: height / 2,
+                 scale: isNarrow ? 0.75 : 1
+               }
             });
           }
         }
@@ -435,9 +444,65 @@ export function Canvas() {
         </div>
       )}
 
-      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-muted-foreground opacity-50 select-none">
-        {state.tree ? null : (
-           <p className="text-sm font-medium">Import or drag .md file here to start...</p>
+      <div className={cn(
+        "absolute inset-0 flex flex-col items-center justify-center text-muted-foreground select-none overflow-hidden",
+        state.tree ? "pointer-events-none opacity-0" : "opacity-100"
+      )}>
+        {!state.tree && (
+          <div className="flex flex-col items-center max-w-sm text-center animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            {/* Minimalist Hero Icon */}
+            <div className="mb-6 w-16 h-16 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center text-primary/60 transition-colors">
+              <ZapIcon className="w-8 h-8" />
+            </div>
+
+            {/* Headline & Description */}
+            <h2 className="text-xl font-bold text-foreground tracking-tight mb-2">Ready to Visualize?</h2>
+            <p className="text-sm leading-relaxed text-muted-foreground/80 mb-8 px-4">
+              Inklink converts your Markdown hierarchy into a dynamic mind map. 
+              Start typing on the left or explore a showcase.
+            </p>
+
+            {/* Solid Action Buttons (No Glassmorphism) */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full px-8">
+              <Button 
+                onClick={() => {
+                  const factory = PlatformFactory.getInstance();
+                  if (factory.getPlatform() === PlatformType.VSCode) {
+                    const vscodeApi = getVsCodeApi();
+                    if (vscodeApi) {
+                      vscodeApi.postMessage({ command: 'insertVisualizationExample' });
+                      return;
+                    }
+                  }
+                  // Web Fallback: Trigger global event that Toolbar listens to
+                  window.dispatchEvent(new CustomEvent('inklink-file-open-example'));
+                }}
+                className="w-full sm:flex-1 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all font-bold group"
+              >
+                <ZapIcon className="w-4 h-4 mr-2 fill-primary-foreground group-hover:scale-110 transition-transform" />
+                Try Example
+              </Button>
+              
+              <Button 
+                variant="outline"
+                onClick={() => globalState.setState({ isLearnBasicsOpen: true })}
+                className="w-full sm:flex-1 h-10 rounded-xl bg-background border-border hover:bg-muted font-bold"
+              >
+                <BookOpen className="w-4 h-4 mr-2" />
+                Learn Basics
+              </Button>
+            </div>
+
+            {/* Subtext Cues */}
+            <div className="mt-10 flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">
+              <div className="flex items-center gap-1.5">
+                <Keyboard className="w-3 h-3" />
+                <span>Cmd+O to Open</span>
+              </div>
+              <div className="h-1 w-1 rounded-full bg-border" />
+              
+            </div>
+          </div>
         )}
       </div>
     </div>

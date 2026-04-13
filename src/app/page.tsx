@@ -22,6 +22,7 @@ import { ExportDialog } from "@/components/export-dialog";
 import { AppReferenceDialog } from "@/components/app-reference-dialog";
 import { RecoveryDialog } from "@/components/recovery-dialog";
 import { SettingsDialog } from "@/components/settings-dialog";
+import { LearnBasicsDrawer } from "@/components/learn-basics-drawer";
 import { cn } from "@/lib/utils";
 import { FileText, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -195,6 +196,7 @@ export default function Home() {
       <FilePermissionDialog />
       <RecoveryDialog />
       <SettingsDialog />
+      <LearnBasicsDrawer />
       <ImageOverlay />
       {/* Persistent global notification layer */}
       <Toaster />

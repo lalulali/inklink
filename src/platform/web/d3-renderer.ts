@@ -84,7 +84,7 @@ export class D3Renderer implements RendererAdapter {
    * Helper to wrap text into lines based on maximum width.
    * This is Markdown-aware to ensure links are treated as atomic units and don't wrap mid-line.
    */
-  private wrapText(text: string, maxWidth: number, fontSize: number, fontWeight: string, fontFamily: string = 'Inter, sans-serif'): string[] {
+  private wrapText(text: string, maxWidth: number, fontSize: number, fontWeight: string, fontFamily: string = 'Inter, sans-serif', literal: boolean = false): string[] {
     const ctx = this.measureCtx;
     const measure = (t: string, f: string) => {
       if (ctx) {
@@ -93,7 +93,7 @@ export class D3Renderer implements RendererAdapter {
       }
       return t.length * (fontSize * 0.6);
     };
-    return wrapText(text, maxWidth, fontSize, fontWeight, measure, fontFamily);
+    return wrapText(text, maxWidth, fontSize, fontWeight, measure, fontFamily, literal);
   }
 
   /**
@@ -121,8 +121,11 @@ export class D3Renderer implements RendererAdapter {
       .scaleExtent([0.1, 4])
       .translateExtent([[-5000, -5000], [5000, 5000]])
       .filter((event) => {
-        // Only allow panning via drag when no modifier keys are pressed
-        return !event.ctrlKey && !event.altKey && !event.metaKey && (event.button === 0 || event.button === 1);
+        // Only allow panning via drag when no modifier keys are pressed.
+        // For mouse events, we check for left (0) or middle (1) button.
+        // Touch events typically have undefined or 0 button.
+        const isAllowedButton = event.button === 0 || event.button === 1 || event.button === undefined;
+        return !event.ctrlKey && !event.altKey && !event.metaKey && isAllowedButton;
       })
       .on('start', () => {
         this.svg?.style('cursor', 'grabbing');
@@ -1273,13 +1276,24 @@ export class D3Renderer implements RendererAdapter {
             .style('text-decoration', s => (s.underline || s.link) ? 'underline' : (s.strikethrough ? 'line-through' : 'none'))
             .style('font-size', s => s.heading ? `${getHeadingFontSize(s.heading)}px` : ((s.subscript || s.superscript) ? `${fontSize * 0.7}px` : `${fontSize}px`))
             .style('fill', s => {
-              if (s.checkbox) return 'white';
+              if (s.checkbox || s.bullet) return RendererColors.inline.bullet;
               if (s.link) return ColorManager.getLinkColor(nodeFill);
               if (s.highlight) return RendererColors.inline.highlightText;
               return null;
             })
             .attr('baseline-shift', s => s.subscript ? 'sub' : (s.superscript ? 'super' : 'baseline'))
+            .style('cursor', s => (s.link || s.details) ? 'pointer' : 'default')
             .each(function (s) {
+              const seg = d3.select(this);
+              // Apply mathematical font for math segments
+              if (s.math) {
+                seg.style('font-family', 'serif, STIXGeneral, "Times New Roman"');
+                // Serif fonts can appear smaller, so we nudge the size slightly if not in sub/sup
+                if (!s.subscript && !s.superscript) {
+                  seg.style('font-size', `${fontSize * 1.1}px`);
+                }
+              }
+              
               if (s.highlight || s.keyboard) {
                 const seg = d3.select(this);
                 if (s.highlight) {
@@ -1693,7 +1707,7 @@ export class D3Renderer implements RendererAdapter {
       const lineH = type === 'code' ? NB.CODE_LINE_HEIGHT : (type === 'quote' ? NB.QUOTE_LINE_HEIGHT : NB.TABLE_LINE_HEIGHT);
       const blockFontFamily = type === 'code' ? NB.MONO_FONT.replace(/'/g, "") : 'Inter, sans-serif';
       const contentLines = rawContent.split(/\r?\n/).flatMap((line: string) =>
-        thisRenderer.wrapText(line, NB.MAX_WIDTH - (type === 'code' ? 16 : 24), lineH, 'normal', blockFontFamily)
+        thisRenderer.wrapText(line, NB.MAX_WIDTH - (type === 'code' ? 16 : 24), lineH, 'normal', blockFontFamily, type === 'code')
       );
       const vPad = type === 'code' ? NB.CODE_V_PADDING : (type === 'quote' ? NB.QUOTE_V_PADDING : NB.TABLE_V_PADDING);
       const headerH = (type === 'table') ? NB.TABLE_HEADER_HEIGHT : NB.CODE_HEADER_HEIGHT;

@@ -53,12 +53,23 @@
           "light": "assets/icon-light.svg",
           "dark": "assets/icon-dark.svg"
         }
+      },
+      {
+        "command": "inklink.insertVisualizationExample",
+        "title": "Insert Visualization Example",
+        "category": "Inklink",
+        "icon": "$(zap)"
       }
     ],
     "menus": {
       "editor/title": [
         {
           "command": "inklink.open",
+          "group": "navigation",
+          "when": "editorLangId == markdown"
+        },
+        {
+          "command": "inklink.insertVisualizationExample",
           "group": "navigation",
           "when": "editorLangId == markdown"
         }

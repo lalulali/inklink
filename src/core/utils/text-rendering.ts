@@ -32,17 +32,20 @@ export function getHeadingLineHeight(level: number): number {
  * This is Markdown-aware to ensure links and formatting are treated as atomic units.
  */
 export function wrapText(
-  text: string, 
-  maxWidth: number, 
-  fontSize: number, 
+  text: string,
+  maxWidth: number,
+  fontSize: number,
   fontWeight: string,
   measureFn: (txt: string, font: string) => number,
-  fontFamily: string = 'Inter, sans-serif'
+  fontFamily: string = 'Inter, sans-serif',
+  literal: boolean = false
 ): string[] {
+  if (text === undefined || text === null) return [''];
+
   // Pre-process: Handle <br> as newline and remove other blocks for measurement
   let processedText = text.replace(/<br\s*\/?>/gi, '\n');
-  const cleanText = processedText.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/g, '').trim();
-  
+  const cleanText = literal ? processedText : processedText.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/g, '').trim();
+
   if (!cleanText && !processedText.includes('\n')) {
     return [];
   }
@@ -56,10 +59,10 @@ export function wrapText(
 
   rawLines.forEach(rawLine => {
     // Strip all internal placeholders (code, quote, image, table) for line counting. 
-    const line = rawLine.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/g, '').trimEnd();
+    const line = literal ? rawLine : rawLine.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/g, '').trimEnd();
 
     // Only skip if it was a placeholder line. If it was a natural blank line, keep it.
-    if (!line && rawLine.match(/\[(codeblock|quoteblock|image|tableblock):\d+\]/)) return;
+    if (!literal && !line && rawLine.match(/\[(codeblock|quoteblock|image|tableblock):\d+\]/)) return;
 
     if (!line) {
       // Collapse consecutive blank lines
@@ -68,13 +71,13 @@ export function wrapText(
       return;
     }
 
-    // Split line into atomic blocks and whitespace-aware tokens
-    const parts = line.split(atomicRegex);
+    // Split line into atomic blocks and whitespace-aware tokens - literal mode does simple split
+    const parts = literal ? [line] : line.split(atomicRegex);
     const tokens: string[] = [];
 
     parts.forEach(part => {
       if (!part) return;
-      if (part.match(atomicRegex)) {
+      if (!literal && part.match(atomicRegex)) {
         tokens.push(part);
       } else {
         tokens.push(...part.split(/(\s+)/).filter(Boolean));
@@ -86,17 +89,19 @@ export function wrapText(
       if (!token) return;
 
       const testLine = currentLine + token;
-      
+
       // For links, formatting, and HTML tags, measure the visible text only.
       let measureText = testLine;
-      measureText = measureText
-        .replace(/(!?\[)(.*?)( \].*?\))/g, '$2') // Strip links to label
-        .replace(/(\*\*\*|\*\*|\*|~~|==|\^|~|\$)/g, '')    // Strip formatting
-        .replace(/\[[ xX]\]/g, '☑ ')              // Checkbox placeholder for width
-        .replace(/<[^>]+>/g, '');                // Strip HTML tags for measurement
-      
+      if (!literal) {
+        measureText = measureText
+          .replace(/(!?\[)(.*?)( \].*?\))/g, '$2') // Strip links to label
+          .replace(/(\*\*\*|\*\*|\*|~~|==|\^|~|\$)/g, '')    // Strip formatting
+          .replace(/\[[ xX]\]/g, '☑ ')              // Checkbox placeholder for width
+          .replace(/<[^>]+>/g, '');                // Strip HTML tags for measurement
+      }
+
       const testWidth = measureFn(measureText, font);
-      
+
       if (testWidth > maxWidth && currentLine) {
         wrapped.push(currentLine.trimEnd());
         currentLine = token;
@@ -106,7 +111,16 @@ export function wrapText(
     });
 
     if (currentLine) {
-      wrapped.push(currentLine.trimEnd());
+      const visibleText = literal ? currentLine : currentLine.replace(/<[^>]+>/g, '').trim();
+      const isPlaceholderOnly = !literal && !visibleText && currentLine.match(/\[(codeblock|quoteblock|image|tableblock):\d+\]/);
+      const isIndicatorOnly = !literal && !visibleText && currentLine.match(/\[[ xX]\]/);
+
+      if (visibleText || isIndicatorOnly || isPlaceholderOnly || literal) {
+        wrapped.push(currentLine.trimEnd());
+      } else if (line === '') {
+        wrapped.push('');
+      }
+      // Structural tags like <ul> on their own line with no visible text are skipped in rich text mode
     }
   });
 
@@ -127,27 +141,27 @@ export function measureRichTextWidth(
   measureFn: (txt: string, font: string) => number
 ): number {
   if (!line) return 0;
-  
+
   const segments = parseMarkdownLine(line);
   let totalWidth = 0;
-  
+
   segments.forEach(seg => {
     const font = `${seg.bold ? 'bold ' : fontWeight} ${seg.italic ? 'italic ' : ''}${fontSize}px Inter, sans-serif`;
     const textToMeasure = seg.checkbox ? '☑ ' : seg.text;
     totalWidth += measureFn(textToMeasure, font);
   });
-  
+
   return totalWidth;
 }
 
 /**
  * Simple inline markdown parser for shared use in layout and renderer
  */
-export function parseMarkdownLine(line: string): { 
-  text: string; 
-  bold?: boolean; 
-  italic?: boolean; 
-  strikethrough?: boolean; 
+export function parseMarkdownLine(line: string): {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  strikethrough?: boolean;
   underline?: boolean;
   subscript?: boolean;
   superscript?: boolean;
@@ -159,6 +173,8 @@ export function parseMarkdownLine(line: string): {
   checkbox?: boolean;
   checked?: boolean;
   heading?: number;
+  bullet?: boolean;
+  math?: boolean;
 }[] {
   const segments: any[] = [];
 
@@ -178,19 +194,21 @@ export function parseMarkdownLine(line: string): {
       segments.push({ text: part.slice(1, -1), keyboard: true });
     } else if (part.startsWith('$') && part.endsWith('$') && part.length >= 2) {
       const content = part.slice(1, -1);
-      // Simple math parser for content like H_2O or E=mc^2
+      // Use lightweight Unicode math renderer
+      const renderedMatch = renderMathToUnicode(content);
+      // After symbol replacement, handle sub/sup within the math block
       const mathRegex = /(_[^{\s]|_\{.*?\}|\^[^{\s]|\^{.*?})/g;
-      const mathParts = content.split(mathRegex);
+      const mathParts = renderedMatch.split(mathRegex);
       mathParts.forEach(mPart => {
         if (!mPart) return;
         if (mPart.startsWith('_')) {
           const sub = mPart.startsWith('_{') ? mPart.slice(2, -1) : mPart.slice(1);
-          segments.push({ text: sub, subscript: true });
+          segments.push({ text: sub, subscript: true, math: true });
         } else if (mPart.startsWith('^')) {
           const sup = mPart.startsWith('^{') ? mPart.slice(2, -1) : mPart.slice(1);
-          segments.push({ text: sup, superscript: true });
+          segments.push({ text: sup, superscript: true, math: true });
         } else {
-          segments.push({ text: mPart });
+          segments.push({ text: mPart, math: true });
         }
       });
     } else if ((part.startsWith('[') || part.startsWith('![')) && part.includes('](')) {
@@ -199,7 +217,7 @@ export function parseMarkdownLine(line: string): {
       const title = part.substring(isImage ? 2 : 1, lastClosingBracket);
       const urlPart = part.substring(lastClosingBracket + 1);
       const url = urlPart.substring(1, urlPart.length - 1);
-      
+
       if (isImage) {
         segments.push({ text: `!${title}`, link: url });
       } else {
@@ -260,14 +278,30 @@ export function parseMarkdownLine(line: string): {
       // For details, we might just show the primary content or a "Spoiler" tag for now
       // Advanced implementation would require a custom nested block
       segments.push({ text: part.replace(/^<details\b[^>]*>(?:<summary\b[^>]*>(.*?)<\/summary>)?.*?<\/details>$/i, (_, p1) => p1 || 'Details'), details: true });
-    } else if (/^<(span|div|p|em|i|strong|b|ul|ol|li)\b[^>]*>(.*?)<\/\1>$/i.test(part)) {
-      const match = part.match(/^<(span|div|p|em|i|strong|b|ul|ol|li)\b[^>]*>(.*?)<\/\1>$/i);
+    } else if (/^<(ul|ol|li)\b[^>]*>(.*?)<\/\1>$/i.test(part)) {
+      const match = part.match(/^<(ul|ol|li)\b[^>]*>(.*?)<\/\1>$/i);
       const tag = match ? match[1].toLowerCase() : '';
       const text = match ? match[2] : '';
-      segments.push({ 
-        text, 
-        bold: tag === 'strong' || tag === 'b', 
-        italic: tag === 'em' || tag === 'i' 
+
+      if (tag === 'li') {
+        segments.push({ text: ' • ', bullet: true });
+        const innerSegments = parseMarkdownLine(text);
+        segments.push(...innerSegments);
+      } else {
+        const innerSegments = parseMarkdownLine(text);
+        segments.push(...innerSegments);
+      }
+    } else if (/^<\/?(ul|ol)\b[^>]*>$/i.test(part)) {
+      // Strip standalone open/close tags for ul/ol that appear on their own lines
+      segments.push({ text: '' });
+    } else if (/^<(span|div|p|em|i|strong|b)\b[^>]*>(.*?)<\/\1>$/i.test(part)) {
+      const match = part.match(/^<(span|div|p|em|i|strong|b)\b[^>]*>(.*?)<\/\1>$/i);
+      const tag = match ? match[1].toLowerCase() : '';
+      const text = match ? match[2] : '';
+      segments.push({
+        text,
+        bold: tag === 'strong' || tag === 'b',
+        italic: tag === 'em' || tag === 'i'
       });
     } else if (/^<(img|image)\b[^>]*\/?>$/i.test(part)) {
       // Stray image tag not caught by tree-builder (e.g. malformed or nested in ways we didn't extract)
@@ -281,4 +315,106 @@ export function parseMarkdownLine(line: string): {
   });
 
   return segments;
+}
+
+/**
+ * Lightweight LaTeX to Unicode mapping for common mathematical symbols.
+ * This provides fast, zero-dependency rendering for high-performance mind maps.
+ */
+function renderMathToUnicode(latex: string): string {
+  if (!latex) return '';
+
+  const symbolMap: Record<string, string> = {
+    // Basic Operators & Relations
+    '\\\\neq': '≠',
+    '\\\\pm': '±',
+    '\\\\approx': '≈',
+    '\\\\infty': '∞',
+    '\\\\sum': '∑',
+    '\\\\prod': '∏',
+    '\\\\int': '∫',
+    '\\\\le': '≤',
+    '\\\\leq': '≤',
+    '\\\\ge': '≥',
+    '\\\\geq': '≥',
+    '\\\\times': '×',
+    '\\\\div': '÷',
+    '\\\\cdot': '·',
+    '\\\\mp': '∓',
+    '\\\\oplus': '⊕',
+    '\\\\otimes': '⊗',
+    '\\\\deg': '°',
+    '\\\\perp': '⊥',
+    '\\\\parallel': '∥',
+    '\\\\cong': '≅',
+    '\\\\equiv': '≡',
+    '\\\\sim': '∼',
+    '\\\\propto': '∝',
+    '\\\\in': '∈',
+    '\\\\notin': '∉',
+    '\\\\subset': '⊂',
+    '\\\\supset': '⊃',
+    '\\\\forall': '∀',
+    '\\\\exists': '∃',
+    '\\\\nabla': '∇',
+    '\\\\partial': '∂',
+    '\\\\to': '→',
+    '\\\\Rightarrow': '⇒',
+    '\\\\rightarrow': '→',
+    '\\\\gets': '←',
+    '\\\\leftarrow': '←',
+    '\\\\leftrightarrow': '↔',
+
+    // Greek Letters (Lowercase)
+    '\\\\alpha': 'α',
+    '\\\\beta': 'β',
+    '\\\\gamma': 'γ',
+    '\\\\delta': 'δ',
+    '\\\\epsilon': 'ε',
+    '\\\\zeta': 'ζ',
+    '\\\\eta': 'η',
+    '\\\\theta': 'θ',
+    '\\\\iota': 'ι',
+    '\\\\kappa': 'κ',
+    '\\\\lambda': 'λ',
+    '\\\\mu': 'μ',
+    '\\\\nu': 'ν',
+    '\\\\xi': 'ξ',
+    '\\\\pi': 'π',
+    '\\\\rho': 'ρ',
+    '\\\\sigma': 'σ',
+    '\\\\tau': 'τ',
+    '\\\\phi': 'φ',
+    '\\\\chi': 'χ',
+    '\\\\psi': 'ψ',
+    '\\\\omega': 'ω',
+
+    // Greek Letters (Uppercase)
+    '\\\\Gamma': 'Γ',
+    '\\\\Delta': 'Δ',
+    '\\\\Theta': 'Θ',
+    '\\\\Lambda': 'Λ',
+    '\\\\Pi': 'Π',
+    '\\\\Sigma': 'Σ',
+    '\\\\Phi': 'Φ',
+    '\\\\Psi': 'Ψ',
+    '\\\\Omega': 'Ω',
+  };
+
+  let result = latex;
+
+  // Replace standard symbols
+  Object.entries(symbolMap).forEach(([cmd, unicode]) => {
+    const regex = new RegExp(cmd + '(?![a-zA-Z])', 'g');
+    result = result.replace(regex, unicode);
+  });
+
+  // Handle \sqrt{x} -> √(x) - Regex literals need only \\ to match a literal \
+  result = result.replace(/\\sqrt\{([^}]+)\}/g, '√($1)');
+  result = result.replace(/\\sqrt\s+([a-zA-Z0-9])/g, '√$1');
+
+  // Handle \frac{a}{b} -> (a/b)
+  result = result.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1/$2)');
+
+  return result;
 }

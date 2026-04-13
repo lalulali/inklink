@@ -30,6 +30,7 @@ export function RecoveryDialog() {
   const [isConfirmingClear, setIsConfirmingClear] = React.useState(false);
   const [isClearing, setIsClearing] = React.useState(false);
   const storage = React.useMemo(() => new WebStorageAdapter(), []);
+  const itemRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
 
   // Sync with global state for trigger
   React.useEffect(() => {
@@ -119,6 +120,29 @@ export function RecoveryDialog() {
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (allRecords.length === 0 || confirmingDiscardId || isConfirmingClear) return;
+
+    const currentIndex = allRecords.findIndex(r => (r.id || 'current') === selectedId);
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const nextIndex = Math.min(allRecords.length - 1, currentIndex + 1);
+      const nextId = allRecords[nextIndex].id || 'current';
+      setSelectedId(nextId);
+      itemRefs.current.get(nextId)?.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const nextIndex = Math.max(0, currentIndex - 1);
+      const nextId = allRecords[nextIndex].id || 'current';
+      setSelectedId(nextId);
+      itemRefs.current.get(nextId)?.focus();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleRestore();
+    }
+  };
+
   if (allRecords.length === 0 && !isOpen) return null;
 
   const latestRecord = allRecords[0];
@@ -126,7 +150,11 @@ export function RecoveryDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={open => globalState.setState({ isRecoveryDialogOpen: open })}>
-      <DialogContent id="recovery-dialog-root" className="sm:max-w-3xl p-0 overflow-hidden bg-background border-border/60 shadow-2xl flex flex-col max-h-[90vh]">
+      <DialogContent 
+        id="recovery-dialog-root" 
+        onKeyDown={handleKeyDown}
+        className="sm:max-w-3xl p-0 overflow-hidden bg-background border-border shadow-2xl flex flex-col max-h-[85dvh] sm:max-h-[85dvh] rounded-xl"
+      >
         <style jsx global>{`
           #recovery-dialog-root .sleek-scrollbar::-webkit-scrollbar {
             width: 12px !important;
@@ -155,21 +183,27 @@ export function RecoveryDialog() {
             border-width: 1px !important;
           }
         `}</style>
-        <div className="p-6 flex-1 overflow-hidden flex flex-col">
-          <DialogHeader className="mb-6">
-            <DialogTitle className="text-xl font-bold tracking-tight">Browser Storage</DialogTitle>
-            <DialogDescription>
-              Select a session to load. You can <b>Double-Click</b> any session to quickly restore it, 
-              or click the restore button below.
-            </DialogDescription>
+        <div className="p-5 sm:p-6 flex-1 overflow-hidden flex flex-col">
+          <DialogHeader className="mb-6 shrink-0">
+            <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                    <HistoryIcon className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                    <DialogTitle className="text-xl font-bold tracking-tight">Browser Storage</DialogTitle>
+                    <DialogDescription className="text-xs sm:text-sm">
+                      Recover your previous sessions and snapshots.
+                    </DialogDescription>
+                </div>
+            </div>
           </DialogHeader>
 
-          <div className="flex flex-col sm:flex-row gap-8 overflow-hidden flex-1">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 overflow-hidden flex-1">
             {/* List of sessions */}
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
               {latestRecord && (
-                <div className="mb-6">
-                  <div className="text-[10px] uppercase font-black tracking-widest text-primary/70 mb-3 px-1 flex items-center gap-2">
+                <div className="mb-6 shrink-0">
+                  <div className="text-[10px] uppercase font-bold tracking-[0.2em] text-primary/60 mb-3 px-1 flex items-center gap-2">
                     <div className="h-1 w-1 rounded-full bg-primary animate-pulse" />
                     Latest Activity
                   </div>
@@ -184,7 +218,12 @@ export function RecoveryDialog() {
                         <div className="relative group">
                           <button
                             key={id}
+                            ref={el => {
+                              if (el) itemRefs.current.set(id, el);
+                              else itemRefs.current.delete(id);
+                            }}
                             type="button"
+                            autoFocus
                             onClick={() => setSelectedId(id)}
                             onDoubleClick={handleRestore}
                             className={`w-full text-left p-4 rounded-xl border-2 transition-all group relative overflow-hidden ${
@@ -248,10 +287,10 @@ export function RecoveryDialog() {
 
               {otherRecords.length > 0 && (
                 <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-                  <div className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/45 mb-3 px-1">
+                  <div className="text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/50 mb-3 px-1">
                     Previous Sessions
                   </div>
-                  <div className="flex-1 overflow-y-auto space-y-2 sleek-scrollbar">
+                  <div className="flex-1 overflow-y-auto space-y-2 sleek-scrollbar pr-1 -mr-1">
                     {otherRecords.map((r) => {
                       const id = r.id || 'current';
                       const isSelected = selectedId === id;
@@ -263,6 +302,10 @@ export function RecoveryDialog() {
                         <div key={id} className="relative group">
                           <button
                             type="button"
+                            ref={el => {
+                              if (el) itemRefs.current.set(id, el);
+                              else itemRefs.current.delete(id);
+                            }}
                             onClick={() => setSelectedId(id)}
                             onDoubleClick={handleRestore}
                             className={`w-full text-left p-3 rounded-lg border-2 transition-all group relative overflow-hidden ${
@@ -326,8 +369,8 @@ export function RecoveryDialog() {
               )}
             </div>
 
-            {/* Selection details */}
-            <div className="w-full sm:w-72 flex flex-col gap-4 border-l border-border/30 pl-8 overflow-y-auto sleek-scrollbar">
+            {/* Selection details - Hidden on small mobile to save space */}
+            <div className="hidden sm:flex w-full sm:w-72 flex-col gap-4 border-l border-border/30 pl-8 overflow-y-auto sleek-scrollbar">
               <div className="space-y-6">
                  <div>
                     <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-2">Session Details</p>
@@ -353,11 +396,9 @@ export function RecoveryDialog() {
                             </div>
                          </div>
 
-                         <div className="p-4 rounded-xl bg-orange-500/5 border border-orange-500/10 flex gap-3 italic">
-                             <RefreshCw className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
-                             <p className="text-[11px] text-orange-700/80 dark:text-orange-300/80 leading-relaxed font-medium">
-                               Note: Restoring this session will replace your current active workspace.
-                             </p>
+                         <div className="flex gap-2 items-center text-[10px] text-orange-600/70 dark:text-orange-400/70 font-medium px-2 py-1">
+                             <RefreshCw className="w-3 h-3" />
+                             <p>Will replace current workspace</p>
                          </div>
                       </div>
                     ) : (
@@ -369,57 +410,64 @@ export function RecoveryDialog() {
                  </div>
               </div>
             </div>
+
+            {/* Mobile-only warning if item selected */}
+            {selectedRecord && (
+              <div className="sm:hidden flex gap-2 items-center text-[10px] text-orange-600/70 dark:text-orange-400/70 font-medium px-2 py-1 mt-1">
+                  <RefreshCw className="w-3 h-3" />
+                  <p>Restoring will replace your current workspace</p>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="bg-muted/30 px-6 py-4 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="flex items-center self-start sm:self-auto">
+        <div className="bg-muted/50 backdrop-blur-sm px-4 sm:px-6 py-3 border-t flex flex-row items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center shrink-0">
                 {!isConfirmingClear ? (
                     <Button 
                         variant="ghost" 
-                        size="sm" 
-                        className="text-[11px] font-bold text-red-500 hover:bg-red-500 hover:text-white transition-all h-8 px-2"
+                        size="icon" 
+                        className="h-10 w-10 text-red-500 hover:bg-red-500/10 transition-all"
                         onClick={() => setIsConfirmingClear(true)}
+                        title="Clear All History"
                     >
-                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                        Clear All History
+                        <Trash2 className="h-5 w-5" />
                     </Button>
                 ) : (
-                    <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
-                        <span className="text-[11px] font-black text-destructive uppercase tracking-tighter mr-1">Purge all history?</span>
+                    <div className="flex items-center gap-1 animate-in fade-in slide-in-from-left-2">
                         <Button 
                             variant="destructive" 
                             size="sm"
-                            className="h-7 px-3 text-[10px] font-black uppercase tracking-widest shadow-sm"
+                            className="h-9 px-3 text-[10px] font-black uppercase"
                             onClick={handleCleanAll}
                             disabled={isClearing}
                         >
-                            {isClearing ? "..." : "Confirm"}
+                            Purge
                         </Button>
                         <Button 
                             variant="ghost" 
-                            size="sm"
-                            className="h-7 px-2 text-[10px] font-bold uppercase"
+                            size="icon"
+                            className="h-9 w-9"
                             onClick={() => setIsConfirmingClear(false)}
                         >
-                            <X className="h-3.5 w-3.5" />
+                            <X className="h-4 w-4" />
                         </Button>
                     </div>
                 )}
             </div>
 
-            <div className="flex gap-3 w-full sm:w-auto">
+            <div className="flex gap-2 items-center flex-1 justify-end">
                 <Button 
                     variant="ghost" 
                     onClick={() => globalState.setState({ isRecoveryDialogOpen: false, recoveryRecord: null })}
-                    className="flex-1 sm:flex-none font-medium text-muted-foreground"
+                    className="font-medium text-muted-foreground text-xs px-3 sm:px-4"
                 >
-                    Start New Session
+                    Cancel
                 </Button>
                 <Button 
                     onClick={handleRestore} 
                     disabled={!selectedRecord}
-                    className="flex-1 sm:flex-none font-bold min-w-[140px] shadow-lg shadow-primary/20"
+                    className="font-bold shadow-lg shadow-primary/20 text-xs sm:text-sm px-4 sm:px-6 h-10"
                 >
                     Restore Session
                 </Button>

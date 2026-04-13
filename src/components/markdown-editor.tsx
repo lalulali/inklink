@@ -29,7 +29,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { tags as t } from "@lezer/highlight";
 import { HighlightStyle, syntaxHighlighting, syntaxTree } from "@codemirror/language";
 import { indentWithTab, indentMore, indentLess, undoDepth, redoDepth, undo, redo } from "@codemirror/commands";
-import { ChevronLeft, ChevronRight, X, ExternalLink, Copy, Check, Link2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, ExternalLink, Copy, Check, Link2, Indent, Outdent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { globalState } from "@/core/state/state-manager";
 import { createMarkdownParser } from "@/core/parser/markdown-parser";
@@ -122,27 +122,38 @@ const lightColorfulHighlightStyle = HighlightStyle.define([
 const EXTENDED_HTML_TAG_INFO: Record<string, string> = {
 	"a": "link",
 	"br": "line break",
+	"center": "center align",
+	"code": "mono code",
+	"i": "italic",
+	"em": "italic",
+	"b": "bold text",
+	"strong": "bold text",
+	"u": "underline",
+	"kbd": "keyboard key",
+	"mark": "highlight",
+	"image": "image tag",
+	"img": "image tag",
+	"p": "paragraph",
+	"span": "wrapper",
+	"div": "container",
 	"sub": "subscript",
 	"sup": "superscript",
-	"kbd": "keyboard key",
-	"details": "collapsible",
-	"summary": "toggle label",
-	"mark": "highlight",
-	"u": "underline",
-	"code": "mono code",
-	"div": "container",
-	"span": "wrapper",
-	"p": "paragraph",
-	"center": "center align",
 	"ul": "bullet list",
-	"li": "list item",
 	"ol": "ordered list",
-	"em": "italic",
-	"i": "italic",
-	"strong": "bold text",
-	"b": "bold text",
-	"image": "image tag",
-	"img": "image tag"
+	"li": "list item",
+	"h1": "heading 1",
+	"h2": "heading 2",
+	"h3": "heading 3",
+	"h4": "heading 4",
+	"h5": "heading 5",
+	"h6": "heading 6",
+	"table": "table container",
+	"tbody": "table body",
+	"thead": "table head",
+	"tfoot": "table footer",
+	"th": "header cell",
+	"tr": "table row",
+	"td": "table cell",
 };
 
 /**
@@ -1561,7 +1572,7 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 					className="shrink-0 rounded-md border border-border/60 bg-background p-1.5 text-foreground hover:bg-muted active:scale-95 transition-all outline-none"
 					aria-label="Outdent"
 				>
-					<ChevronLeft className="h-3.5 w-3.5" />
+					<Outdent className="h-4 w-4" />
 				</button>
 				<button
 					type="button"
@@ -1572,7 +1583,7 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 					className="shrink-0 rounded-md border border-border/60 bg-background p-1.5 text-foreground hover:bg-muted active:scale-95 transition-all outline-none"
 					aria-label="Indent"
 				>
-					<ChevronRight className="h-3.5 w-3.5" />
+					<Indent className="h-4 w-4" />
 				</button>
 
 				<div className="w-[1px] h-4 bg-border/60 mx-1" />
@@ -1581,11 +1592,12 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 					{ label: "H1", insert: "# " },
 					{ label: "H2", insert: "## " },
 					{ label: "H3", insert: "### " },
-					{ label: "-", insert: "- " },
-					{ label: "[ ]", insert: "- [ ] " },
-					{ label: "**B**", insert: "****", cursorOffset: 2 },
-					{ label: "_I_", insert: "__", cursorOffset: 1 },
-					{ label: "`C`", insert: "``", cursorOffset: 1 },
+					{ label: "List", insert: "- " },
+					{ label: "Checklist", insert: "-[ ] " },
+					{ label: "Bold", insert: "****", cursorOffset: 2 },
+					{ label: "Italic", insert: "__", cursorOffset: 1 },
+					{ label: "Code", insert: "``", cursorOffset: 1 },
+					{ label: "Link", insert: "[]()", cursorOffset: 1}
 				].map((action) => (
 					<button
 						type="button"

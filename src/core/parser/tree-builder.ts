@@ -227,13 +227,16 @@ export function buildTree(
     const trimmed = (node.content || '').trim();
     const { cleanContent: afterCode, codeBlocks } = extractCodeBlocks(trimmed);
     const { cleanContent: afterQuote, quoteBlocks } = extractQuoteBlocks(afterCode);
-    const { cleanContent: afterTable, tableBlocks } = extractTableBlocks(afterQuote);
+    const { cleanContent: afterMdTable, tableBlocks: mdTableBlocks } = extractTableBlocks(afterQuote);
+    const { cleanContent: afterTable, tableBlocks } = extractHtmlTableBlocks(afterMdTable, mdTableBlocks);
     const { cleanContent: afterImage, images } = extractImages(afterTable);
     
     // Support literal \n and \t escape sequences in node content
+    // Also trim leading spaces from each line for rich text and HTML tags (as requested)
     node.metadata.displayContent = afterImage
-      .replace(/\\n/g, '\n')
-      .replace(/\\t/g, '    ');
+      .split('\n')
+      .map(line => line.trimStart())
+      .join('\n');
 
     node.metadata.codeBlocks = codeBlocks;
     node.metadata.quoteBlocks = quoteBlocks;
@@ -577,11 +580,11 @@ export function getNodeDepth(root: TreeNode, target: TreeNode): number {
 /**
  * Extracts GFM table blocks from raw content.
  */
-export function extractTableBlocks(raw: string): {
+export function extractTableBlocks(raw: string, existingBlocks: TableBlockInfo[] = []): {
   cleanContent: string;
   tableBlocks: TableBlockInfo[];
 } {
-  const tableBlocks: TableBlockInfo[] = [];
+  const tableBlocks: TableBlockInfo[] = [...existingBlocks];
   
   const cleanContent = raw.replace(
     /(?:^|\n)((?:[ \t]*\|?[ \t]*[^\n|]+\|[^\n]*\n?)+)/g,
@@ -632,6 +635,93 @@ export function extractTableBlocks(raw: string): {
         return `${prefix}[tableblock:${idx}]`;
     }
   );
+
+  return { cleanContent, tableBlocks };
+}
+
+/**
+ * Extracts HTML table blocks from raw content.
+ */
+export function extractHtmlTableBlocks(raw: string, existingBlocks: TableBlockInfo[] = []): {
+  cleanContent: string;
+  tableBlocks: TableBlockInfo[];
+} {
+  const tableBlocks: TableBlockInfo[] = [...existingBlocks];
+  
+  // Pattern to match <table>...</table> including any attributes
+  const tableRegex = /<table[\s\S]*?>([\s\S]*?)<\/table>/gi;
+  
+  const cleanContent = raw.replace(tableRegex, (match, tableContent) => {
+    const headers: string[] = [];
+    const rows: string[][] = [];
+    const alignments: ("left" | "center" | "right")[] = [];
+
+    // Helper to extract content from a tag and detect alignment
+    const parseTag = (tag: string, content: string, collection: string[], alignArray: ("left" | "center" | "right")[], index?: number) => {
+      // Clean content: remove nested HTML tags for the text representation
+      const cleanText = content.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
+      collection.push(cleanText);
+
+      // Detect alignment from the tag itself
+      const alignMatch = tag.match(/align=["'](left|center|right)["']/i) || 
+                         tag.match(/style=["'][^"']*text-align:\s*(left|center|right)[^"']*["']/i);
+      
+      const alignment = (alignMatch ? alignMatch[1].toLowerCase() : "left") as "left" | "center" | "right";
+      
+      if (index !== undefined) {
+        if (!alignArray[index] || alignMatch) alignArray[index] = alignment;
+      } else {
+        alignArray.push(alignment);
+      }
+    };
+
+    // 1. Try to find headers from <thead> or any <th>
+    const theadMatch = /<thead[\s\S]*?>([\s\S]*?)<\/thead>/gi.exec(tableContent);
+    const thContentSource = theadMatch ? theadMatch[1] : tableContent;
+    
+    const thRegex = /<(th)[\s\S]*?>([\s\S]*?)<\/th>/gi;
+    let thMatch;
+    while ((thMatch = thRegex.exec(thContentSource)) !== null) {
+      parseTag(thMatch[0], thMatch[2], headers, alignments);
+    }
+
+    // 2. Find rows (tr)
+    const trRegex = /<tr[\s\S]*?>([\s\S]*?)<\/tr>/gi;
+    let trMatch;
+    while ((trMatch = trRegex.exec(tableContent)) !== null) {
+      const trInner = trMatch[1];
+      const tdRegex = /<(td)[\s\S]*?>([\s\S]*?)<\/td>/gi;
+      const row: string[] = [];
+      let tdMatch;
+      let colIdx = 0;
+      
+      while ((tdMatch = tdRegex.exec(trInner)) !== null) {
+        parseTag(tdMatch[0], tdMatch[2], row, alignments, colIdx);
+        colIdx++;
+      }
+
+      if (row.length > 0) {
+        rows.push(row);
+      }
+    }
+
+    // Fallback: if no headers found but we have rows, use first row as header? 
+    // No, GFM requires headers so we stay consistent. Most HTML tables with headers use <th> anyway.
+    
+    // Finalize alignments length
+    const maxCols = Math.max(headers.length, ...rows.map(r => r.length));
+    while (alignments.length < maxCols) alignments.push("left");
+
+    const idx = tableBlocks.length;
+    tableBlocks.push({
+      headers,
+      rows,
+      alignments: alignments.slice(0, maxCols),
+      expanded: false
+    });
+
+    return `[tableblock:${idx}]`;
+  });
 
   return { cleanContent, tableBlocks };
 }

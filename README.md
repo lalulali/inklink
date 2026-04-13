@@ -55,8 +55,14 @@ And now, with the **VS Code extension**, you can think right inside your editor 
 
 ## Core Features
 
+### 🧭 Interactive Onboarding: "Learn the Basics"
+Inklink 0.2.0 introduces a high-fidelity, step-by-step interactive guide for new users.
+- **Visual Pedagogy**: Learn the core parsing rules through live "Markdown vs. Map" visual comparisons.
+- **Feature Discovery**: Discover advanced interactions like double-click teleportation and node folding directly within the app.
+- **Feature Showcase**: A one-click CTA to load a full technical showcase that demonstrates every supported syntax and interaction.
+
 ### 🗺️ Real-Time Markdown Mind Map
-Every heading (`#`, `##`, `###`) and list item in your Markdown automatically becomes a node in the mind map. Edit the file — the map updates instantly. **Version 0.2.0** features **Precision Navigation** and **Zero-Jitter Synchronization**, eliminating all visual shifting while providing a high-fidelity "Neighborhood" view for even the largest documents.
+Every heading (`#`, `##`, `###`) and list item in your Markdown automatically becomes a node in the mind map. Edit the file — the map updates instantly. **Version 0.2.0** features **Precision Navigation** and **Smart Parsing Fidelity**, intelligently differentiating between formatting indentation for HTML tags and functional indentation for code blocks to ensure your map always looks professional.
 
 ### 🔗 Bidirectional Navigation
 **Double-click any node** to jump directly to the corresponding source line in the editor, temporarily highlighting the text. The connection between visual and text is always live — edit the markdown, the map updates; navigate the map, the editor follows. **Version 0.2.0** includes throttled, lag-free synchronization for extremely large files (1000+ nodes).
@@ -68,8 +74,8 @@ Inklink identifies **Code Blocks** and **Quote Blocks** within your markdown and
 - **Micro-interactions**: Toggle any block by clicking its header or the pill. All labels, carets, and counts are vertically centered with **Perfectly Balanced Padding** for a premium, well-balanced look.
 - **Dynamic Layout**: Mind map nodes automatically adjust their vertical distance and re-flow to accommodate expanded or collapsed blocks, ensuring the layout remains clean and readable without overlaps.
 - **State Persistence**: Interactive blocks maintain their expanded/collapsed state during live markdown edits, allowing for a seamless transitions between writing and thinking.
-- **Indentation Fidelity**: Uses `white-space: pre` to faithfully preserve complex indentation structures (tabs and spaces) inside code and quote blocks, ensuring technical snippets remain readable and accurate.
-- **Stitch Design System**: Adheres to a borderless, tonal-relief aesthetic with 6px rounded corners, ensuring blocks feel like a natural extension of the node.
+- **Stitch Design System**: Adheres to a borderless, tonal-relief aesthetic with 6px rounded corners.
+- **Structural Integrity**: Intelligent whitespace management automatically identifies and collapses phantom lines from structural tags like `<ul>` and `<ol>`, ensuring your diagrams remain dense and readable.
 
 ### 🖼️ Interactive Multimedia
 Inklink renders **Markdown Images** directly on your mind map nodes, turning plain documentation into a rich visual reference.
@@ -78,9 +84,18 @@ Inklink renders **Markdown Images** directly on your mind map nodes, turning pla
 - **Linked Image Integration**: Images wrapped in links are intelligently detected, allowing you to open the original URL directly from the lightbox view.
 
 ### 📊 Interactive Tables
-Structured data is no longer hidden in text. Inklink identifies **Markdown Tables** and renders them as interactive integrated nodes.
+Structured data is no longer hidden in text. Inklink identifies both **GFM Markdown Tables** and **Standard HTML Tables** and renders them as interactive integrated nodes.
+- **HTML & GFM Support**: Full fidelity rendering for both markdown pipe-syntax and standard `<table>`, `<thead>`, `<tbody>`, `<th>`, and `<td>` tags.
 - **Column Synchronization**: Table columns are automatically distributed across the node width with robust overflow handling.
 - **Visual Consistency**: Tables adhere to the "Stitch" design language with tonal-relief row highlighting and consistent alignment.
+- **Multi-line Support**: Cells wrap automatically and handle multi-line content (via `<br>` or `\n`), ensuring complex data remains readable.
+
+### 📱 Mobile-First Precision
+Inklink 0.2.0 is fully optimized for the modern mobile web, providing a desktop-class experience on any device.
+- **Adaptive Overlays**: Dialogs and panels (Settings, Shortcuts, Recovery) automatically transition to a mobile-optimized, fullscreen-below-toolbar layout on narrow screens.
+- **Precision Touch Navigation**: Full support for multi-touch panning and zooming on both the main canvas and the navigation minimap.
+- **Touch-Aware Event Filters**: Intelligent input detection that distinguishes between pan, zoom, and node selection gestures for a seamless tactile experience.
+- **Persistent Header UI**: Integrated integrated close controls and standard headers across all mobile overlays for consistent navigation.
 
 ### 🧭 Multiple Layout Directions & Physics
 Choose how your map flows: balanced two-sided, left-to-right, or right-to-left. 
@@ -105,7 +120,10 @@ A VS Code-style find and replace panel with full keyboard shortcuts (`Cmd+Shift+
 Open any `.md` file directly from the filesystem. Save changes back in place. Drag-and-drop a file onto the canvas to open it instantly — no dialog required. Inklink uses the modern **File System Access API** for a seamless local-first experience.
 
 ### 🛡️ Local-First Data Safety
-Your work is never lost. Inklink continuously saves snapshots to **IndexedDB** in the background. If you close the tab, refresh, or crash, the **Recovery Center** detects your previous sessions on next launch and lets you browse, preview, and restore any of them — individually (with a quick **double-click**) or all at once.
+Your work is never lost. Inklink continuously saves snapshots to **IndexedDB** in the background. If you close the tab, refresh, or crash, the **Recovery Center** detects your previous sessions on next launch.
+- **Pro-Grade Navigation**: The recovery dialog features full keyboard support (`ArrowUp`/`ArrowDown` to browse, `Enter` to restore, `Esc` to close).
+- **Intelligent Focus**: Automatically identifies and focuses your **Latest Activity**, getting you back to work with a single keystroke.
+- **Precise Recovery**: Preview and restore sessions individually (with a quick **double-click**) or all at once.
 
 ### ⚙️ Configurable Settings
 Tune the experience to match your workflow:

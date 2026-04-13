@@ -65,6 +65,7 @@ export interface ApplicationState {
   // Export state
   isExportDialogOpen: boolean;
   isHelpDialogOpen: boolean;
+  isLearnBasicsOpen: boolean;
   isSettingsDialogOpen: boolean;
 
   // Recovery state
@@ -127,6 +128,7 @@ export function createInitialState(): ApplicationState {
     filePermissionRequest: null,
     isExportDialogOpen: false,
     isHelpDialogOpen: false,
+    isLearnBasicsOpen: false,
     isSettingsDialogOpen: false,
     recoveryRecord: null,
     isRecoveryDialogOpen: false,

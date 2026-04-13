@@ -6,35 +6,48 @@ All notable changes to the "inklink" extension will be documented in this file.
 ### **The "Navigate Your Knowledge" Update**
 This version transforms Inklink into a professional-grade navigational tool for complex documents, introducing advanced camera logic and strict layout physics.
 
-- **Precision Navigation (Minimap v2)**:
-  - **Intelligent Auto-Focus**: The minimap now maintains a high-resolution "neighborhood" view around your active viewport, automatically scaling to keep nodes readable even in massive maps.
-  - **Power Zoom (The Fly-Over)**: Dragging the minimap viewport now triggers a smooth, context-aware zoom-out to the global overview, "diving" back into detail when you release.
-  - **Structural Skeleton**: Added a branching skeleton layer to the minimap to preserve branch context at all zoom levels.
-  - **Hierarchical Pills**: Replaced uniform dots with depth-aware rounded pills. Root and Level-1 nodes are now visually weighted for immediate orientation.
-- **Advanced Layout Physics (Layout 2.0)**:
-  - **Strict Balance Mode**: Refactored the Two-Sided distribution algorithm to ensure perfect node parity between left and right branches (max difference of 1).
-  - **Panning Constraints**: Implemented flexible workspace bounds with a 200px buffer. Inklink now prevents you from getting "lost" in infinite space while allowing ample room for content growth.
-- **Performance & Smoothness**:
-  - **Delta-Correct Scrubber**: Refined the minimap drag logic to provide a perfect 1:1 mouse-to-world movement ratio, eliminating jitter during scale transitions.
-  - **Optimized Culling**: Improved viewport culling logic to handle 1000+ nodes with zero impact on interface responsiveness.
+- **Advanced Layout Physics**: Version 0.2.0 features **Balance Mode 2.0** and **Panning Constraints**, ensuring perfect parity and workspace orientation.
+- **HTML Table Excellence**: Full-fidelity rendering for standard HTML `<table>` structures alongside GFM tables.
+- **Adaptive Mobile UI**: A desktop-class experience on mobile with precision touch navigation and adaptive overlays.
+- **Performance**: Throttled, lag-free synchronization for extremely large files (1000+ nodes).
+- **Precision Navigation**: Global Fly-Over and Intelligent Auto-Focus in the Minimap v2.
+- **Smart Parsing Fidelity**: Inklink now intelligently differentiates between formatting indentation (ignored for HTML tags like `<li>`) and functional indentation (strictly preserved inside code blocks).
+- **Structural Optimization**: Standalone structural tags like `<ul>` and `<ol>` no longer create phantom vertical gaps, ensuring your lists are tightly integrated and perfectly aligned.
+- **Pro Recovery Center**: The session restoration dialog now features full keyboard navigation (`Arrows` to pick, `Enter` to restore, `Esc` to close) and automatically focuses your latest activity for a friction-free workflow.
 
-## [0.1.6] - 2026-04-09
-- **Interactive Multimedia**:
-  - Full Support for **Markdown Images** (`![alt](url)`) rendered as professional, aspect-aware thumbnails directly on nodes.
-  - High-fidelity **Fullscreen Lightbox** with center-zoom animations and backdrop-blur foundations.
-  - **Linked Image Integration**: Images wrapped in links (`[![alt](img)](link)`) now feature functional "Open Link" handlers within the lightbox.
-- **Enhanced Document Blocks**:
-  - **Interactive Tables**: Support for expanded Table nodes with automatic column distribution and row synchronization.
-  - **Code & Quote Blocks**: Real-time expansion with interactive toggle "pills" that persist across edits.
-  - **High-Fidelity Indentation**: Faithful rendering of complex structures (preserving `\n`, `\t`, and spaces) using `white-space: pre`.
-- **Intelligent Link & Editing**:
-  - **Context-Aware Navigation**: Local file links open in the primary editor area, while web links route to the system browser.
-  - **Zero-Jitter Real-Time Editing**: Eliminated all layout "jumping" and shifts by synchronizing measurement logic.
-  - **Smart URL Normalization**: Automated protocol detection for absolute web navigation.
-- **Visual Refinement**:
-  - **Perfectly Balanced Padding**: Standardized 9px margins on all four sides for blocks, ensuring content is visually centered.
-  - **Solarized Monochromatic Theme**: Optimized "Neon" link legibility specifically tuned for high-saturation colored nodes.
-  - **Markdown-Aware Measurement**: Sub-pixel accurate line wrapping that correctly strips link syntax and accounts for formatting.
+### 📊 Interactive Tables
+Structured data is no longer hidden in text. Inklink identifies both **GFM Markdown Tables** and **Standard HTML Tables** and renders them as interactive integrated nodes.
+- **HTML & GFM Support**: Full fidelity rendering for both markdown pipe-syntax and standard `<table>`, `<thead>`, `<tbody>`, `<th>`, and `<td>` tags.
+- **Column Synchronization**: Table columns are automatically distributed across the node width with robust overflow handling.
+- **Visual Consistency**: Tables adhere to the "Stitch" design language with tonal-relief row highlighting and consistent alignment.
+- **Multi-line Support**: Cells wrap automatically and handle multi-line content (via `<br>` or `\n`), ensuring complex data remains readable.
+
+### 📱 Mobile-First Precision
+Inklink 0.2.0 is fully optimized for the modern mobile web, providing a desktop-class experience on any device.
+- **Adaptive Overlays**: Dialogs and panels (Settings, Shortcuts, Recovery) automatically transition to a mobile-optimized, fullscreen-below-toolbar layout on narrow screens.
+- **Precision Touch Navigation**: Full support for multi-touch panning and zooming on both the main canvas and the navigation minimap.
+- **Touch-Aware Event Filters**: Intelligent input detection that distinguishes between pan, zoom, and node selection gestures for a seamless tactile experience.
+- **Persistent Header UI**: Integrated integrated close controls and standard headers across all mobile overlays for consistent navigation.
+
+### 🖼️ Interactive Multimedia
+Inklink turns your visual assets into first-class citizens on the mind map.
+- **Aspect-Aware Image Thumbnails**: Full support for **Markdown Images** (`![alt](url)`) rendered as professional thumbnails directly on nodes.
+- **Precision Lightbox**: High-fidelity fullscreen viewing with center-zoom animations and backdrop-blur foundations.
+- **Linked Integration**: Images wrapped in links (`[![alt](img)](link)`) now feature functional "Open Link" handlers within the lightbox.
+
+### 📝 Document Block Excellence
+Note blocks are now more robust, consistent, and visually balanced.
+- **Interactive Code & Quote Blocks**: Real-time expansion with toggle "pills" that persist across live edits.
+- **Indentation Fidelity**: Faithful rendering of complex technical structures (tabs, spaces, `\n`) using `white-space: pre`.
+- **Perfectly Balanced Padding**: Standardized 9px margins on all sides for blocks, ensuring content is visually centered.
+
+### 🔗 Intelligence & Refinement
+The connection between your text and the visual map is now more precise than ever.
+- **Zero-Jitter Synchronization**: Eliminated all layout "jumping" and shifts by refactoring the measurement engine for 1:1 editing precision.
+- **Bidirectional Editor ↔ Map Routing**: Intelligent navigation that jumps to the exact source line and highlights it on double-click.
+- **Solarized Neon Theme**: Optimized link legibility specifically tuned for high-saturation colored branches (Magenta, Purple, Blue).
+- **Smart Formatting**: Sub-pixel accurate line wrapping that correctly accounts for Markdown syntax and hidden link labels.
+- **Structural Whitespace Management**: Intelligent removal of phantom lines caused by container tags (`<ul>`, `<ol>`) ensures a dense, informative layout without unnecessary vertical spacing.
 
 ## [0.1.5] - 2026-04-02
 - Solid Flat Design: Replaced all `backdrop-blur` effects and transparent backgrounds with a solid, high-contrast design system across all side-sheet overlays

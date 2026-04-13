@@ -28,7 +28,7 @@ Whether you are writing a product spec, reviewing an architecture decision recor
 ## 🚀 Key Features
 
 ### 🗺️ Real-Time Markdown Mind Map
-Every heading (`#`, `##`, `###`) and list item in your Markdown automatically becomes a node in the mind map. Edit the file — the map updates instantly. **Version 0.2.0** features **Precision Navigation** and **Zero-Jitter Synchronization**, providing a high-fidelity "Neighborhood" view of your document structure as you type.
+Every heading (`#`, `##`, `###`) and list item in your Markdown automatically becomes a node in the mind map. Edit the file — the map updates instantly. **Version 0.2.0** features **Precision Navigation** and **Smart Parsing Fidelity**, providing a high-fidelity "Neighborhood" view while intelligently handling complex HTML and code block indentation patterns.
 
 ### 🔄 Real-Time Synchronization
 The mind map is live-synced with your editor buffer. It updates as you type, providing an instant visual preview of your document structure as it evolves. **Version 0.2.0** uses throttled rendering for extreme performance on 1000+ node files.
@@ -44,9 +44,8 @@ Inklink identifies **Code Blocks** and **Quote Blocks** within your markdown and
 - **Expanded View**: Blocks expand into full-width integrated containers with syntax labeling and italicized quotes.
 - **Micro-interactions**: Toggle any block by clicking its header or the pill. All labels, carets, and counts are vertically centered with **Perfectly Balanced Padding** for a premium, well-balanced look.
 - **Dynamic Layout**: Mind map nodes automatically adjust their vertical distance and re-flow to accommodate expanded or collapsed blocks, ensuring the layout remains clean and readable without overlaps.
-- **State Persistence**: Interactive blocks maintain their expanded/collapsed state during live markdown edits, allowing for a seamless transitions between writing and thinking.
-- **Indentation Fidelity**: Uses `white-space: pre` to faithfully preserve complex indentation structures (tabs and spaces) inside code and quote blocks, ensuring technical snippets remain readable and accurate.
-- **Stitch Design System**: Adheres to a borderless, tonal-relief aesthetic with 6px rounded corners, ensuring blocks feel like a natural extension of the node.
+- **Stitch Design System**: Adheres to a borderless, tonal-relief aesthetic with 6px rounded corners.
+- **Structural Integrity**: Intelligent whitespace management automatically identifies and collapses phantom lines from structural tags like `<ul>` and `<ol>`, ensuring your diagrams remain dense and readable.
 
 ### 🖼️ Interactive Multimedia
 Inklink renders **Markdown Images** directly on your mind map nodes, turning plain documentation into a rich visual reference.
@@ -55,9 +54,11 @@ Inklink renders **Markdown Images** directly on your mind map nodes, turning pla
 - **Linked Image Integration**: Images wrapped in links are intelligently detected, allowing you to open the original URL directly from the lightbox view.
 
 ### 📊 Interactive Tables
-Structured data is no longer hidden in text. Inklink identifies **Markdown Tables** and renders them as interactive integrated nodes.
+Structured data is no longer hidden in text. Inklink identifies both **GFM Markdown Tables** and **Standard HTML Tables** and renders them as interactive integrated nodes.
+- **HTML & GFM Support**: Full fidelity rendering for both markdown pipe-syntax and standard `<table>`, `<thead>`, `<tbody>`, `<th>`, and `<td>` tags.
 - **Column Synchronization**: Table columns are automatically distributed across the node width with robust overflow handling.
 - **Visual Consistency**: Tables adhere to the "Stitch" design language with tonal-relief row highlighting and consistent alignment.
+- **Multi-line Support**: Cells wrap automatically and handle multi-line content (via `<br>` or `\n`), ensuring complex data remains readable.
 
 ### 🧭 Multiple Layout Directions & Physics
 Choose how your mind map flows:
@@ -103,7 +104,9 @@ Clicked links route intelligently based on their destination:
 - **Web links** trigger your default system browser for a seamless browsing experience
 
 ### 🛡️ Auto-Save & Recovery
-Your work is continuously saved in the background. If VS Code crashes or the panel is accidentally closed, your mind map state is preserved and restored on next launch.
+Your work is continuously saved in the background. If VS Code crashes or the panel is accidentally closed, your mind map state is preserved.
+- **Intelligent Restoration**: The Recovery Center now supports full keyboard navigation and automatically features your **Latest Activity** for near-instant restoration.
+- **Robust Persistence**: Your visual thinking is safe, allowing you to pick up exactly where you left off.
 
 ### ⚙️ Expand, Collapse & Focus
 - **Expand All / Collapse All** — control how much of the tree is visible

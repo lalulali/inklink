@@ -34,6 +34,8 @@ import {
 	Redo2 as RedoIcon,
 	Map as MapIcon,
 	Coffee as CoffeeIcon,
+	Zap as ZapIcon,
+	HelpCircle as HelpCircleIcon,
 } from "lucide-react";
 import {
 	DropdownMenu,
@@ -130,6 +132,7 @@ export function Toolbar({
 	const { showSuccess, showError, showInfo } = useNotification();
 	const [state, setState] = React.useState(globalState.getState());
 	const [isMobile, setIsMobile] = React.useState(false);
+	const [isNarrow, setIsNarrow] = React.useState(false);
 	const [canUndo, setCanUndo] = React.useState(false);
 	const [canRedo, setCanRedo] = React.useState(false);
 
@@ -157,13 +160,25 @@ export function Toolbar({
 		};
 	}, [commands]);
 
-	// Detect mobile to suppress sticky tooltips and collapse secondary tools
+	// Detect mobile and narrow screens
 	React.useEffect(() => {
-		const mq = window.matchMedia("(max-width: 767px)");
-		const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-		setIsMobile(mq.matches);
-		mq.addEventListener("change", onChange);
-		return () => mq.removeEventListener("change", onChange);
+		const mobileMq = window.matchMedia("(max-width: 767px)");
+		const narrowMq = window.matchMedia("(max-width: 463px)");
+		
+		const onChange = () => {
+			setIsMobile(mobileMq.matches);
+			setIsNarrow(narrowMq.matches);
+		};
+		
+		setIsMobile(mobileMq.matches);
+		setIsNarrow(narrowMq.matches);
+		
+		mobileMq.addEventListener("change", onChange);
+		narrowMq.addEventListener("change", onChange);
+		return () => {
+			mobileMq.removeEventListener("change", onChange);
+			narrowMq.removeEventListener("change", onChange);
+		};
 	}, []);
 
 	const savingRef = React.useRef(false);
@@ -278,14 +293,39 @@ export function Toolbar({
 		}
 	}, [factory, showSuccess, showError, showInfo, autoSaveMgr, state]);
 
+	const handleLoadExample = React.useCallback(async () => {
+		try {
+			showInfo("Loading visualization example...");
+			const response = await fetch('/visualization-example.md');
+			if (!response.ok) throw new Error('Failed to fetch example file');
+			const content = await response.text();
+			
+			// Insert content into editor
+			window.dispatchEvent(new CustomEvent('inklink-editor-insert', {
+				detail: { insert: content }
+			}));
+			
+			// Ensure editor is visible to show the result
+			if (!editorVisible) {
+				onToggleEditor();
+			}
+			
+			showSuccess("Example visualization loaded!", "The showcase markdown has been inserted at your cursor position.");
+		} catch (err) {
+			showError("Failed to load example", (err as Error).message || "Unknown error");
+		}
+	}, [editorVisible, onToggleEditor, showInfo, showSuccess, showError]);
+
 	React.useEffect(() => {
 		window.addEventListener("inklink-file-open", handleOpen);
 		window.addEventListener("inklink-file-save", handleSave);
+		window.addEventListener("inklink-file-open-example", handleLoadExample);
 		return () => {
 			window.removeEventListener("inklink-file-open", handleOpen);
 			window.removeEventListener("inklink-file-save", handleSave);
+			window.removeEventListener("inklink-file-open-example", handleLoadExample);
 		};
-	}, [handleOpen, handleSave]);
+	}, [handleOpen, handleSave, handleLoadExample]);
 
 	const handleToggleEditor = React.useCallback(() => {
 		onToggleEditor();
@@ -396,7 +436,7 @@ export function Toolbar({
 						</TooltipContent>
 					</Tooltip>
 
-					{!isVsCode && (
+					{!isVsCode && !isNarrow && (
 						<>
 							<DropdownMenu>
 								<Tooltip>
@@ -451,21 +491,23 @@ export function Toolbar({
 						</>
 					)}
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 focus-visible:ring-0 focus-visible:ring-offset-0"
-								onClick={() =>
-									globalState.setState({ isExportDialogOpen: true })
-								}
-							>
-								<DownloadIcon className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Export Mind Map...</TooltipContent>
-					</Tooltip>
+					{!isNarrow && (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+									onClick={() =>
+										globalState.setState({ isExportDialogOpen: true })
+									}
+								>
+									<DownloadIcon className="h-4 w-4" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Export Mind Map...</TooltipContent>
+						</Tooltip>
+					)}
 				</div>
 
 				{/* Section 2: History & Search */}
@@ -626,7 +668,26 @@ export function Toolbar({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-52">
-							<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+								<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+									File & History
+								</div>
+								<DropdownMenuItem onClick={handleOpen}>
+									<FolderOpenIcon className="h-4 w-4 mr-2" />
+									From Computer...
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => globalState.setState({ isRecoveryDialogOpen: true })}>
+									<HistoryIcon className="h-4 w-4 mr-2" />
+									From Local Storage...
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={handleSave}>
+									<SaveIcon className="h-4 w-4 mr-2" />
+									Save Map
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => globalState.setState({ isExportDialogOpen: true })}>
+									<DownloadIcon className="h-4 w-4 mr-2" />
+									Export Map...
+								</DropdownMenuItem>
+							<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-2 border-t">
 								Layout
 							</div>
 							<DropdownMenuItem
@@ -665,6 +726,27 @@ export function Toolbar({
 								Expand All
 							</DropdownMenuItem>
 							<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-2 border-t">
+								App Actions
+							</div>
+							<DropdownMenuItem
+								onClick={() => globalState.setState({ isSettingsDialogOpen: true })}
+							>
+								<SettingsIcon className="h-4 w-4 mr-2" />
+								Settings
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={() => globalState.setState({ isHelpDialogOpen: true })}
+							>
+								<KeyboardIcon className="h-4 w-4 mr-2" />
+								Keyboard Shortcuts
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={() => globalState.setState({ isLearnBasicsOpen: true })}
+							>
+								<HelpCircleIcon className="h-4 w-4 mr-2" />
+								Learn the Basics
+							</DropdownMenuItem>
+							<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-2 border-t">
 								Support & Help
 							</div>
 							<DropdownMenuItem asChild>
@@ -675,7 +757,7 @@ export function Toolbar({
 									className="flex items-center w-full"
 								>
 									<CoffeeIcon className="h-4 w-4 mr-2" />
-									Buy me a coffee ☕
+									Buy me a coffee
 								</a>
 							</DropdownMenuItem>
 							{isVsCode && (
@@ -691,12 +773,6 @@ export function Toolbar({
 									</a>
 								</DropdownMenuItem>
 							)}
-							<DropdownMenuItem
-								onClick={() => globalState.setState({ isHelpDialogOpen: true })}
-							>
-								<KeyboardIcon className="h-4 w-4 mr-2" />
-								Keyboard Shortcuts
-							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
 				</div>
@@ -716,7 +792,7 @@ export function Toolbar({
 									</a>
 								</Button>
 							</TooltipTrigger>
-							<TooltipContent>Buy me a coffee ☕</TooltipContent>
+							<TooltipContent>Buy me a coffee</TooltipContent>
 						</Tooltip>
 
 						{isVsCode && (
@@ -738,7 +814,7 @@ export function Toolbar({
 					</div>
 
 					<ModeToggle />
-					{!isVsCode && (
+					{!isVsCode && !isNarrow && (
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Button
@@ -756,6 +832,19 @@ export function Toolbar({
 						</Tooltip>
 					)}
 					<div className="hidden md:flex items-center gap-2">
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8"
+									onClick={() => globalState.setState({ isLearnBasicsOpen: true })}
+								>
+									<HelpCircleIcon className="h-4 w-4" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>How to use Inklink</TooltipContent>
+						</Tooltip>
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Button

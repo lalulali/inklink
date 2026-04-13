@@ -73,6 +73,7 @@
 /* Mind Map Styling */
 .inklink-canvas {
   background-color: hsl(var(--background));
+  touch-action: none;
 }
 
 .node rect {
