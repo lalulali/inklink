@@ -23,28 +23,32 @@ export const treeNodeArb: fc.Arbitrary<TreeNode> = fc.letrec((tie) => ({
     {
       weight: 1,
       arbitrary: fc.record({
-        id: fc.string({ minLength: 1 }).filter(s => s.trim().length > 0),
-        content: fc.string({ minLength: 1 }).filter(s => s.trim().length > 0 && s[0] !== ' ' && s[0] !== '\t'),
+        id: fc.string({ minLength: 1 }).filter((s) => s.trim().length > 0),
+        content: fc
+          .string({ minLength: 1 })
+          .filter((s) => s.trim().length > 0 && s[0] !== ' ' && s[0] !== '\t'),
         depth: fc.integer({ min: 0, max: 5 }),
         children: fc.array(tie('node') as fc.Arbitrary<TreeNode>, { maxLength: 2 }),
         parent: fc.constant(null),
         collapsed: fc.boolean(),
         color: fc.string(),
         metadata: nodeMetadataArb,
-      })
+      }),
     },
     {
       weight: 3, // Favor leaves to terminate recursion
       arbitrary: fc.record({
-        id: fc.string({ minLength: 1 }).filter(s => s.trim().length > 0),
-        content: fc.string({ minLength: 1 }).filter(s => s.trim().length > 0 && s[0] !== ' ' && s[0] !== '\t'),
+        id: fc.string({ minLength: 1 }).filter((s) => s.trim().length > 0),
+        content: fc
+          .string({ minLength: 1 })
+          .filter((s) => s.trim().length > 0 && s[0] !== ' ' && s[0] !== '\t'),
         depth: fc.integer({ min: 0, max: 5 }),
         children: fc.constant([]),
         parent: fc.constant(null),
         collapsed: fc.boolean(),
         color: fc.string(),
         metadata: nodeMetadataArb,
-      })
+      }),
     }
   ),
 })).node;
@@ -73,10 +77,13 @@ export const layoutDirectionArb: fc.Arbitrary<LayoutDirection> = fc.constantFrom
 export const applicationStateArb: fc.Arbitrary<ApplicationState> = fc.record({
   tree: fc.option(treeNodeArb, { nil: null }),
   markdown: fc.string(),
-  currentFile: fc.option(fc.record({
-    path: fc.string(),
-    name: fc.string(),
-  }), { nil: null }),
+  currentFile: fc.option(
+    fc.record({
+      path: fc.string(),
+      name: fc.string(),
+    }),
+    { nil: null }
+  ),
   filePath: fc.option(fc.string(), { nil: null }),
   isDirty: fc.boolean(),
   lastSaved: fc.option(fc.date(), { nil: null }),
@@ -90,24 +97,30 @@ export const applicationStateArb: fc.Arbitrary<ApplicationState> = fc.record({
   currentSearchIndex: fc.integer({ min: -1 }),
   loading: fc.boolean(),
   error: fc.option(fc.string(), { nil: null }),
-  notification: fc.option(fc.record({
-    type: fc.constantFrom('success', 'error', 'warning', 'info' as const),
-    message: fc.string(),
-    duration: fc.option(fc.integer(), { nil: undefined }),
-  }), { nil: null }),
+  notification: fc.option(
+    fc.record({
+      type: fc.constantFrom('success', 'error', 'warning', 'info' as const),
+      message: fc.string(),
+      duration: fc.option(fc.integer(), { nil: undefined }),
+    }),
+    { nil: null }
+  ),
   isDarkMode: fc.boolean(),
+  isExportingImage: fc.boolean(),
   currentFallbackRootName: fc.string(),
 });
 
 /**
  * Generator for Markdown strings (simulating mind map structure)
  */
-export const markdownArb = fc.array(
-  fc.oneof(
-    fc.string({ minLength: 1 }).map(s => `# ${s}`), // Root
-    fc.string({ minLength: 1 }).map(s => `## ${s}`), // Level 1
-    fc.string({ minLength: 1 }).map(s => `### ${s}`), // Level 2
-    fc.string({ minLength: 1 }).map(s => `- ${s}`), // List item
-    fc.string({ minLength: 1 }).map(s => `  - ${s}`) // Indented list item
+export const markdownArb = fc
+  .array(
+    fc.oneof(
+      fc.string({ minLength: 1 }).map((s) => `# ${s}`), // Root
+      fc.string({ minLength: 1 }).map((s) => `## ${s}`), // Level 1
+      fc.string({ minLength: 1 }).map((s) => `### ${s}`), // Level 2
+      fc.string({ minLength: 1 }).map((s) => `- ${s}`), // List item
+      fc.string({ minLength: 1 }).map((s) => `  - ${s}`) // Indented list item
+    )
   )
-).map(lines => lines.join('\n'));
+  .map((lines) => lines.join('\n'));

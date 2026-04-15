@@ -12,20 +12,24 @@ export class WebExportManager {
    */
   private prepareSVG(svgElement: SVGSVGElement): SVGSVGElement {
     const clone = svgElement.cloneNode(true) as SVGSVGElement;
-    
+
     // Embed document styles
     const styles = Array.from(document.styleSheets)
-      .map(sheet => {
+      .map((sheet) => {
         try {
-          return Array.from(sheet.cssRules).map(rule => rule.cssText).join("");
-        } catch (e) { return ""; }
+          return Array.from(sheet.cssRules)
+            .map((rule) => rule.cssText)
+            .join('');
+        } catch (e) {
+          return '';
+        }
       })
-      .join("\n");
-      
-    const styleElement = document.createElementNS("http://www.w3.org/2000/svg", "style");
+      .join('\n');
+
+    const styleElement = document.createElementNS('http://www.w3.org/2000/svg', 'style');
     styleElement.textContent = styles;
     clone.prepend(styleElement);
-    
+
     // Reset transform to get natural bounding box
     const mainG = svgElement.querySelector('g');
     const transform = mainG?.getAttribute('transform');
@@ -34,17 +38,24 @@ export class WebExportManager {
     if (transform) mainG?.setAttribute('transform', transform);
 
     const padding = 100;
-    clone.setAttribute("width", (bbox.width + padding * 2).toString());
-    clone.setAttribute("height", (bbox.height + padding * 2).toString());
-    clone.setAttribute("viewBox", `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`);
-    
+    clone.setAttribute('width', (bbox.width + padding * 2).toString());
+    clone.setAttribute('height', (bbox.height + padding * 2).toString());
+    clone.setAttribute(
+      'viewBox',
+      `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`
+    );
+
     return clone;
   }
 
   /**
    * Export to high-fidelity standalone HTML
    */
-  public exportToHTML(root: TreeNode, title: string, layoutDirection: string = 'two-sided'): string {
+  public exportToHTML(
+    root: TreeNode,
+    title: string,
+    layoutDirection: string = 'two-sided'
+  ): string {
     const jsonTree = JSON.stringify(this.stripCircular(root));
 
     return `<!DOCTYPE html>
@@ -401,77 +412,195 @@ export class WebExportManager {
       id: node.id,
       content: node.content,
       color: node.color,
-      children: node.children ? node.children.map(c => this.stripCircular(c)) : [],
-      collapsed: false
+      children: node.children ? node.children.map((c) => this.stripCircular(c)) : [],
+      collapsed: false,
     };
+  }
+
+  /**
+   * Convert an image URL to a data URL by drawing it onto a temporary canvas.
+   * Handles cross-origin images by fetching as blob first.
+   */
+  public async imageToDataURL(url: string): Promise<string | null> {
+    try {
+      const absoluteUrl = new URL(url, window.location.href).href;
+      const response = await fetch(absoluteUrl, { mode: 'cors' });
+      const blob = await response.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error('Image load failed'));
+          img.src = url;
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.drawImage(img, 0, 0);
+        return canvas.toDataURL('image/png');
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  /**
+   * Inlines all <image> elements in the cloned SVG by converting their
+   * external URLs to data URLs. This is necessary because canvas drawImage
+   * cannot load cross-origin or relative URLs from a serialized SVG blob.
+   */
+  public async inlineSVGImages(clone: SVGSVGElement): Promise<void> {
+    const images = clone.querySelectorAll('image');
+    const tasks: Promise<void>[] = [];
+
+    images.forEach((img) => {
+      const href = img.getAttribute('href') || img.getAttribute('xlink:href');
+      if (!href || href.startsWith('data:')) return;
+
+      tasks.push(
+        this.imageToDataURL(href).then((dataURL) => {
+          if (dataURL) {
+            img.setAttribute('href', dataURL);
+            const xlinkHref = img.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
+            if (xlinkHref) {
+              img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', dataURL);
+            }
+          }
+        })
+      );
+    });
+
+    await Promise.all(tasks);
   }
 
   /**
    * Export to PNG with full content measurement
    */
-  public async exportToPNG(svgElement: SVGSVGElement, background: 'transparent' | 'white' | 'dark'): Promise<Blob> {
-    return new Promise((res, rej) => {
-      const scaleFactor = 3.0; // High fidelity
-      const padding = 100;
-      
-      const mainG = svgElement.querySelector('g');
-      const originalTransform = mainG?.getAttribute('transform');
-      mainG?.removeAttribute('transform'); 
-      const bbox = svgElement.getBBox();
-      if (originalTransform) mainG?.setAttribute('transform', originalTransform);
+  public async exportToPNG(
+    svgElement: SVGSVGElement,
+    background: 'transparent' | 'white' | 'dark'
+  ): Promise<Blob> {
+    const MAX_CANVAS_DIM = 16384;
+    const MAX_CANVAS_AREA = MAX_CANVAS_DIM * MAX_CANVAS_DIM;
+    const idealScale = 3.0;
+    const padding = 100;
 
-      const contentWidth = bbox.width + padding * 2;
-      const contentHeight = bbox.height + padding * 2;
-      
-      const canvas = document.createElement('canvas');
-      canvas.width = contentWidth * scaleFactor;
-      canvas.height = contentHeight * scaleFactor;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
+    const mainG = svgElement.querySelector('g');
+    const originalTransform = mainG?.getAttribute('transform');
+    mainG?.removeAttribute('transform');
+    const bbox = svgElement.getBBox();
+    if (originalTransform) mainG?.setAttribute('transform', originalTransform);
+
+    if (bbox.width === 0 || bbox.height === 0) {
+      throw new Error('Nothing to export — the mind map appears empty');
+    }
+
+    const contentWidth = bbox.width + padding * 2;
+    const contentHeight = bbox.height + padding * 2;
+
+    const maxScaleByDim = Math.min(MAX_CANVAS_DIM / contentWidth, MAX_CANVAS_DIM / contentHeight);
+    const maxScaleByArea = Math.sqrt(MAX_CANVAS_AREA / (contentWidth * contentHeight));
+    const scaleFactor = Math.min(idealScale, maxScaleByDim, maxScaleByArea);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(contentWidth * scaleFactor);
+    canvas.height = Math.round(contentHeight * scaleFactor);
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+    }
+
+    const clone = svgElement.cloneNode(true) as SVGSVGElement;
+
+    clone.querySelectorAll('path').forEach((p) => {
+      p.setAttribute('fill', 'none');
+      if (p instanceof SVGPathElement) {
+        p.style.fill = 'none';
       }
-      
-      const clone = svgElement.cloneNode(true) as SVGSVGElement;
-      
-      // Fix black path artifacts by ensuring fill is none
-      clone.querySelectorAll("path").forEach(p => {
-        p.setAttribute("fill", "none");
-        if (p instanceof SVGPathElement) {
-          p.style.fill = "none";
-        }
-      });
+    });
 
-      const styles = Array.from(document.styleSheets)
-        .map(sheet => { try { return Array.from(sheet.cssRules).map(r => r.cssText).join(""); } catch(e) {return "";} }).join("\n");
-      const styleEl = document.createElementNS("http://www.w3.org/2000/svg", "style");
-      styleEl.textContent = `
+    // Inline all images as data URLs so the canvas can render them
+    await this.inlineSVGImages(clone);
+
+    const styles = Array.from(document.styleSheets)
+      .map((sheet) => {
+        try {
+          return Array.from(sheet.cssRules)
+            .map((r) => r.cssText)
+            .join('');
+        } catch (e) {
+          return '';
+        }
+      })
+      .join('\n');
+    const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    styleEl.textContent = `
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         ${styles}
       `;
-      clone.prepend(styleEl);
+    clone.prepend(styleEl);
 
-      const cloneG = clone.querySelector('g');
-      cloneG?.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
-      clone.setAttribute("width", contentWidth.toString());
-      clone.setAttribute("height", contentHeight.toString());
-      clone.removeAttribute("viewBox");
+    const cloneG = clone.querySelector('g');
+    cloneG?.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
+    clone.setAttribute('width', contentWidth.toString());
+    clone.setAttribute('height', contentHeight.toString());
+    clone.removeAttribute('viewBox');
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
+    const svgString = new XMLSerializer().serializeToString(clone);
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const svgUrl = URL.createObjectURL(svgBlob);
+
+    return new Promise((res, rej) => {
       const img = new Image();
+      img.crossOrigin = 'anonymous';
       img.onload = () => {
+        URL.revokeObjectURL(svgUrl);
         if (!ctx) return rej(new Error('Canvas ctx null'));
-        ctx.fillStyle = background === 'dark' ? '#1e1e1e' : (background === 'white' ? '#ffffff' : 'transparent');
-        if (background !== 'transparent') ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
+
+        if (background !== 'transparent') {
+          ctx.fillStyle = background === 'dark' ? '#1e1e1e' : '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
         ctx.save();
         ctx.scale(scaleFactor, scaleFactor);
         ctx.drawImage(img, 0, 0);
         ctx.restore();
-        
-        canvas.toBlob(b => b ? res(b) : rej(new Error('Blob fail')), 'image/png', 1.0);
+
+        canvas.toBlob((b) => (b ? res(b) : rej(new Error('Blob fail'))), 'image/png', 1.0);
       };
-      img.onerror = (e) => rej(e);
-      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(new XMLSerializer().serializeToString(clone))));
+      img.onerror = () => {
+        URL.revokeObjectURL(svgUrl);
+        const unicodeSvg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+        const fallbackImg = new Image();
+        fallbackImg.onload = () => {
+          if (!ctx) return rej(new Error('Canvas ctx null'));
+          if (background !== 'transparent') {
+            ctx.fillStyle = background === 'dark' ? '#1e1e1e' : '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          }
+          ctx.save();
+          ctx.scale(scaleFactor, scaleFactor);
+          ctx.drawImage(fallbackImg, 0, 0);
+          ctx.restore();
+          canvas.toBlob((b) => (b ? res(b) : rej(new Error('Blob fail'))), 'image/png', 1.0);
+        };
+        fallbackImg.onerror = (e) => rej(e);
+        fallbackImg.src = unicodeSvg;
+      };
+      img.src = svgUrl;
     });
   }
 }

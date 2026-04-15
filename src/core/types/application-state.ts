@@ -5,7 +5,15 @@
  */
 
 import type { TreeNode } from './tree-node';
-import type { LayoutDirection, Transform, Notification, FileHandle, Position, AutoSaveRecord, UserPreferences } from './interfaces';
+import type {
+  LayoutDirection,
+  Transform,
+  Notification,
+  FileHandle,
+  Position,
+  AutoSaveRecord,
+  UserPreferences,
+} from './interfaces';
 import { getRandomFunWord } from '../constants/branding';
 
 /**
@@ -64,6 +72,7 @@ export interface ApplicationState {
 
   // Export state
   isExportDialogOpen: boolean;
+  isExportingImage: boolean;
   isHelpDialogOpen: boolean;
   isLearnBasicsOpen: boolean;
   isSettingsDialogOpen: boolean;
@@ -127,6 +136,7 @@ export function createInitialState(): ApplicationState {
     editorSearchCurrentIndex: -1,
     filePermissionRequest: null,
     isExportDialogOpen: false,
+    isExportingImage: false,
     isHelpDialogOpen: false,
     isLearnBasicsOpen: false,
     isSettingsDialogOpen: false,
