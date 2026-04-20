@@ -76,6 +76,10 @@
   touch-action: none;
 }
 
+.mindmap-content {
+  will-change: transform;
+}
+
 .node rect {
   /* fill is controlled by D3/inline style */
 }

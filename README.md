@@ -133,7 +133,7 @@ Tune the experience to match your workflow:
 - **Snapshot Management** — review and manually purge all local snapshots from the settings panel at any time
 
 ### 📤 Export Options
-Export your mind map as SVG, PNG, or a standalone interactive HTML file — ready to embed in any documentation or share with stakeholders who do not have Inklink.
+Export your mind map as SVG, PNG, or a standalone interactive HTML file — now with an optimized **Instant Render Engine** (Lite Renderer) for high-performance, lag-free exports.
 
 ### 📦 Full Undo / Redo
 50-step history with standard keyboard shortcuts. Change your mind as many times as you need.

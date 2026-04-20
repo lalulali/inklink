@@ -658,9 +658,8 @@ export function extractHtmlTableBlocks(raw: string, existingBlocks: TableBlockIn
 
     // Helper to extract content from a tag and detect alignment
     const parseTag = (tag: string, content: string, collection: string[], alignArray: ("left" | "center" | "right")[], index?: number) => {
-      // Clean content: remove nested HTML tags for the text representation
-      const cleanText = content.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
-      collection.push(cleanText);
+      // PRESERVE HTML tags for rendering (especially b, i, u, br, kbd, mark)
+      collection.push(content.trim());
 
       // Detect alignment from the tag itself
       const alignMatch = tag.match(/align=["'](left|center|right)["']/i) || 
@@ -675,28 +674,31 @@ export function extractHtmlTableBlocks(raw: string, existingBlocks: TableBlockIn
       }
     };
 
-    // 1. Try to find headers from <thead> or any <th>
+    // 1. Try to find headers from <thead>
     const theadMatch = /<thead[\s\S]*?>([\s\S]*?)<\/thead>/gi.exec(tableContent);
-    const thContentSource = theadMatch ? theadMatch[1] : tableContent;
-    
-    const thRegex = /<(th)[\s\S]*?>([\s\S]*?)<\/th>/gi;
-    let thMatch;
-    while ((thMatch = thRegex.exec(thContentSource)) !== null) {
-      parseTag(thMatch[0], thMatch[2], headers, alignments);
+    let theadRowsHtml = "";
+    if (theadMatch) {
+      theadRowsHtml = theadMatch[1];
+      const thRegex = /<th[\s\S]*?>([\s\S]*?)<\/th>/gi;
+      let thMatch;
+      while ((thMatch = thRegex.exec(theadRowsHtml)) !== null) {
+        parseTag(thMatch[0], thMatch[1], headers, alignments);
+      }
     }
 
-    // 2. Find rows (tr)
+    // 2. Find rows (tr), excluding those in thead
+    const contentToSearch = tableContent.replace(/<thead[\s\S]*?>[\s\S]*?<\/thead>/gi, "");
     const trRegex = /<tr[\s\S]*?>([\s\S]*?)<\/tr>/gi;
     let trMatch;
-    while ((trMatch = trRegex.exec(tableContent)) !== null) {
+    while ((trMatch = trRegex.exec(contentToSearch)) !== null) {
       const trInner = trMatch[1];
-      const tdRegex = /<(td)[\s\S]*?>([\s\S]*?)<\/td>/gi;
+      const tdRegex = /<td[\s\S]*?>([\s\S]*?)<\/td>/gi;
       const row: string[] = [];
       let tdMatch;
       let colIdx = 0;
       
       while ((tdMatch = tdRegex.exec(trInner)) !== null) {
-        parseTag(tdMatch[0], tdMatch[2], row, alignments, colIdx);
+        parseTag(tdMatch[0], tdMatch[1], row, alignments, colIdx);
         colIdx++;
       }
 

@@ -44,7 +44,9 @@ export function wrapText(
 
   // Pre-process: Handle <br> as newline and remove other blocks for measurement
   let processedText = text.replace(/<br\s*\/?>/gi, '\n');
-  const cleanText = literal ? processedText : processedText.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/g, '').trim();
+  const cleanText = literal
+    ? processedText
+    : processedText.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/g, '').trim();
 
   if (!cleanText && !processedText.includes('\n')) {
     return [];
@@ -55,14 +57,18 @@ export function wrapText(
   const font = `${fontWeight} ${fontSize}px ${fontFamily}`;
 
   // Atomic regex extended to handle HTML tags including <a href> and inline code
-  const atomicRegex = /(`[^`]*`|\$.*?\$|==.*?==|\^.*?\^|~~.*?~~|~.*?~|!?\[(?:[^\[\]]|\[[^\[\]]*\])*\]\([^)]+\)|\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|<a\b[^>]*>.*?<\/a>|<sub\b[^>]*>.*?<\/sub>|<sup\b[^>]*>.*?<\/sup>|<kbd\b[^>]*>.*?<\/kbd>|<mark\b[^>]*>.*?<\/mark>|<code>.*?<\/code>|<u\b[^>]*>.*?<\/u>|<span\b[^>]*>.*?<\/span>|<div\b[^>]*>.*?<\/div>|<p\b[^>]*>.*?<\/p>|<center\b[^>]*>.*?<\/center>|<h[1-6]\b[^>]*>.*?<\/h[1-6]>|<details\b[^>]*>.*?<\/details>|<li>.*?<\/li>|<ul>.*?<\/ul>|<ol>.*?<\/ol>|<em>.*?<\/em>|<i>.*?<\/i>|<strong>.*?<\/strong>|<b>.*?<\/b>|<img\b[^>]*>|<image\b[^>]*>)/gi;
+  const atomicRegex =
+    /(`[^`]*`|\$.*?\$|==.*?==|\^.*?\^|~~.*?~~|~.*?~|!?\[(?:[^\[\]]|\[[^\[\]]*\])*\]\([^)]+\)|\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|<a\b[^>]*>.*?<\/a>|<sub\b[^>]*>.*?<\/sub>|<sup\b[^>]*>.*?<\/sup>|<kbd\b[^>]*>.*?<\/kbd>|<mark\b[^>]*>.*?<\/mark>|<code>.*?<\/code>|<u\b[^>]*>.*?<\/u>|<span\b[^>]*>.*?<\/span>|<div\b[^>]*>.*?<\/div>|<p\b[^>]*>.*?<\/p>|<center\b[^>]*>.*?<\/center>|<h[1-6]\b[^>]*>.*?<\/h[1-6]>|<details\b[^>]*>.*?<\/details>|<li>.*?<\/li>|<ul>.*?<\/ul>|<ol>.*?<\/ol>|<em>.*?<\/em>|<i>.*?<\/i>|<strong>.*?<\/strong>|<b>.*?<\/b>|<img\b[^>]*>|<image\b[^>]*>)/gi;
 
-  rawLines.forEach(rawLine => {
-    // Strip all internal placeholders (code, quote, image, table) for line counting. 
-    const line = literal ? rawLine : rawLine.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/g, '').trimEnd();
+  rawLines.forEach((rawLine) => {
+    // Strip all internal placeholders (code, quote, image, table) for line counting.
+    const line = literal
+      ? rawLine
+      : rawLine.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/g, '').trimEnd();
 
     // Only skip if it was a placeholder line. If it was a natural blank line, keep it.
-    if (!literal && !line && rawLine.match(/\[(codeblock|quoteblock|image|tableblock):\d+\]/)) return;
+    if (!literal && !line && rawLine.match(/\[(codeblock|quoteblock|image|tableblock):\d+\]/))
+      return;
 
     if (!line) {
       // Collapse consecutive blank lines
@@ -75,7 +81,7 @@ export function wrapText(
     const parts = literal ? [line] : line.split(atomicRegex);
     const tokens: string[] = [];
 
-    parts.forEach(part => {
+    parts.forEach((part) => {
       if (!part) return;
       if (!literal && part.match(atomicRegex)) {
         tokens.push(part);
@@ -85,7 +91,7 @@ export function wrapText(
     });
 
     let currentLine = '';
-    tokens.forEach(token => {
+    tokens.forEach((token) => {
       if (!token) return;
 
       const testLine = currentLine + token;
@@ -95,9 +101,9 @@ export function wrapText(
       if (!literal) {
         measureText = measureText
           .replace(/(!?\[)(.*?)( \].*?\))/g, '$2') // Strip links to label
-          .replace(/(\*\*\*|\*\*|\*|~~|==|\^|~|\$)/g, '')    // Strip formatting
-          .replace(/\[[ xX]\]/g, '☑ ')              // Checkbox placeholder for width
-          .replace(/<[^>]+>/g, '');                // Strip HTML tags for measurement
+          .replace(/(\*\*\*|\*\*|\*|~~|==|\^|~|\$)/g, '') // Strip formatting
+          .replace(/\[[ xX]\]/g, '☑ ') // Checkbox placeholder for width
+          .replace(/<[^>]+>/g, ''); // Strip HTML tags for measurement
       }
 
       const testWidth = measureFn(measureText, font);
@@ -112,7 +118,10 @@ export function wrapText(
 
     if (currentLine) {
       const visibleText = literal ? currentLine : currentLine.replace(/<[^>]+>/g, '').trim();
-      const isPlaceholderOnly = !literal && !visibleText && currentLine.match(/\[(codeblock|quoteblock|image|tableblock):\d+\]/);
+      const isPlaceholderOnly =
+        !literal &&
+        !visibleText &&
+        currentLine.match(/\[(codeblock|quoteblock|image|tableblock):\d+\]/);
       const isIndicatorOnly = !literal && !visibleText && currentLine.match(/\[[ xX]\]/);
 
       if (visibleText || isIndicatorOnly || isPlaceholderOnly || literal) {
@@ -145,7 +154,7 @@ export function measureRichTextWidth(
   const segments = parseMarkdownLine(line);
   let totalWidth = 0;
 
-  segments.forEach(seg => {
+  segments.forEach((seg) => {
     const font = `${seg.bold ? 'bold ' : fontWeight} ${seg.italic ? 'italic ' : ''}${fontSize}px Inter, sans-serif`;
     const textToMeasure = seg.checkbox ? '☑ ' : seg.text;
     totalWidth += measureFn(textToMeasure, font);
@@ -183,10 +192,11 @@ export function parseMarkdownLine(line: string): {
   }
 
   // Regex matches inline code first, then markers, then links/images, then HTML tags
-  const regex = /(`[^`]*`|\$.*?\$|==.*?==|\^.*?\^|\[[ xX]\]|\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|~~.*?~~|~.*?~|\[.*?\]\(.*?\)|<a\b[^>]*>.*?<\/a>|<sub\b[^>]*>.*?<\/sub>|<sup\b[^>]*>.*?<\/sup>|<kbd\b[^>]*>.*?<\/kbd>|<mark\b[^>]*>.*?<\/mark>|<code>.*?<\/code>|<u\b[^>]*>.*?<\/u>|<span\b[^>]*>.*?<\/span>|<div\b[^>]*>.*?<\/div>|<p\b[^>]*>.*?<\/p>|<center\b[^>]*>.*?<\/center>|<h[1-6]\b[^>]*>.*?<\/h[1-6]>|<details\b[^>]*>.*?<\/details>|<li>.*?<\/li>|<ul>.*?<\/ul>|<ol>.*?<\/ol>|<em>.*?<\/em>|<i>.*?<\/i>|<strong>.*?<\/strong>|<b>.*?<\/b>|<img\b[^>]*>|<image\b[^>]*>)/gi;
+  const regex =
+    /(`[^`]*`|\$.*?\$|==.*?==|\^.*?\^|\[[ xX]\]|\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*|~~.*?~~|~.*?~|\[.*?\]\(.*?\)|<a\b[^>]*>.*?<\/a>|<sub\b[^>]*>.*?<\/sub>|<sup\b[^>]*>.*?<\/sup>|<kbd\b[^>]*>.*?<\/kbd>|<mark\b[^>]*>.*?<\/mark>|<code>.*?<\/code>|<u\b[^>]*>.*?<\/u>|<span\b[^>]*>.*?<\/span>|<div\b[^>]*>.*?<\/div>|<p\b[^>]*>.*?<\/p>|<center\b[^>]*>.*?<\/center>|<h[1-6]\b[^>]*>.*?<\/h[1-6]>|<details\b[^>]*>.*?<\/details>|<li>.*?<\/li>|<ul>.*?<\/ul>|<ol>.*?<\/ol>|<em>.*?<\/em>|<i>.*?<\/i>|<strong>.*?<\/strong>|<b>.*?<\/b>|<img\b[^>]*>|<image\b[^>]*>)/gi;
   const parts = line.split(regex);
 
-  parts.forEach(part => {
+  parts.forEach((part) => {
     if (!part) return;
 
     // Inline code: treat content as literal text, rendered monospace
@@ -199,7 +209,7 @@ export function parseMarkdownLine(line: string): {
       // After symbol replacement, handle sub/sup within the math block
       const mathRegex = /(_[^{\s]|_\{.*?\}|\^[^{\s]|\^{.*?})/g;
       const mathParts = renderedMatch.split(mathRegex);
-      mathParts.forEach(mPart => {
+      mathParts.forEach((mPart) => {
         if (!mPart) return;
         if (mPart.startsWith('_')) {
           const sub = mPart.startsWith('_{') ? mPart.slice(2, -1) : mPart.slice(1);
@@ -222,62 +232,70 @@ export function parseMarkdownLine(line: string): {
         segments.push({ text: `!${title}`, link: url });
       } else {
         const innerSegments = parseMarkdownLine(title);
-        innerSegments.forEach(s => segments.push({ ...s, link: url }));
+        innerSegments.forEach((s) => segments.push({ ...s, link: url }));
       }
     } else if (part.startsWith('***') && part.endsWith('***')) {
       const innerSegments = parseMarkdownLine(part.slice(3, -3));
-      innerSegments.forEach(s => segments.push({ ...s, bold: true, italic: true }));
+      innerSegments.forEach((s) => segments.push({ ...s, bold: true, italic: true }));
     } else if (part.startsWith('**') && part.endsWith('**')) {
       const innerSegments = parseMarkdownLine(part.slice(2, -2));
-      innerSegments.forEach(s => segments.push({ ...s, bold: true }));
+      innerSegments.forEach((s) => segments.push({ ...s, bold: true }));
     } else if (part.startsWith('*') && part.endsWith('*')) {
       const innerSegments = parseMarkdownLine(part.slice(1, -1));
-      innerSegments.forEach(s => segments.push({ ...s, italic: true }));
+      innerSegments.forEach((s) => segments.push({ ...s, italic: true }));
     } else if (part.startsWith('~~') && part.endsWith('~~')) {
       const innerSegments = parseMarkdownLine(part.slice(2, -2));
-      innerSegments.forEach(s => segments.push({ ...s, strikethrough: true }));
+      innerSegments.forEach((s) => segments.push({ ...s, strikethrough: true }));
     } else if (part.startsWith('~') && part.endsWith('~')) {
       segments.push({ text: part.slice(1, -1), subscript: true });
     } else if (part.startsWith('^') && part.endsWith('^')) {
       segments.push({ text: part.slice(1, -1), superscript: true });
     } else if (part.startsWith('==') && part.endsWith('==')) {
       const innerSegments = parseMarkdownLine(part.slice(2, -2));
-      innerSegments.forEach(s => segments.push({ ...s, highlight: true }));
+      innerSegments.forEach((s) => segments.push({ ...s, highlight: true }));
     } else if (/^<a\b[^>]*href=["'](.*?)["'][^>]*>(.*?)<\/a>$/i.test(part)) {
       const match = part.match(/^<a\b[^>]*href=["'](.*?)["'][^>]*>(.*?)<\/a>$/i);
       const url = match ? match[1] : '';
       const text = match ? match[2] : '';
       const innerSegments = parseMarkdownLine(text);
-      innerSegments.forEach(s => segments.push({ ...s, link: url }));
+      innerSegments.forEach((s) => segments.push({ ...s, link: url }));
     } else if (/^<sub\b[^>]*>(.*?)<\/sub>$/i.test(part)) {
       const innerSegments = parseMarkdownLine(part.replace(/^<sub\b[^>]*>(.*?)<\/sub>$/i, '$1'));
-      innerSegments.forEach(s => segments.push({ ...s, subscript: true }));
+      innerSegments.forEach((s) => segments.push({ ...s, subscript: true }));
     } else if (/^<sup\b[^>]*>(.*?)<\/sup>$/i.test(part)) {
       const innerSegments = parseMarkdownLine(part.replace(/^<sup\b[^>]*>(.*?)<\/sup>$/i, '$1'));
-      innerSegments.forEach(s => segments.push({ ...s, superscript: true }));
+      innerSegments.forEach((s) => segments.push({ ...s, superscript: true }));
     } else if (/^<kbd\b[^>]*>(.*?)<\/kbd>$/i.test(part)) {
       segments.push({ text: part.replace(/^<kbd\b[^>]*>(.*?)<\/kbd>$/i, '$1'), keyboard: true });
     } else if (/^<code\b[^>]*>(.*?)<\/code>$/i.test(part)) {
       segments.push({ text: part.replace(/^<code\b[^>]*>(.*?)<\/code>$/i, '$1'), keyboard: true });
     } else if (/^<mark\b[^>]*>(.*?)<\/mark>$/i.test(part)) {
       const innerSegments = parseMarkdownLine(part.replace(/^<mark\b[^>]*>(.*?)<\/mark>$/i, '$1'));
-      innerSegments.forEach(s => segments.push({ ...s, highlight: true }));
+      innerSegments.forEach((s) => segments.push({ ...s, highlight: true }));
     } else if (/^<u\b[^>]*>(.*?)<\/u>$/i.test(part)) {
       const innerSegments = parseMarkdownLine(part.replace(/^<u\b[^>]*>(.*?)<\/u>$/i, '$1'));
-      innerSegments.forEach(s => segments.push({ ...s, underline: true }));
+      innerSegments.forEach((s) => segments.push({ ...s, underline: true }));
     } else if (/^<center\b[^>]*>(.*?)<\/center>$/i.test(part)) {
-      const innerSegments = parseMarkdownLine(part.replace(/^<center\b[^>]*>(.*?)<\/center>$/i, '$1'));
-      innerSegments.forEach(s => segments.push({ ...s, center: true }));
+      const innerSegments = parseMarkdownLine(
+        part.replace(/^<center\b[^>]*>(.*?)<\/center>$/i, '$1')
+      );
+      innerSegments.forEach((s) => segments.push({ ...s, center: true }));
     } else if (/^<h([1-6])\b[^>]*>(.*?)<\/h\1>$/i.test(part)) {
       const match = part.match(/^<h([1-6])\b[^>]*>(.*?)<\/h\1>$/i);
       const level = parseInt(match![1]);
       const text = match![2];
       const innerSegments = parseMarkdownLine(text);
-      innerSegments.forEach(s => segments.push({ ...s, heading: level }));
+      innerSegments.forEach((s) => segments.push({ ...s, heading: level }));
     } else if (/^<details\b[^>]*>(.*?)<\/details>$/i.test(part)) {
       // For details, we might just show the primary content or a "Spoiler" tag for now
       // Advanced implementation would require a custom nested block
-      segments.push({ text: part.replace(/^<details\b[^>]*>(?:<summary\b[^>]*>(.*?)<\/summary>)?.*?<\/details>$/i, (_, p1) => p1 || 'Details'), details: true });
+      segments.push({
+        text: part.replace(
+          /^<details\b[^>]*>(?:<summary\b[^>]*>(.*?)<\/summary>)?.*?<\/details>$/i,
+          (_, p1) => p1 || 'Details'
+        ),
+        details: true,
+      });
     } else if (/^<(ul|ol|li)\b[^>]*>(.*?)<\/\1>$/i.test(part)) {
       const match = part.match(/^<(ul|ol|li)\b[^>]*>(.*?)<\/\1>$/i);
       const tag = match ? match[1].toLowerCase() : '';
@@ -294,14 +312,19 @@ export function parseMarkdownLine(line: string): {
     } else if (/^<\/?(ul|ol)\b[^>]*>$/i.test(part)) {
       // Strip standalone open/close tags for ul/ol that appear on their own lines
       segments.push({ text: '' });
-    } else if (/^<(span|div|p|em|i|strong|b)\b[^>]*>(.*?)<\/\1>$/i.test(part)) {
-      const match = part.match(/^<(span|div|p|em|i|strong|b)\b[^>]*>(.*?)<\/\1>$/i);
+    } else if (/<(span|div|p|em|i|strong|b)\b[^>]*>(.*?)<\/\1>/i.test(part)) {
+      const match = part.match(/<(span|div|p|em|i|strong|b)\b[^>]*>(.*?)<\/\1>/i);
       const tag = match ? match[1].toLowerCase() : '';
       const text = match ? match[2] : '';
-      segments.push({
-        text,
-        bold: tag === 'strong' || tag === 'b',
-        italic: tag === 'em' || tag === 'i'
+      const isBold = tag === 'strong' || tag === 'b';
+      const isItalic = tag === 'em' || tag === 'i';
+      const innerSegments = parseMarkdownLine(text);
+      innerSegments.forEach((s) => {
+        segments.push({
+          ...s,
+          bold: s.bold || isBold,
+          italic: s.italic || isItalic,
+        });
       });
     } else if (/^<(img|image)\b[^>]*\/?>$/i.test(part)) {
       // Stray image tag not caught by tree-builder (e.g. malformed or nested in ways we didn't extract)
@@ -340,7 +363,6 @@ function renderMathToUnicode(latex: string): string {
     '\\\\times': '×',
     '\\\\div': '÷',
     '\\\\cdot': '·',
-    '\\\\pm': '±',
     '\\\\mp': '∓',
     '\\\\oplus': '⊕',
     '\\\\otimes': '⊗',

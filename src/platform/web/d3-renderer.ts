@@ -378,7 +378,7 @@ export class D3Renderer implements RendererAdapter {
         imageState = 'pending';
       }
     }
-    return `${node.depth}|${display.length}|${imageUrl}|${imageState}|${codeCount}|${quoteCount}|${tableContentKey}`;
+    return `${node.depth}|${display.length}|${imageUrl}|${imageState}|${codeCount}|${quoteCount}|${tableContentKey}|v7`;
   }
 
   /**
@@ -553,42 +553,45 @@ export class D3Renderer implements RendererAdapter {
           node.metadata.height += NB.PILL_HEIGHT;
         } else if (block.isTable) {
           // Table height calculation with support for multi-line cells (\n, \n literal, <br>)
-          let totalTableHeight = NB.TABLE_HEADER_HEIGHT + (NB.TABLE_V_PADDING * 2);
+          let totalTableHeight = NB.PILL_HEIGHT + (NB.TABLE_V_PADDING * 2) + 4; // Add 4px safety buffer
           const getCellLines = (txt: string, maxWidth?: number) => {
             const rawLines = (txt || '').replace(/<br\s*\/?>/gi, '\n').replace(/\\n/g, '\n').replace(/\\t/g, '    ').replace(/\t/g, '    ').split(/\r?\n/);
-            if (maxWidth === undefined) return rawLines;
-            return rawLines.flatMap((line: string) => this.wrapText(line, maxWidth, NB.TABLE_LINE_HEIGHT, '400', 'Inter, sans-serif'));
+            if (maxWidth === undefined || maxWidth <= 0) return rawLines;
+            const mFn = (t: string, f: string) => { 
+                if (ctx) { ctx.font = f; return ctx.measureText(t).width; } 
+                return t.length * (NB.TABLE_LINE_HEIGHT * 0.6); 
+            };
+            return rawLines.flatMap((line: string) => wrapText(line, Math.max(500, maxWidth || 0), NB.TABLE_LINE_HEIGHT, '400', mFn, 'Inter, sans-serif'));
           };
 
           const colCount = Math.max(block.headers?.length || 0, ...(block.rows?.map(r => r.length) || [0]));
           const colWidths = new Array(colCount).fill(0);
-          const MAX_COL_W = 120; // Maximum width before wrapping a column
 
           if (colCount > 0) {
             if (ctx) ctx.font = `${NB.TABLE_LINE_HEIGHT}px Inter, sans-serif`;
 
-            // First pass: measure natural widths for columns (capped at MAX_COL_W)
-            const measureCol = (row: string[]) => {
+            // First pass: measure natural widths for columns (Adaptive - No hard clamp)
+            const measureCol = (row: string[], weight: string) => {
               row.forEach((cell, i) => {
                 const lines = getCellLines(cell);
                 lines.forEach(line => {
-                  const w = measureRichTextWidth(line, NB.TABLE_LINE_HEIGHT, '400', (t, f) => {
+                  const w = measureRichTextWidth(line, NB.TABLE_LINE_HEIGHT, weight, (t, f) => {
                     if (ctx) { ctx.font = f; return ctx.measureText(t).width; }
                     return t.length * NB.TABLE_LINE_HEIGHT * 0.6;
                   });
-                  colWidths[i] = Math.max(colWidths[i], Math.min(w + NB.TABLE_CELL_HPADDING * 2, MAX_COL_W));
+                  colWidths[i] = Math.max(colWidths[i], w + 60 + 4); // 60 padding + 4px safety buffer
                 });
               });
             };
 
-            if (block.headers) measureCol(block.headers);
-            block.rows?.forEach(row => measureCol(row));
+            if (block.headers) measureCol(block.headers, 'bold');
+            block.rows?.forEach(row => measureCol(row, '400'));
 
             // Second pass: Calculate row heights based on wrapped lines
             if (block.headers?.length) {
               let maxLinesInHeader = 1;
               block.headers.forEach((h, i) => {
-                maxLinesInHeader = Math.max(maxLinesInHeader, getCellLines(h, colWidths[i] - NB.TABLE_CELL_HPADDING * 2).length);
+                maxLinesInHeader = Math.max(maxLinesInHeader, getCellLines(h, colWidths[i] - 28).length);
               });
               totalTableHeight += NB.TABLE_HEADER_HEIGHT + (maxLinesInHeader - 1) * NB.TABLE_LINE_HEIGHT;
             }
@@ -596,7 +599,7 @@ export class D3Renderer implements RendererAdapter {
             block.rows?.forEach(row => {
               let maxLinesInRow = 1;
               row.forEach((cell, i) => {
-                maxLinesInRow = Math.max(maxLinesInRow, getCellLines(cell, colWidths[i] - NB.TABLE_CELL_HPADDING * 2).length);
+                maxLinesInRow = Math.max(maxLinesInRow, getCellLines(cell, colWidths[i] - 60).length);
               });
               totalTableHeight += NB.TABLE_ROW_HEIGHT + (maxLinesInRow - 1) * NB.TABLE_LINE_HEIGHT;
             });
@@ -1723,12 +1726,11 @@ export class D3Renderer implements RendererAdapter {
             if (maxWidth === undefined || maxWidth <= 0) return rawLines;
             return rawLines.flatMap((line: string) => thisRenderer.wrapText(line, maxWidth, NB.TABLE_LINE_HEIGHT, '400', 'Inter, sans-serif'));
           };
-
           if (block.ref.headers?.length) {
             let maxLinesInHeader = 1;
             block.ref.headers.forEach((h: string, i: number) => {
               const colW = colWidths[i] || (innerW / (block.ref.headers?.length || 1));
-              maxLinesInHeader = Math.max(maxLinesInHeader, getCellLines(h, colW - NB.TABLE_CELL_HPADDING * 2).length);
+              maxLinesInHeader = Math.max(maxLinesInHeader, getCellLines(h, Math.max(500, colW - 40)).length);
             });
             totalTableHeight += NB.TABLE_HEADER_HEIGHT + (maxLinesInHeader - 1) * NB.TABLE_LINE_HEIGHT;
           }
@@ -1737,11 +1739,11 @@ export class D3Renderer implements RendererAdapter {
             let maxLinesInRow = 1;
             row.forEach((cell, i) => {
               const colW = colWidths[i] || (innerW / (row.length || 1));
-              maxLinesInRow = Math.max(maxLinesInRow, getCellLines(cell, colW - NB.TABLE_CELL_HPADDING * 2).length);
+              maxLinesInRow = Math.max(maxLinesInRow, getCellLines(cell, Math.max(500, colW - 40)).length);
             });
             totalTableHeight += NB.TABLE_ROW_HEIGHT + (maxLinesInRow - 1) * NB.TABLE_LINE_HEIGHT;
           });
-          expandedH = totalTableHeight;
+          expandedH = totalTableHeight + 8; // Extra buffer for expanded table background
         } else {
           expandedH = headerH + vPad + (contentLines.length * lineH) + vPad;
         }
@@ -1919,8 +1921,12 @@ export class D3Renderer implements RendererAdapter {
         const g = d3.select(this);
         
         // Stabilize table rendering to prevent flickering during unrelated node updates
-        const tableKey = `${b.id}-${b.ref.headers?.join('|')}-${b.ref.rows?.length}-${b.ref.expanded}-${innerW}`;
-        if (g.attr('data-last-key') === tableKey) return;
+        const tableContentKey = `${b.ref.headers?.join('|')}-${b.ref.rows?.map(r => r.join('|')).join('||')}`;
+        const tableKey = `${b.id}-${tableContentKey}-${b.ref.expanded}-${innerW}`;
+        if (g.attr('data-last-key') === tableKey) {
+          expandedH = parseFloat(g.attr('data-last-height') || '0');
+          return;
+        }
         g.attr('data-last-key', tableKey);
 
         g.selectAll('*').remove();
@@ -1930,58 +1936,77 @@ export class D3Renderer implements RendererAdapter {
         const alignments = b.ref.alignments || [];
         const colCount = Math.max(headers.length, ...rows.map(r => r.length));
 
-        // Use proportionally calculated column widths if available, otherwise fallback to even distribution
-        let finalColWidths: number[];
-        const measuredColWidths = b.ref.colWidths;
-        if (measuredColWidths && measuredColWidths.length >= colCount) {
-          const totalMeasured = measuredColWidths.slice(0, colCount).reduce((s: number, w: number) => s + w, 0);
-          const scale = innerW / Math.max(totalMeasured, 1);
-          finalColWidths = measuredColWidths.slice(0, colCount).map((w: number) => w * scale);
-        } else {
-          finalColWidths = new Array(colCount).fill(innerW / colCount);
-        }
+        // 1. Re-calculate adaptive column widths exactly as web-export-manager does
+        const getCellLinesRaw = (txt: string, mw?: number) => {
+          const raw = (txt || '').replace(/<br\s*\/?>/gi, '\n').replace(/\\n/g, '\n').replace(/\\t/g, '    ').replace(/\t/g, '    ').split(/\r?\n/);
+          if (mw === undefined) return raw;
+          const mFn = (t: string, f: string) => { 
+            if (thisRenderer.measureCtx) { 
+              thisRenderer.measureCtx.font = f; 
+              return thisRenderer.measureCtx.measureText(t).width; 
+            } 
+            return t.length * (NB.TABLE_LINE_HEIGHT * 0.6); 
+          };
+          return raw.flatMap(l => wrapText(l, Math.max(500, mw || 0), NB.TABLE_LINE_HEIGHT, 'normal', mFn, 'Inter, sans-serif'));
+        };
+
+        const rawCols = new Array(colCount).fill(0);
+        const allRows = headers.length > 0 ? [headers, ...rows] : rows;
+        allRows.forEach((row, ri) => {
+          (row || []).forEach((cell, ci) => {
+            if (ci >= colCount) return;
+            const weight = (headers.length > 0 && ri === 0) ? 'bold' : '400';
+            const lines = getCellLinesRaw(cell);
+            lines.forEach(l => {
+              const w = measureRichTextWidth(l, NB.TABLE_LINE_HEIGHT, weight, (t, f) => {
+                if (thisRenderer.measureCtx) {
+                  thisRenderer.measureCtx.font = f;
+                  return thisRenderer.measureCtx.measureText(t).width;
+                }
+                return t.length * NB.TABLE_LINE_HEIGHT * 0.6;
+              });
+              rawCols[ci] = Math.max(rawCols[ci], w + 60);
+            });
+          });
+        });
+
+        const totalRawW = rawCols.reduce((s, w) => s + w, 0);
+        // Do not scale down below natural width, only scale up if node is wider
+        const scale = innerW > totalRawW ? innerW / totalRawW : 1.0;
+        const finalColWidths = rawCols.map(w => w * scale);
 
         let runningY = headerH + NB.TABLE_V_PADDING;
         const startY = runningY;
 
-        // Helper to draw a row
+        // 2. Exact row drawing loop mirroring web-export-manager
         const drawRow = (data: string[], isHeader: boolean) => {
           let currentX = 0;
-
-          // Pre-processing to handle \n, \n literal, <br>, and \t
-          const getCellLines = (txt: string, maxWidth?: number) => {
-            const rawLines = (txt || '').replace(/<br\s*\/?>/gi, '\n').replace(/\\n/g, '\n').replace(/\\t/g, '    ').replace(/\t/g, '    ').split(/\r?\n/);
-            if (maxWidth === undefined || maxWidth <= 0) return rawLines;
-            return rawLines.flatMap((line: string) => thisRenderer.wrapText(line, maxWidth, NB.TABLE_LINE_HEIGHT, '400', 'Inter, sans-serif'));
-          };
-
-          // Determine the max number of lines in this row to calculate row height
           let maxLinesInRow = 1;
-          data.forEach((cell, i) => {
-            const colW = finalColWidths[i];
-            maxLinesInRow = Math.max(maxLinesInRow, getCellLines(cell, colW - NB.TABLE_CELL_HPADDING * 2).length);
+          const wrappedCells = data.map((cell, i) => {
+            const lines = getCellLinesRaw(cell, Math.max(500, finalColWidths[i] - 60));
+            maxLinesInRow = Math.max(maxLinesInRow, lines.length);
+            return lines;
           });
-
-          const baseHeight = isHeader ? NB.TABLE_HEADER_HEIGHT : NB.TABLE_ROW_HEIGHT;
-          const rowH = baseHeight + (maxLinesInRow - 1) * NB.TABLE_LINE_HEIGHT;
+          const baseH = isHeader ? NB.TABLE_HEADER_HEIGHT : NB.TABLE_ROW_HEIGHT;
+          const rowH = baseH + (maxLinesInRow - 1) * NB.TABLE_LINE_HEIGHT;
 
           data.forEach((cell, i) => {
-            const colW = finalColWidths[i];
+            const cw = finalColWidths[i];
             const align = alignments[i] || 'left';
-            const lines = getCellLines(cell, colW - NB.TABLE_CELL_HPADDING * 2);
+            const lines = wrappedCells[i];
             const numLines = lines.length;
+            const cellStartY = runningY + (rowH - (numLines - 1) * NB.TABLE_LINE_HEIGHT) / 2;
 
-            lines.forEach((line, lineIdx) => {
-              // Cell text alignment
-              let textX = currentX + NB.TABLE_CELL_HPADDING;
-              if (align === 'center') textX = currentX + colW / 2;
-              else if (align === 'right') textX = currentX + colW - NB.TABLE_CELL_HPADDING;
+            // Use a per-cell group to enable clipping similar to export manager
+            const cellG = g.append('g');
 
-              // Vertical centering for the block of lines within the row
-              const startY = runningY + (rowH - (numLines - 1) * NB.TABLE_LINE_HEIGHT) / 2;
-              const lineY = startY + (lineIdx * NB.TABLE_LINE_HEIGHT);
-
-              const textElement = g.append('text')
+            lines.forEach((line, li) => {
+              let textX = currentX + 30; // 30px left padding
+              if (align === 'center') textX = currentX + cw / 2;
+              else if (align === 'right') textX = currentX + cw - 30; // 30px right padding
+              
+              const lineY = cellStartY + li * NB.TABLE_LINE_HEIGHT;
+              const textElement = cellG.append('text')
                 .attr('x', textX)
                 .attr('y', lineY)
                 .attr('font-size', `${NB.TABLE_LINE_HEIGHT}px`)
@@ -1993,30 +2018,46 @@ export class D3Renderer implements RendererAdapter {
 
               const segments = parseMarkdownLine(line);
               segments.forEach(seg => {
-                textElement.append('tspan')
+                const tspan = textElement.append('tspan')
                   .text(seg.text)
                   .style('font-weight', (isHeader || seg.bold) ? 'bold' : 'normal')
                   .style('font-style', seg.italic ? 'italic' : 'normal')
                   .style('text-decoration', seg.strikethrough ? 'line-through' : (seg.underline || seg.link ? 'underline' : 'none'))
                   .style('fill', seg.link ? ColorManager.getLinkColor(nodeFill) : (seg.highlight ? RendererColors.inline.highlightText : ''))
+                  .attr('baseline-shift', seg.superscript ? 'super' : (seg.subscript ? 'sub' : '0'))
+                  .attr('font-size', (seg.superscript || seg.subscript) ? `${NB.TABLE_LINE_HEIGHT * 0.75}px` : `${NB.TABLE_LINE_HEIGHT}px`)
                   .each(function () {
+                    // Highlights logic
                     if (seg.highlight) {
                       d3.select(this)
                         .style('stroke', RendererColors.inline.highlightFill)
                         .style('stroke-width', '2.5px')
-                        .style('stroke-opacity', 0.75)
+                        .style('stroke-opacity', 0.5)
                         .style('stroke-linecap', 'round')
                         .style('stroke-linejoin', 'round')
                         .style('paint-order', 'stroke fill');
                     }
+                    // Keyboard/Kbd logic
+                    if (seg.keyboard) {
+                      d3.select(this)
+                        .style('font-family', NB.MONO_FONT)
+                        .style('background', isDark ? '#334155' : '#f1f5f9');
+                    }
                   });
+
+                if (seg.link) {
+                  tspan
+                    .style('cursor', 'pointer')
+                    .on('click', (event: any) => {
+                      event.stopPropagation();
+                      window.open(seg.link, '_blank');
+                    });
+                }
               });
             });
-
-            currentX += colW;
+            currentX += cw;
           });
 
-          // Row separator
           if (isHeader) {
             g.append('line')
               .attr('x1', 0)
@@ -2026,12 +2067,18 @@ export class D3Renderer implements RendererAdapter {
               .attr('stroke', isDark ? RendererColors.noteBlock.tableDividerDark : RendererColors.noteBlock.tableDividerLight)
               .attr('stroke-width', 1.5);
           }
-
           runningY += rowH;
         };
 
         if (headers.length > 0) drawRow(headers, true);
         rows.forEach(r => drawRow(r, false));
+
+        // 3. Final background sync
+        const finalH = Math.max(NB.PILL_HEIGHT, runningY + NB.TABLE_V_PADDING);
+        bgRect.attr('height', finalH);
+        expandedH = finalH;
+        g.attr('data-last-height', expandedH);
+
 
         // Vertical column separators
         let runningX = 0;

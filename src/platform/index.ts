@@ -86,8 +86,7 @@ export class PlatformFactory {
       case PlatformType.Web:
         return new D3Renderer();
       case PlatformType.VSCode:
-        // VSCodeRendererAdapter not yet implemented
-        return new D3Renderer(); // Webview renderer is likely d3 too
+        return new D3Renderer();
       default:
         return new D3Renderer();
     }

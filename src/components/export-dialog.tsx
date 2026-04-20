@@ -104,7 +104,11 @@ export function ExportDialog() {
     globalState.setState({ isExportDialogOpen: false });
   };
 
-  const executeExport = async () => {
+  const executeExport = async (overrideFormat?: ExportFormatType, overrideBg?: PNGBackground) => {
+    if (exporting) return;
+    const activeFormat = overrideFormat ?? format;
+    const activeBg = overrideBg ?? bg;
+
     setExporting(true);
     try {
       const state = globalState.getState();
@@ -116,8 +120,13 @@ export function ExportDialog() {
       const title = fileName.replace(/\.md$/, '');
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
-      if (format === 'html') {
-        const content = (exportMgr as any).exportToHTML(tree, title, state.layoutDirection);
+      if (activeFormat === 'html') {
+        const content = (exportMgr as any).exportToHTML(
+          tree,
+          title,
+          state.isDarkMode,
+          state.layoutDirection
+        );
         const blob = new Blob([content], { type: 'text/html' });
         downloadBlob(blob, `${title}-${timestamp}.html`);
         showSuccess(`Mind map exported as HTML`);
@@ -142,10 +151,10 @@ export function ExportDialog() {
         const svg = document.querySelector('#inklink-mindmap-canvas svg');
         if (!svg) throw new Error('Visual elements not found on the canvas');
 
-        if (format === 'png') {
-          const blob = await (exportMgr as any).exportToPNG(svg as SVGSVGElement, bg);
+        if (activeFormat === 'png') {
+          const blob = await (exportMgr as any).exportToPNG(svg as SVGSVGElement, activeBg);
           downloadBlob(blob, `${title}-${timestamp}.png`);
-        } else if (format === 'svg') {
+        } else if (activeFormat === 'svg') {
           const clone = svg.cloneNode(true) as SVGSVGElement;
           await (exportMgr as any).inlineSVGImages(clone);
           clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -167,7 +176,7 @@ export function ExportDialog() {
           downloadBlob(blob, `${title}-${timestamp}.svg`);
         }
 
-        showSuccess(`Mind map exported as ${format.toUpperCase()}`);
+        showSuccess(`Mind map exported as ${activeFormat.toUpperCase()}`);
         close();
       } catch (err: any) {
         showError('Export Failed', err.message);
@@ -207,6 +216,7 @@ export function ExportDialog() {
             <button
               type="button"
               onClick={() => setFormat('png')}
+              onDoubleClick={() => executeExport('png')}
               className={cn(
                 'relative p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-3 text-center group',
                 format === 'png'
@@ -238,6 +248,7 @@ export function ExportDialog() {
             <button
               type="button"
               onClick={() => setFormat('html')}
+              onDoubleClick={() => executeExport('html')}
               className={cn(
                 'relative p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-3 text-center group',
                 format === 'html'
@@ -283,6 +294,7 @@ export function ExportDialog() {
                     type="button"
                     key={item.id}
                     onClick={() => setBg(item.id as any)}
+                    onDoubleClick={() => executeExport('png', item.id as any)}
                     className={cn(
                       'flex-1 h-20 rounded-lg border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-[11px] font-medium overflow-hidden',
                       bg === item.id
@@ -335,7 +347,7 @@ export function ExportDialog() {
             Cancel
           </Button>
           <Button
-            onClick={executeExport}
+            onClick={() => executeExport()}
             disabled={exporting}
             className="font-bold min-w-[120px] shadow-lg shadow-primary/20"
           >
