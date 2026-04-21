@@ -411,7 +411,9 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 	const [revealHighlight, setRevealHighlight] = React.useState<{ from: number; to: number } | null>(null);
 	const [activeLink, setActiveLink] = React.useState<{ url: string; x: number; y: number } | null>(null);
 	const { autoSave } = useWebPlatform();
-	const isDark = resolvedTheme === "dark";
+	const [isMounted, setIsMounted] = React.useState(false);
+	React.useEffect(() => setIsMounted(true), []);
+	const isDark = isMounted && resolvedTheme === "dark";
 
 	// Function to update search counts and index based on current editor state
 	const updateSearchStats = React.useCallback((view: EditorView) => {

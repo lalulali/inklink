@@ -297,7 +297,11 @@ export function Canvas() {
       window.removeEventListener('inklink-reset-view', handleResetView);
       window.removeEventListener('inklink-canvas-focus-node', handleFocusNode);
       if (renderer) {
-        renderer.clear();
+        if ((renderer as any).destroy) {
+          (renderer as any).destroy();
+        } else {
+          renderer.clear();
+        }
       }
       rendererRef.current = null;
     };
@@ -413,7 +417,7 @@ export function Canvas() {
   return (
     <div
       className={cn(
-        'relative h-full w-full bg-slate-50/50 outline-none focus-within:ring-1 focus-within:ring-primary/20',
+        'relative h-full w-full bg-background outline-none focus-within:ring-1 focus-within:ring-primary/20',
         !state.isResizing && 'transition-all duration-300',
         isDragging && 'bg-primary/5 ring-1 ring-primary/40 ring-inset'
       )}

@@ -249,6 +249,7 @@ export function buildTree(
 
   if (orphans.length === 1) {
     const root = orphans[0];
+    collapseDeepNodes(root, 0);
     return { root, lineCount: lines.length, maxDepth };
   }
 
@@ -265,7 +266,20 @@ export function buildTree(
     incrementDepth(o);
   });
 
+  collapseDeepNodes(virtualRoot, 0);
+
   return { root: virtualRoot, lineCount: lines.length, maxDepth: maxDepth + 1 };
+}
+
+/**
+ * Recursively collapse nodes at depth >= 1 (children and beyond).
+ * Only the root node remains expanded by default.
+ */
+function collapseDeepNodes(node: TreeNode, depth: number): void {
+  if (depth >= 1 && node.children.length > 0) {
+    node.collapsed = true;
+  }
+  node.children.forEach(child => collapseDeepNodes(child, depth + 1));
 }
 
 /**

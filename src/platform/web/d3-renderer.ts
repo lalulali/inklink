@@ -41,9 +41,14 @@ export class D3Renderer implements RendererAdapter {
   private isDarkMode: boolean = false;
   private measureCtx: CanvasRenderingContext2D | null = null;
 
-  // Measure cache: maps nodeId -> { contentKey, width, height }
-  // Avoids re-measuring nodes whose content hasn't changed
-  private measureCache: Map<string, { contentKey: string; width: number; height: number }> = new Map();
+  private measureCache: Map<string, { contentKey: string; width: number; height: number; displayLines?: string[]; textHeight?: number; hasText?: boolean }> = new Map();
+
+  private _isHidden: boolean = false;
+  private _skipAnimations: boolean = false;
+  private _renderRafId: number | null = null;
+  private _pendingRenderArgs: { root: TreeNode; positions: Map<string, Position>; isDarkMode: boolean } | null = null;
+  private _imageStoreUnsubscribe: (() => void) | null = null;
+  private _visibilityHandler: (() => void) | null = null;
 
   public onTransform?: (transform: Transform) => void;
 
@@ -81,6 +86,17 @@ export class D3Renderer implements RendererAdapter {
   }
 
   /**
+   * Returns a D3 transition with the configured duration, or duration 0 if animations are skipped.
+   */
+  private transition<T extends d3.BaseType, U, TElement extends d3.BaseType, TDatum>(
+    sel: d3.Selection<T, U, TElement, TDatum>
+  ): d3.Transition<T, U, TElement, TDatum> {
+    return this._skipAnimations
+      ? sel.transition().duration(0)
+      : sel.transition().duration(this.config.animationDuration);
+  }
+
+  /**
    * Helper to wrap text into lines based on maximum width.
    * This is Markdown-aware to ensure links are treated as atomic units and don't wrap mid-line.
    */
@@ -110,6 +126,12 @@ export class D3Renderer implements RendererAdapter {
       .attr('width', '100%')
       .attr('height', '100%')
       .attr('class', 'inklink-canvas');
+
+    // Background rect that respects theme via CSS
+    this.svg.append('rect')
+      .attr('class', 'canvas-bg')
+      .attr('width', '100%')
+      .attr('height', '100%');
 
     // Create container groups
     this.g = this.svg.append('g').attr('class', 'mindmap-content');
@@ -150,12 +172,14 @@ export class D3Renderer implements RendererAdapter {
           const now = Date.now();
           if (now - this.lastCullingUpdate > 200) { // 200ms throttle for smoothness
             this.lastCullingUpdate = now;
+            this._skipAnimations = true;
             this.render(this.lastRoot, this.lastPositions!, this.isDarkMode);
           }
         }
       })
       .on('end', () => {
         this.svg?.style('cursor', 'grab');
+        this._skipAnimations = false;
         // Final render on end to ensure all visible nodes are present
         if (this.lastRoot && this.lastPositions) {
           this.render(this.lastRoot, this.lastPositions, this.isDarkMode);
@@ -216,17 +240,67 @@ export class D3Renderer implements RendererAdapter {
       }, { passive: false });
 
     // Subscribe to image store updates to trigger re-layout when images load
-    imageDimensionStore.subscribe(() => {
+    this._imageStoreUnsubscribe = imageDimensionStore.subscribe(() => {
       if (this.lastRoot) {
         this.nodeUpdateCallback(this.lastRoot.id);
       }
     });
+
+    // Handle tab visibility to prevent transition pile-up and skipped renders
+    this._visibilityHandler = () => {
+      this._isHidden = document.hidden;
+      if (this._isHidden) {
+        if (this._renderRafId) {
+          cancelAnimationFrame(this._renderRafId);
+          this._renderRafId = null;
+        }
+      } else {
+        this._skipAnimations = true;
+        if (this._pendingRenderArgs) {
+          const args = this._pendingRenderArgs;
+          this._pendingRenderArgs = null;
+          this._doRender(args.root, args.positions, args.isDarkMode);
+        }
+        requestAnimationFrame(() => {
+          this._skipAnimations = false;
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', this._visibilityHandler);
   }
 
   /**
-   * Render the complete tree
+   * Render the complete tree (batched via requestAnimationFrame)
    */
   render(root: TreeNode, positions: Map<string, Position>, isDarkMode: boolean = false): void {
+    if (!this.g || !this.svg || !root || !positions) {
+      if (!root || !positions) this.clear();
+      return;
+    }
+
+    if (this._isHidden) {
+      this._pendingRenderArgs = { root, positions, isDarkMode };
+      return;
+    }
+
+    this._pendingRenderArgs = { root, positions, isDarkMode };
+
+    if (!this._renderRafId) {
+      this._renderRafId = requestAnimationFrame(() => {
+        this._renderRafId = null;
+        if (this._pendingRenderArgs) {
+          const args = this._pendingRenderArgs;
+          this._pendingRenderArgs = null;
+          this._doRender(args.root, args.positions, args.isDarkMode);
+        }
+      });
+    }
+  }
+
+  /**
+   * Internal synchronous render (called by rAF or visibility restore)
+   */
+  private _doRender(root: TreeNode, positions: Map<string, Position>, isDarkMode: boolean): void {
     if (!this.g || !this.svg || !root || !positions) {
       if (!root || !positions) this.clear();
       return;
@@ -651,11 +725,14 @@ export class D3Renderer implements RendererAdapter {
       }
     }
 
-    // Store result in cache
+    // Store result in cache (including render data for renderNodes reuse)
     this.measureCache.set(node.id, {
       contentKey,
       width: node.metadata.width,
       height: node.metadata.height,
+      displayLines,
+      textHeight: totalTextHeight,
+      hasText,
     });
   }
 
@@ -698,7 +775,27 @@ export class D3Renderer implements RendererAdapter {
     }
     this.lastRoot = null;
     this.lastPositions = null;
-    this.measureCache.clear(); // Invalidate measure cache on full clear
+    this.measureCache.clear();
+  }
+
+  /**
+   * Fully destroy the renderer and clean up all resources
+   */
+  destroy(): void {
+    if (this._imageStoreUnsubscribe) {
+      this._imageStoreUnsubscribe();
+      this._imageStoreUnsubscribe = null;
+    }
+    if (this._visibilityHandler) {
+      document.removeEventListener('visibilitychange', this._visibilityHandler);
+      this._visibilityHandler = null;
+    }
+    if (this._renderRafId) {
+      cancelAnimationFrame(this._renderRafId);
+      this._renderRafId = null;
+    }
+    this._pendingRenderArgs = null;
+    this.clear();
   }
 
   /**
@@ -1096,15 +1193,33 @@ export class D3Renderer implements RendererAdapter {
         const fontSize = thisRenderer.getFontSize(depth);
         const fontWeight = thisRenderer.getFontWeight(depth);
 
-        let displayContent = ((d as any).metadata?.displayContent ?? d.content ?? '');
-        displayContent = displayContent.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/gi, '');
-        displayContent = displayContent.split('\n').map((line: string) => line.replace(/^(\s*)[-*+]\s*\[([ xX])\]/, '$1[$2]')).join('\n').trim();
-        const displayLines = thisRenderer.wrapText(
-          displayContent,
-          depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH - (thisRenderer.config.padding.x * 2) : Infinity,
-          fontSize,
-          fontWeight
-        );
+        // Use cached display lines from measureNode if available (avoids redundant wrapText + parseMarkdownLine)
+        const cached = thisRenderer.measureCache.get(d.id);
+        let displayLines: string[];
+        let textH: number;
+        if (cached && cached.displayLines) {
+          displayLines = cached.displayLines;
+          textH = cached.textHeight ?? 0;
+        } else {
+          let displayContent = ((d as any).metadata?.displayContent ?? d.content ?? '');
+          displayContent = displayContent.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/gi, '');
+          displayContent = displayContent.split('\n').map((line: string) => line.replace(/^(\s*)[-*+]\s*\[([ xX])\]/, '$1[$2]')).join('\n').trim();
+          displayLines = thisRenderer.wrapText(
+            displayContent,
+            depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH - (thisRenderer.config.padding.x * 2) : Infinity,
+            fontSize,
+            fontWeight
+          );
+          textH = 0;
+          displayLines.forEach(line => {
+            const lineSegments = parseMarkdownLine(line);
+            const maxLineH = lineSegments.reduce((max, seg) => {
+              const h = seg.heading ? getHeadingLineHeight(seg.heading) : thisRenderer.getLineHeight(depth);
+              return Math.max(max, h);
+            }, 0);
+            textH += maxLineH || thisRenderer.getLineHeight(depth);
+          });
+        }
 
         // Calculate the target x (mirrors the logic used for the text element transition)
         const width = (d as any).metadata?.width || 0;
@@ -1144,25 +1259,24 @@ export class D3Renderer implements RendererAdapter {
         // 2. Vertical centering offset calculation
         const totalLines = displayLines.length;
         const lineHeight = thisRenderer.getLineHeight(depth);
-        let totalTextHeight = 0;
-        displayLines.forEach(line => {
-          const lineSegments = parseMarkdownLine(line);
-          const maxLineH = lineSegments.reduce((max, seg) => {
-            const h = seg.heading ? getHeadingLineHeight(seg.heading) : lineHeight;
-            return Math.max(max, h);
-          }, 0);
-          totalTextHeight += maxLineH || lineHeight;
-        });
-        const textH = totalTextHeight;
+        const totalTextHeight = textH;
         const height = (d as any).metadata?.height || 0;
 
-        let yOffset = -height / 2 + thisRenderer.config.padding.y;
         const image = d.metadata.image;
         const imgH = (image && (image.thumbHeight ?? 0) > 0) ? (image.thumbHeight ?? 0) : 0;
         const hasText = displayLines.length > 0;
         const imgGap = (imgH > 0 && hasText) ? LAYOUT_CONFIG.IMAGE.PADDING : 0;
-        yOffset += imgH + imgGap;
-        const textOffset = yOffset + textH / 2;
+        const hasNoteBlocks = ((d.metadata.codeBlocks?.length || 0) + (d.metadata.quoteBlocks?.length || 0) + (d.metadata.tableBlocks?.length || 0)) > 0;
+
+        let textOffset: number;
+        if (imgH === 0 && !hasNoteBlocks) {
+          // Center text block vertically within the node when no image or note blocks
+          textOffset = 0;
+        } else {
+          let yOffset = -height / 2 + thisRenderer.config.padding.y;
+          yOffset += imgH + imgGap;
+          textOffset = yOffset + textH / 2;
+        }
 
         const duration = thisRenderer.config.animationDuration;
         textElement.interrupt().transition()
@@ -1176,6 +1290,15 @@ export class D3Renderer implements RendererAdapter {
         // Pre-compute segments once per line to avoid redundant parseMarkdownLine calls
         const lineSegments = new Map<string, ReturnType<typeof parseMarkdownLine>>();
         displayLines.forEach(line => lineSegments.set(line, parseMarkdownLine(line)));
+
+        // Calculate actual per-line heights (headings have larger line heights)
+        const lineHeights = displayLines.map(line => {
+          const segs = lineSegments.get(line) ?? parseMarkdownLine(line);
+          return segs.reduce((max, seg) => {
+            const h = seg.heading ? getHeadingLineHeight(seg.heading) : lineHeight;
+            return Math.max(max, h);
+          }, 0);
+        });
 
         tspanUpdate.attr('x', (line) => {
           const segments = lineSegments.get(line) ?? [];
@@ -1198,7 +1321,17 @@ export class D3Renderer implements RendererAdapter {
             const segments = lineSegments.get(line) ?? [];
             return segments.some(s => s.center) ? 'middle' : null;
           })
-          .attr('dy', (line, i) => i === 0 ? `${0.35 - (totalLines - 1) * 0.625}em` : '1.25em')
+          .attr('dy', (line, i) => {
+            if (i === 0) {
+              // Position first line so the entire text block is centered at textOffset
+              const dy = -totalTextHeight / 2 + lineHeights[0] * 0.7;
+              return `${dy / fontSize}em`;
+            } else {
+              // Space from previous baseline using actual line heights
+              const dy = lineHeights[i - 1] * 0.3 + lineHeights[i] * 0.7;
+              return `${dy / fontSize}em`;
+            }
+          })
           .style('visibility', line => {
             const trimmed = line.trim();
             return (trimmed === '---' || trimmed === '***' || trimmed === '___') ? 'hidden' : 'visible';
@@ -1606,25 +1739,35 @@ export class D3Renderer implements RendererAdapter {
 
     const textFontSize = this.getFontSize(depth);
     const textLineHeight = this.getLineHeight(depth);
-    let displayContent = ((d as any).metadata?.displayContent ?? d.content ?? '');
-    displayContent = displayContent.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/gi, '').trim();
-    const displayLines = thisRenderer.wrapText(
-      displayContent,
-      depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH - this.config.padding.x * 2 : Infinity,
-      textFontSize,
-      this.getFontWeight(depth)
-    );
-    let totalTextHeight = 0;
-    displayLines.forEach(line => {
-      const lineSegments = parseMarkdownLine(line);
-      const maxLineH = lineSegments.reduce((max, seg) => {
-        const h = seg.heading ? getHeadingLineHeight(seg.heading) : textLineHeight;
-        return Math.max(max, h);
-      }, 0);
-      totalTextHeight += maxLineH || textLineHeight;
-    });
-    const textBlockH = totalTextHeight;
-    const hasText = displayLines.length > 0;
+    // Use cached display lines if available
+    const cached = thisRenderer.measureCache.get(d.id);
+    let displayLines: string[];
+    let textBlockH: number;
+    let hasText: boolean;
+    if (cached && cached.displayLines) {
+      displayLines = cached.displayLines;
+      textBlockH = cached.textHeight ?? 0;
+      hasText = cached.hasText ?? false;
+    } else {
+      let displayContent = ((d as any).metadata?.displayContent ?? d.content ?? '');
+      displayContent = displayContent.replace(/\[(codeblock|quoteblock|image|tableblock):\d+\]/gi, '').trim();
+      displayLines = thisRenderer.wrapText(
+        displayContent,
+        depth === 0 ? LAYOUT_CONFIG.ROOT_MAX_WIDTH - this.config.padding.x * 2 : Infinity,
+        textFontSize,
+        this.getFontWeight(depth)
+      );
+      textBlockH = 0;
+      displayLines.forEach(line => {
+        const lineSegments = parseMarkdownLine(line);
+        const maxLineH = lineSegments.reduce((max, seg) => {
+          const h = seg.heading ? getHeadingLineHeight(seg.heading) : textLineHeight;
+          return Math.max(max, h);
+        }, 0);
+        textBlockH += maxLineH || textLineHeight;
+      });
+      hasText = displayLines.length > 0;
+    }
 
     // Y start: rect top + padding + text height
     const rectTop = -height / 2;

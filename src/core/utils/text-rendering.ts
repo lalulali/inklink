@@ -24,7 +24,10 @@ export function getHeadingFontSize(level: number): number {
 }
 
 export function getHeadingLineHeight(level: number): number {
-  return getHeadingFontSize(level) * 1.25;
+  const fontSize = getHeadingFontSize(level);
+  // Larger headings need proportionally more line height to prevent overlap
+  const multipliers = [0, 1.4, 1.35, 1.3, 1.3, 1.25, 1.25];
+  return fontSize * (multipliers[level] || 1.25);
 }
 
 /**
@@ -166,6 +169,14 @@ export function measureRichTextWidth(
 /**
  * Simple inline markdown parser for shared use in layout and renderer
  */
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, '\u00A0')
+    .replace(/&amp;/g, '&');
+}
+
 export function parseMarkdownLine(line: string): {
   text: string;
   bold?: boolean;
@@ -186,6 +197,7 @@ export function parseMarkdownLine(line: string): {
   math?: boolean;
 }[] {
   const segments: any[] = [];
+  line = decodeHtmlEntities(line);
 
   if (!line) {
     return [{ text: '\u00A0' }];

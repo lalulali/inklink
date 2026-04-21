@@ -211,7 +211,9 @@ function getHeadingFontSize(level) {
 }
 
 function getHeadingLineHeight(level) {
-  return getHeadingFontSize(level) * 1.25;
+  const fontSize = getHeadingFontSize(level);
+  const multipliers = [0, 1.4, 1.35, 1.3, 1.3, 1.25, 1.25];
+  return fontSize * (multipliers[level] || 1.25);
 }
 
 function getNoteBlockFontSize(depth) {
@@ -230,8 +232,17 @@ function getNoteBlockLineHeight(depth) {
   return getNoteBlockFontSize(depth) * 1.25;
 }
 
+function decodeHtmlEntities(text) {
+  return text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, '\u00A0')
+    .replace(/&amp;/g, '&');
+}
+
 function parseMarkdownLine(line) {
   var segments = [];
+  line = decodeHtmlEntities(line);
   var BS = String.fromCharCode(92);
   var SQ = String.fromCharCode(39);
   var DQ = String.fromCharCode(34);

@@ -13,6 +13,7 @@ class ImageDimensionStore {
   private cache: Map<string, ImageDimensions> = new Map();
   private loading: Set<string> = new Set();
   private subscribers: Set<() => void> = new Set();
+  private notifyTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Subscribe to changes in the store (e.g., when an image finishes loading)
@@ -73,7 +74,11 @@ class ImageDimensionStore {
   }
 
   private notify() {
-    this.subscribers.forEach(cb => cb());
+    if (this.notifyTimer) clearTimeout(this.notifyTimer);
+    this.notifyTimer = setTimeout(() => {
+      this.notifyTimer = null;
+      this.subscribers.forEach(cb => cb());
+    }, 100);
   }
 }
 

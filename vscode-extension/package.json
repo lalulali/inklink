@@ -61,6 +61,14 @@
         "icon": "$(zap)"
       }
     ],
+    "keybindings": [
+      {
+        "command": "inklink.open",
+        "key": "ctrl+k ctrl+l",
+        "mac": "cmd+k cmd+l",
+        "when": "editorLangId == markdown"
+      }
+    ],
     "menus": {
       "editor/title": [
         {

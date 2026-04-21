@@ -49,15 +49,6 @@ Custom HTML blocks allow for rich, nested visualization that goes beyond standar
   </li>
 </ul>
 
-<details>
-  <summary><b>🛠️ Click to expand: Technical Mind Map Schematics</b></summary>
-  <br />
-  - **Scale Factor**: `1.0` (Base)
-  - **Font Family**: *Inter*, sans-serif (Google Fonts)
-  - **Connector Type**: *Cubic Bezier Curves* with Dynamic Stroke Width
-  - **Layout Engine**: `TwoSidedLayout` with Content-Based Hashing
-</details>
-
 ### 🖋️ Typography & Inline Blocks
 Support for <b>bold</b>, <i>italic</i>, <em>emphasis</em>, <strong>strong</strong>, <u>underline</u>, <mark>mark/highlight</mark>, <kbd>keyboard</kbd>, and <sub>sub</sub>/<sup>sup</sup> tags is fully baked into the layout engine. Use <code>&lt;br&gt;</code> for manual<br/>line breaks within a single node.
 

@@ -76,6 +76,10 @@
   touch-action: none;
 }
 
+.inklink-canvas .canvas-bg {
+  fill: hsl(var(--background));
+}
+
 .mindmap-content {
   will-change: transform;
 }
