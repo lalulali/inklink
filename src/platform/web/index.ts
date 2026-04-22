@@ -1,10 +1,10 @@
 /**
  * Feature: Web Platform Adapters
  * Purpose: Central export point for all web platform implementations
- * Dependencies: web-storage-adapter.ts, web-file-system-adapter.ts, d3-renderer.ts
+ * Dependencies: web-storage-adapter.ts, web-file-system-adapter.ts, d3-renderer-v2.ts
  */
 
 export * from './web-storage-adapter';
 export * from './web-file-system-adapter';
-export * from './d3-renderer';
-export * from './d3-renderer-lite';
+export * from './d3-renderer-v2';
+export * from './d3-renderer-lite-v2';

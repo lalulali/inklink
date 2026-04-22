@@ -432,7 +432,7 @@ export function Toolbar({
 								: editorVisible
 									? "Hide Editor"
 									: "Show Editor"}{" "}
-							(Cmd+\)
+							(E)
 						</TooltipContent>
 					</Tooltip>
 

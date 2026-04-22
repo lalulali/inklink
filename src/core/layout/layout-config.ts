@@ -68,7 +68,7 @@ export const LAYOUT_CONFIG = {
 
   // Panning Constraints
   PANNING: {
-    BUFFER_X: 400,                // Maximum panning buffer beyond left/right edges
-    BUFFER_Y: 200,                // Maximum panning buffer beyond top/bottom edges
+    BUFFER_X: 640,                // Maximum panning buffer beyond left/right edges
+    BUFFER_Y: 360,                // Maximum panning buffer beyond top/bottom edges
   },
 };
