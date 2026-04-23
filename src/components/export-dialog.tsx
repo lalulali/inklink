@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import * as d3 from 'd3';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { globalState } from '@/core/state/state-manager';
 import { useWebPlatform } from '@/platform/web/web-platform-context';
 import { useNotification } from '@/platform/web/web-notification-manager';
-import { Image as ImageIcon, Check, Globe, Settings2, Paintbrush } from 'lucide-react';
+import { Image as ImageIcon, Check, Globe, Settings2, Paintbrush, FileCode } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TreeNode } from '@/core/types/tree-node';
 
@@ -121,7 +122,7 @@ export function ExportDialog() {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
       if (activeFormat === 'html') {
-        const content = (exportMgr as any).exportToHTML(
+        const content = await (exportMgr as any).exportToHTML(
           tree,
           title,
           state.isDarkMode,
@@ -142,37 +143,46 @@ export function ExportDialog() {
       expandAllBlocksAndNodes(tree);
       globalState.setState({ tree: { ...tree } });
 
-      // Wait for React re-render + D3 transitions (250ms) + paint
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      // Ensure fonts are loaded and all image dimensions are fetched before export.
+      // ImageDimensionStore loads dimensions asynchronously; without waiting, exported
+      // HTML/SVG will mark images as failed (404) because width/height are missing.
+      await document.fonts.ready;
+      await (exportMgr as any).waitForImageDimensions(tree);
+
+      // Wait for React re-render (tree expansion triggers state update + re-render)
       await new Promise((resolve) => requestAnimationFrame(resolve));
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
+      // Wait for D3 to process the re-render and start transitions.
+      // The renderer batches via requestAnimationFrame, so we need multiple
+      // frames for: React render → D3 render() → _performRender() → transitions start.
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
+      // Wait for D3 transitions (250ms duration) to fully complete.
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
+      const svg = document.querySelector('#inklink-mindmap-canvas svg');
+      if (!svg) throw new Error('Visual elements not found on the canvas');
+
+      // Force any lingering D3 transitions to their final state so the
+      // exported image reflects the fully-expanded tree without animation artefacts.
+      d3.select(svg).selectAll('*').interrupt();
 
       try {
-        const svg = document.querySelector('#inklink-mindmap-canvas svg');
-        if (!svg) throw new Error('Visual elements not found on the canvas');
 
         if (activeFormat === 'png') {
           const blob = await (exportMgr as any).exportToPNG(svg as SVGSVGElement, activeBg);
           downloadBlob(blob, `${title}-${timestamp}.png`);
         } else if (activeFormat === 'svg') {
-          const clone = svg.cloneNode(true) as SVGSVGElement;
-          await (exportMgr as any).inlineSVGImages(clone);
-          clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-          const styles = Array.from(document.styleSheets)
-            .map((sheet: any) => {
-              try {
-                return Array.from(sheet.cssRules)
-                  .map((r: any) => r.cssText)
-                  .join('');
-              } catch (e) {
-                return '';
-              }
-            })
-            .join('\n');
-          const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
-          styleEl.textContent = `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');\n${styles}`;
-          clone.prepend(styleEl);
-          const blob = new Blob([clone.outerHTML], { type: 'image/svg+xml' });
+          const prepared = await (exportMgr as any).prepareSVG(svg as SVGSVGElement);
+          await (exportMgr as any).inlineSVGImages(prepared);
+          // Fix: Replace HTML-only entities (&nbsp;) with XML-safe numeric entities
+          // so the SVG parses correctly in strict XML viewers (Chrome, Illustrator, etc.)
+          let svgMarkup = prepared.outerHTML;
+          svgMarkup = svgMarkup.replace(/&nbsp;/g, '&#160;');
+          const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
           downloadBlob(blob, `${title}-${timestamp}.svg`);
         }
 
@@ -212,7 +222,7 @@ export function ExportDialog() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <button
               type="button"
               onClick={() => setFormat('png')}
@@ -239,6 +249,38 @@ export function ExportDialog() {
                 <p className="text-[11px] text-muted-foreground">High resolution pixels</p>
               </div>
               {format === 'png' && (
+                <div className="absolute top-2 right-2 text-primary">
+                  <Check className="w-4 h-4 stroke-[3]" />
+                </div>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFormat('svg')}
+              onDoubleClick={() => executeExport('svg')}
+              className={cn(
+                'relative p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-3 text-center group',
+                format === 'svg'
+                  ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                  : 'border-border hover:border-primary/40 hover:bg-muted/50'
+              )}
+            >
+              <div
+                className={cn(
+                  'w-10 h-10 rounded-lg flex items-center justify-center',
+                  format === 'svg'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground group-hover:text-primary transition-colors'
+                )}
+              >
+                <FileCode className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold">Vector (SVG)</p>
+                <p className="text-[11px] text-muted-foreground">Scalable, searchable</p>
+              </div>
+              {format === 'svg' && (
                 <div className="absolute top-2 right-2 text-primary">
                   <Check className="w-4 h-4 stroke-[3]" />
                 </div>

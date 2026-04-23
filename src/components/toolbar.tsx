@@ -36,6 +36,7 @@ import {
 	Coffee as CoffeeIcon,
 	Zap as ZapIcon,
 	HelpCircle as HelpCircleIcon,
+	FilePlus as FilePlusIcon,
 } from "lucide-react";
 import {
 	DropdownMenu,
@@ -299,33 +300,89 @@ export function Toolbar({
 			const response = await fetch('/visualization-example.md');
 			if (!response.ok) throw new Error('Failed to fetch example file');
 			const content = await response.text();
-			
-			// Insert content into editor
-			window.dispatchEvent(new CustomEvent('inklink-editor-insert', {
-				detail: { insert: content }
-			}));
-			
+
+			const newAutoSaveId = crypto.randomUUID();
+			globalState.setState({
+				markdown: content,
+				tree: null,
+				currentFile: null,
+				filePath: null,
+				isDirty: false,
+				lastSaved: null,
+				lastSaveType: null,
+				autoSaveId: newAutoSaveId,
+				selectedNode: null,
+				searchQuery: '',
+				searchResults: [],
+				currentSearchIndex: -1,
+				isCanvasSearchOpen: false,
+				isEditorSearchOpen: false,
+				isEditorReplaceOpen: false,
+				editorSearchQuery: '',
+				editorReplaceQuery: '',
+				editorSearchResultsCount: 0,
+				editorSearchCurrentIndex: -1,
+				editorCanUndo: false,
+				editorCanRedo: false,
+			});
+			autoSaveMgr.synchronizeHashes(content);
+
 			// Ensure editor is visible to show the result
 			if (!editorVisible) {
 				onToggleEditor();
 			}
-			
-			showSuccess("Example visualization loaded!", "The showcase markdown has been inserted at your cursor position.");
+
+			showSuccess("Example visualization loaded!", "The showcase markdown has been loaded into the editor.");
 		} catch (err) {
 			showError("Failed to load example", (err as Error).message || "Unknown error");
 		}
-	}, [editorVisible, onToggleEditor, showInfo, showSuccess, showError]);
+	}, [autoSaveMgr, editorVisible, onToggleEditor, showInfo, showSuccess, showError]);
+
+	const handleNewDocument = React.useCallback(async () => {
+		const newAutoSaveId = crypto.randomUUID();
+		globalState.setState({
+			markdown: '',
+			tree: null,
+			currentFile: null,
+			filePath: null,
+			isDirty: false,
+			lastSaved: null,
+			lastSaveType: null,
+			autoSaveId: newAutoSaveId,
+			selectedNode: null,
+			searchQuery: '',
+			searchResults: [],
+			currentSearchIndex: -1,
+			isCanvasSearchOpen: false,
+			isEditorSearchOpen: false,
+			isEditorReplaceOpen: false,
+			editorSearchQuery: '',
+			editorReplaceQuery: '',
+			editorSearchResultsCount: 0,
+			editorSearchCurrentIndex: -1,
+			editorCanUndo: false,
+			editorCanRedo: false,
+		});
+		autoSaveMgr.synchronizeHashes('');
+		// Ensure editor is visible so user can start typing immediately
+		if (!editorVisible) {
+			onToggleEditor();
+		}
+		showSuccess("New document created", "Start typing to build your mind map");
+	}, [autoSaveMgr, editorVisible, onToggleEditor, showSuccess]);
 
 	React.useEffect(() => {
 		window.addEventListener("inklink-file-open", handleOpen);
 		window.addEventListener("inklink-file-save", handleSave);
 		window.addEventListener("inklink-file-open-example", handleLoadExample);
+		window.addEventListener("inklink-file-new", handleNewDocument);
 		return () => {
 			window.removeEventListener("inklink-file-open", handleOpen);
 			window.removeEventListener("inklink-file-save", handleSave);
 			window.removeEventListener("inklink-file-open-example", handleLoadExample);
+			window.removeEventListener("inklink-file-new", handleNewDocument);
 		};
-	}, [handleOpen, handleSave, handleLoadExample]);
+	}, [handleOpen, handleSave, handleLoadExample, handleNewDocument]);
 
 	const handleToggleEditor = React.useCallback(() => {
 		onToggleEditor();
@@ -438,6 +495,20 @@ export function Toolbar({
 
 					{!isVsCode && !isNarrow && (
 						<>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8"
+										onClick={handleNewDocument}
+									>
+										<FilePlusIcon className="h-4 w-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>New Document (Cmd+N)</TooltipContent>
+							</Tooltip>
+
 							<DropdownMenu>
 								<Tooltip>
 									<TooltipTrigger asChild>
@@ -470,7 +541,7 @@ export function Toolbar({
 										className="gap-2 cursor-pointer"
 									>
 										<HistoryIcon className="h-4 w-4" />
-										<span>From Local Storage...</span>
+													<span>From Local Storage... (Cmd+Shift+O)</span>
 									</DropdownMenuItem>
 								</DropdownMenuContent>
 							</DropdownMenu>
@@ -671,13 +742,17 @@ export function Toolbar({
 								<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
 									File & History
 								</div>
+								<DropdownMenuItem onClick={handleNewDocument}>
+									<FilePlusIcon className="h-4 w-4 mr-2" />
+									New Document
+								</DropdownMenuItem>
 								<DropdownMenuItem onClick={handleOpen}>
 									<FolderOpenIcon className="h-4 w-4 mr-2" />
 									From Computer...
 								</DropdownMenuItem>
 								<DropdownMenuItem onClick={() => globalState.setState({ isRecoveryDialogOpen: true })}>
 									<HistoryIcon className="h-4 w-4 mr-2" />
-									From Local Storage...
+									From Local Storage... (Cmd+Shift+O)
 								</DropdownMenuItem>
 								<DropdownMenuItem onClick={handleSave}>
 									<SaveIcon className="h-4 w-4 mr-2" />

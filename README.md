@@ -12,193 +12,104 @@
 
 ---
 
-## The Problem
+## Stop Struggling to See the Big Picture
 
-*"Markdown is the new hot coding language. Deal with it."*
-— [InfoWorld, March 2026](https://www.infoworld.com/article/4146579/markdown-is-now-a-first-class-coding-language-deal-with-it.html)
+You've been there. A 500-line markdown document. You wrote it three weeks ago. Now you need to find that one decision you made about authentication flow. Good luck scrolling.
 
-Markdown is everywhere. It is how developers write specs, how teams collaborate on requirements, how AI agents receive instructions, and how knowledge gets shared. It has quietly become the lingua franca of the modern technical world — not just a formatting tool, but a **first-class language for structuring thought**.
+**Here's the truth:** Markdown is the world's standard for technical documentation. But it's designed for writing, not reading. The hierarchical structure that makes it powerful? It's invisible when you're trying to navigate.
 
-Yet the tooling has not caught up.
-
-You write a 300-line document and **lose the structure**. You share a markdown file and your collaborator has to read every line to understand the hierarchy. You use AI to generate specs in markdown and have no quick way to comprehend the shape of the output.
-
-**The gap is not in writing markdown — it is in reading and navigating it.**
-
-Inklink exists to close that gap.
+**Inklink makes it visible.**
 
 ---
 
 ## What is Inklink?
 
-Inklink is a **markdown-to-mind-map visualizer** built for the way we think and work today. It takes any markdown document — a spec, a plan, an outline, a set of AI instructions — and instantly renders it as an interactive, navigable mind map.
+Inklink transforms any Markdown document into an interactive mind map — instantly, automatically, with zero setup.
 
-There is no conversion step. No import format. No special syntax to learn. Just write markdown the way you always have, and Inklink gives you a living, visual representation of its structure in real time.
+- No import dialogs
+- No special syntax
+- No learning curve
+
+Just open your `.md` file and see your document's structure come alive. Headings become branches. List items become leaves. Your entire document becomes a navigable, visual tree.
 
 **Write on the left. Think on the right.**
 
 ![Inklink Web Interface](public/screenshots/web.png)
 
-And now, with the **VS Code extension**, you can think right inside your editor — without breaking your flow.
+---
+
+## Why Developers Love Inklink
+
+### 🔗 Navigate Instantly
+Click any node to jump to its source line. Double-click to highlight. The connection between your text and your visual map is always bidirectional and live.
+
+### 📊 See the Structure
+Complex documents become scannable at a glance. Perfect for PRDs, RFCs, ADRs, and any markdown file where hierarchy matters.
+
+### ⚡ Real-Time Updates
+Type in the editor, watch the map update. Inklink keeps pace with your thinking — not just after you save, but as you type.
+
+### 📱 Works Everywhere
+From desktop to mobile. Inklink adapts to any screen size while maintaining the same powerful interactions.
+
+### 🛡️ Never Lose Work
+Auto-save to local storage means your mind map state survives crashes, refreshes, and accidental closes. Just reopen and pick up where you left off.
+
+---
+
+## Key Features
+
+### Real-Time Mind Map
+Every heading and list item automatically becomes a node. Changes appear instantly as you type.
+
+### Bidirectional Navigation
+Double-click any node to jump to its source line. Click in the editor and the map follows. Always in sync.
+
+### Interactive Note Blocks
+Code blocks and quotes expand directly on nodes. Toggle them with a click. State persists as you edit.
+
+### Rich Media Support
+Images render as thumbnails on nodes. Click for a fullscreen lightbox. Tables become interactive elements.
+
+### Multiple Layouts
+Choose balanced (two-sided), left-to-right, or right-to-left layouts. All with perfect node distribution.
+
+### Professional Minimap
+Navigate massive documents without getting lost. The minimap keeps your "neighborhood" in focus even with 1000+ nodes.
+
+### Export Anywhere
+PNG, SVG, or interactive HTML. Share your visual thinking with anyone — they don't need Inklink to view it.
+
+### Dark Mode Native
+Color-coded branches that look great in both light and dark modes. VS Code integration that feels native.
 
 ---
 
 ## Who is it for?
 
-- **Developers** who use markdown as the primary medium for specs, RFCs, and ADRs and want to quickly grasp or present their structure
-- **Product managers** who outline requirements in markdown and need a faster way to review hierarchy and coverage
-- **Technical writers** who maintain large documentation trees and need to navigate them without losing context
-- **AI practitioners** who work with markdown-heavy workflows, prompts, and system instructions and need to reason about their shape
-- **Anyone** who thinks better visually and has always found markdown indentation a bit hard to scan at a glance
-
----
-
-## Core Features
-
-### 🧭 Interactive Onboarding: "Learn the Basics"
-Inklink 0.2.0 introduces a high-fidelity, step-by-step interactive guide for new users.
-- **Visual Pedagogy**: Learn the core parsing rules through live "Markdown vs. Map" visual comparisons.
-- **Feature Discovery**: Discover advanced interactions like double-click teleportation and node folding directly within the app.
-- **Feature Showcase**: A one-click CTA to load a full technical showcase that demonstrates every supported syntax and interaction.
-
-### 🗺️ Real-Time Markdown Mind Map
-Every heading (`#`, `##`, `###`) and list item in your Markdown automatically becomes a node in the mind map. Edit the file — the map updates instantly. **Version 0.2.0** features **Precision Navigation** and **Smart Parsing Fidelity**, intelligently differentiating between formatting indentation for HTML tags and functional indentation for code blocks to ensure your map always looks professional.
-
-### 🔗 Bidirectional Navigation
-**Double-click any node** to jump directly to the corresponding source line in the editor, temporarily highlighting the text. The connection between visual and text is always live — edit the markdown, the map updates; navigate the map, the editor follows. **Version 0.2.0** includes throttled, lag-free synchronization for extremely large files (1000+ nodes).
-
-### 📝 Interactive Markdown Note Blocks
-Inklink identifies **Code Blocks** and **Quote Blocks** within your markdown and renders them as interactive, expandable elements directly on the mind map nodes.
-- **Collapsed View**: Blocks appear as clean, tonal-relief "pills" indicating the type and line count.
-- **Expanded View**: Blocks expand into full-width integrated containers with syntax labeling and italicized quotes.
-- **Micro-interactions**: Toggle any block by clicking its header or the pill. All labels, carets, and counts are vertically centered with **Perfectly Balanced Padding** for a premium, well-balanced look.
-- **Dynamic Layout**: Mind map nodes automatically adjust their vertical distance and re-flow to accommodate expanded or collapsed blocks, ensuring the layout remains clean and readable without overlaps.
-- **State Persistence**: Interactive blocks maintain their expanded/collapsed state during live markdown edits, allowing for a seamless transitions between writing and thinking.
-- **Stitch Design System**: Adheres to a borderless, tonal-relief aesthetic with 6px rounded corners.
-- **Structural Integrity**: Intelligent whitespace management automatically identifies and collapses phantom lines from structural tags like `<ul>` and `<ol>`, ensuring your diagrams remain dense and readable.
-
-### 🖼️ Interactive Multimedia
-Inklink renders **Markdown Images** directly on your mind map nodes, turning plain documentation into a rich visual reference.
-- **Thumbnail Previews**: Images are rendered as aspect-aware thumbnails with smart scaling, integrated seamlessly into the node structure.
-- **Fullscreen Lightbox**: Click any image to open a high-fidelity lightbox with center-zoom animations, backdrop-blur effects, and full-resolution viewing.
-- **Linked Image Integration**: Images wrapped in links are intelligently detected, allowing you to open the original URL directly from the lightbox view.
-
-### 📊 Interactive Tables
-Structured data is no longer hidden in text. Inklink identifies both **GFM Markdown Tables** and **Standard HTML Tables** and renders them as interactive integrated nodes.
-- **HTML & GFM Support**: Full fidelity rendering for both markdown pipe-syntax and standard `<table>`, `<thead>`, `<tbody>`, `<th>`, and `<td>` tags.
-- **Column Synchronization**: Table columns are automatically distributed across the node width with robust overflow handling.
-- **Visual Consistency**: Tables adhere to the "Stitch" design language with tonal-relief row highlighting and consistent alignment.
-- **Multi-line Support**: Cells wrap automatically and handle multi-line content (via `<br>` or `\n`), ensuring complex data remains readable.
-
-### 📱 Mobile-First Precision
-Inklink 0.2.0 is fully optimized for the modern mobile web, providing a desktop-class experience on any device.
-- **Adaptive Overlays**: Dialogs and panels (Settings, Shortcuts, Recovery) automatically transition to a mobile-optimized, fullscreen-below-toolbar layout on narrow screens.
-- **Precision Touch Navigation**: Full support for multi-touch panning and zooming on both the main canvas and the navigation minimap.
-- **Touch-Aware Event Filters**: Intelligent input detection that distinguishes between pan, zoom, and node selection gestures for a seamless tactile experience.
-- **Persistent Header UI**: Integrated integrated close controls and standard headers across all mobile overlays for consistent navigation.
-
-### 🧭 Multiple Layout Directions & Physics
-Choose how your map flows: balanced two-sided, left-to-right, or right-to-left. 
-- **Strict Parity**: The **Two-Sided (Balanced)** layout features a height-aware distribution algorithm that ensures perfect node parity between left and right branches (max difference of 1).
-- **Panning Constraints**: Inklink now enforces flexible workspace bounds with a 200px buffer, ensuring you always stay oriented within your "Neighborhood" and preventing the map from getting lost in infinite space.
-
-| Balanced | Left to Right | Right to Left |
-|:---:|:---:|:---:|
-| ![](public/screenshots/balance.png) | ![](public/screenshots/left%20to%20right.png) | ![](public/screenshots/Right%20to%20left.png) |
-
-### 🔭 Lighthouse Minimap v2: "Navigate Your Knowledge"
-A professional-grade **navigation minimap** in the bottom-right corner designed for deep-document navigation.
-- **Intelligent Auto-Focus**: The minimap no longer shows just a tiny star-chart. It maintains a high-resolution "Neighborhood" focus around your viewport, providing clear branch visibility even in 1000+ node maps.
-- **Power Zoom (The Fly-Over)**: Dragging the viewport rectangle instantly and smoothly zooms out to a Global Overview, allowing you to "fly" across branches and "dive" back into local detail upon release.
-- **Structural Skeleton**: A branching skeleton layer preserves structural context at all zoom levels.
-- **Hierarchical Pills**: Nodes are rendered as depth-aware rounded pills. Root and Level-1 nodes are visually weighted so the "spine" of your document is always unmistakable.
-
-### 🔍 Professional Search & Replace
-A VS Code-style find and replace panel with full keyboard shortcuts (`Cmd+Shift+F` / `Cmd+Shift+H`), overlapping match support, regex, match-case, whole-word, and preserve-case modes.
-
-### 🗂️ File-First Workflow
-Open any `.md` file directly from the filesystem. Save changes back in place. Drag-and-drop a file onto the canvas to open it instantly — no dialog required. Inklink uses the modern **File System Access API** for a seamless local-first experience.
-
-### 🛡️ Local-First Data Safety
-Your work is never lost. Inklink continuously saves snapshots to **IndexedDB** in the background. If you close the tab, refresh, or crash, the **Recovery Center** detects your previous sessions on next launch.
-- **Pro-Grade Navigation**: The recovery dialog features full keyboard support (`ArrowUp`/`ArrowDown` to browse, `Enter` to restore, `Esc` to close).
-- **Intelligent Focus**: Automatically identifies and focuses your **Latest Activity**, getting you back to work with a single keystroke.
-- **Precise Recovery**: Preview and restore sessions individually (with a quick **double-click**) or all at once.
-
-### ⚙️ Configurable Settings
-Tune the experience to match your workflow:
-- **Maintenance Center** — a dedicated panel to manage local synchronization and data cleanup policy
-- **Continuous File Sync** — automatically write changes back to the opened file every 30 seconds
-- **Automatic Cleanup** — set how many days to keep local recovery snapshots before they are automatically purged (1–90 days)
-- **Snapshot Management** — review and manually purge all local snapshots from the settings panel at any time
-
-### 📤 Export Options
-Export your mind map as SVG, PNG, or a standalone interactive HTML file — now with an optimized **Instant Render Engine** (Lite Renderer) for high-performance, lag-free exports.
-
-### 📦 Full Undo / Redo
-50-step history with standard keyboard shortcuts. Change your mind as many times as you need.
-
-### 🌗 Dark & Light Mode
-Theme-aware rendering with color-coded branch hierarchies. Connectors now maintain their vibrant light-mode colors even in dark mode, providing a consistent visual identity across themes.
-
-### 🎨 Solarized Monochromatic Theme
-A state-of-the-art "Solarized" link coloring system. Instead of clashing colors, links use the same hue as the node background but with optimized, high-vibrancy "Neon" saturation and lightness thresholds. This ensures extreme legibility while reducing eye strain and visual clutter on saturated nodes (Magenta, Purple, Blue).
-
-### 🖼️ Interactive Image Support
-Experience your visual assets directly on the mind map. Inklink parses standard markdown image syntax — `![alt](url)` and `[![alt](img)](link)` — and renders them as professional thumbnails integrated within your nodes.
-- **Strict Parsing**: Improved reliability with a strict `!` requirement for accurate differentiation from standard links.
-- **Aspect-Aware Resizing**: Images are automatically scaled to fit within nodes while strictly preserving their original aspect ratio.
-- **Interactive Lightbox**: Click any image to open a fullscreen lightbox with center-zoom animations.
-- **Linked Image Integration**: Images wrapped in links feature functional "Open Link" handlers within the lightbox preview.
-- **Link Normalization**: Built-in logic ensures external URLs are correctly handled as absolute links.
-- **Seamless Node Flow**: Nodes automatically expand vertically to accommodate images, with thumbnails positioned at the top and text content flowing naturally below.
-
-### 📱 Mobile Responsive
-A fully adaptive layout — persistent inline editor, mobile-optimized quick-action toolbar, and touch-friendly side drawers — so the tool remains powerful even on small screens.
-
-### ✨ Visual Excellence
-A professional, high-end **Solid Flat Design System**:
-- **Modern Overlays** — side-sheet drawers and dialogs now feature **persistent headers** with integrated close controls and `backdrop-blur` foundations
-- **Clean Aesthetic** — zero glassmorphism and zero translucency on primary UI elements for maximum contrast and readability
-- **Standardized UI** — a cohesive design language across all overlays, from the recovery center to the keyboard shortcut reference
-- **Living Response** — micro-animations and hover-reactive elements (like the expanding scrollbars) make the interface feel alive and premium
+- **Developers** writing specs, RFCs, and ADRs who need to present or review structure quickly
+- **Product Managers** organizing requirements who want to see coverage at a glance
+- **Technical Writers** managing large docs who need navigation without context loss
+- **AI Engineers** building prompts who need to reason about complex instruction structures
+- **Anyone** whose markdown has grown beyond what they can mentally map
 
 ---
 
 ## VS Code Extension
 
-Inklink is available as a **VS Code extension**, bringing the same mind map experience directly into your editor panel — no browser required.
+Inklink lives inside your editor. No tab switching. No context loss. Just your code and your mind map, side by side.
 
 ![Inklink VS Code Extension](public/screenshots/vscode.png)
 
-### Platform-Aware Design
-The extension is not just a web view in a frame. It is a first-class VS Code experience:
-- **Compact toolbar** — scaled down to conserve precious screen real estate inside the IDE
-- **Deep dark background** — integrates naturally with VS Code's dark theme palette
-- **Hidden redundant shortcuts** — open, save, search, and replace are handled natively by VS Code; the Inklink toolbar surfaces only what the IDE cannot provide
-- **Shared design tokens** — despite the compact layout, the color palette, node shapes, and typography remain pixel-perfect with the web version
-- **Context-Aware Link Navigation** — Clicked links intelligently route based on type: local file links open in your primary editor area (preserving the mind map side-by-side), while web links trigger your default system browser.
-
-### Installing the Extension
-The extension is built from the `vscode-extension/` directory in this repository. To build and install locally:
-
-```bash
-cd vscode-extension
-npm install
-npm run build
-```
-
-Then install the generated `.vsix` package via **Extensions > Install from VSIX...** in VS Code.
+The extension is designed to feel native:
+- Compact toolbar optimized for IDE real estate
+- Dark background matching VS Code
+- File and web links route to the right place
+- Standard VS Code shortcuts work normally
 
 ---
 
-## Quick Start
-
-### Prerequisites
-- Node.js 18+
-- npm
-
-### Installation
+## Getting Started
 
 ```bash
 git clone https://github.com/lalulali/inklink.git
@@ -207,109 +118,80 @@ npm install
 npm run dev
 ```
 
-Then open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) and drop in any markdown file.
 
-### Build for Production
+### VS Code Extension
 
 ```bash
+cd vscode-extension
+npm install
 npm run build
-npm start
 ```
 
-### Run Tests
-
-```bash
-npm test
-```
+Install the `.vsix` via **Extensions > Install from VSIX...** in VS Code.
 
 ---
 
-## How it Works
+## How It Works
 
-Paste or type any markdown document into the editor panel. Inklink parses the heading hierarchy (`#`, `##`, `###`, ...) and list indentation (spaces or tabs) into a tree structure, which D3.js renders as an SVG mind map in real time.
-
-The format is flexible — you can mix heading levels and bullet lists freely, and add descriptive notes on the next indented line to annotate any node:
+Inklink parses your markdown's heading hierarchy (`#`, `##`, `###`, ...) and list indentation into a tree structure, then renders it as an SVG mind map using D3.js.
 
 ```markdown
 # Product Vision
 
 ## Core Features
-
 - Editor
-    use WYSIWYG editor for a seamless writing experience
+    WYSIWYG for seamless writing
 - Visualization
-    real-time mind map rendering as you type
+    real-time mind map as you type
 
 ## Design
-
 ### Typography
 ### Color System
-    primary, secondary, and semantic tokens
+    primary, secondary, semantic tokens
 
 ## Roadmap
-
 ### MVP
 - Core editor
 - Mind map renderer
 - Export to SVG
-
-### v1.0
-- Collaborative editing
-- Plugin system
 ```
 
-Inklink renders this as a branching mind map rooted at **Product Vision**. Each heading becomes a branch, each list item becomes a leaf node, and indented lines beneath a node appear as its descriptive label — giving you full control over both structure and context without leaving your markdown.
+This renders as a branching mind map rooted at **Product Vision**, with each heading as a branch and each list item as a leaf node.
 
 ---
 
 ## Keyboard Shortcuts
 
-### 🌐 Global (Web only)
+### Global (Web)
 
 | Shortcut | Action |
 |---|---|
 | `Cmd/Ctrl + O` | Open file |
 | `Cmd/Ctrl + S` | Save file |
-| `Cmd/Ctrl + F` | Find node on canvas |
+| `Cmd/Ctrl + F` | Find on canvas |
 | `Cmd/Ctrl + Shift + F` | Find in editor |
-| `Cmd/Ctrl + Shift + H` | Find & replace in editor |
+| `Cmd/Ctrl + Shift + H` | Find & replace |
 | `Cmd/Ctrl + Z` | Undo |
 | `Cmd/Ctrl + Shift + Z` | Redo |
-| `Cmd/Ctrl + E` | Open export dialog |
-| `?` | Open keyboard shortcuts drawer |
+| `Cmd/Ctrl + E` | Export dialog |
+| `?` | Shortcuts drawer |
 
-> **VS Code note:** Open, save, search, and replace are handled natively by VS Code. The Inklink toolbar in the extension only surfaces canvas-level and view-level actions.
-
-### 🗺️ Canvas
+### Canvas
 
 | Shortcut | Action |
 |---|---|
-| `E` | Toggle editor panel |
-| `X` | Expand selected node (or all) |
-| `C` | Collapse selected node (or all) |
-| `Enter` | Toggle collapse on selected node |
-| `F` | Fit map to screen |
-| `R` | Reset zoom to 100% |
+| `E` | Toggle editor |
+| `X` | Expand nodes |
+| `C` | Collapse nodes |
+| `Enter` | Toggle selected node |
+| `F` | Fit to screen |
+| `R` | Reset zoom |
 | `M` | Toggle minimap |
-| `Escape` | Deselect node / close canvas search |
-| `Cmd/Ctrl + ←` | Switch to right-to-left layout |
-| `Cmd/Ctrl + →` | Switch to left-to-right layout |
-| `Cmd/Ctrl + ↑ / ↓` | Switch to two-sided layout |
-| `Arrow keys` *(node selected)* | Navigate between nodes |
-| `Scroll` | Pan canvas |
-| `Alt/Cmd + Scroll` | Zoom in / out |
-
-### ✏️ Editor
-
-| Shortcut | Action |
-|---|---|
-| `Cmd/Ctrl + B` | Toggle **bold** on selection |
-| `Cmd/Ctrl + I` | Toggle *italic* on selection |
-| `Cmd/Ctrl + Shift + X` | Toggle ~~strikethrough~~ on selection |
-| `Enter` | Continue list / auto-indent |
-| `Shift + Enter` | Add note line under current item |
-| `Tab` | Indent list item |
-| `Backspace` | Smart dedent on list items |
+| `Escape` | Deselect |
+| `Arrow keys` | Navigate nodes |
+| `Scroll` | Pan |
+| `Alt/Cmd + Scroll` | Zoom |
 
 ---
 
@@ -321,22 +203,8 @@ Inklink renders this as a branching mind map rooted at **Product Vision**. Each 
 | Language | TypeScript (strict mode) |
 | Rendering | D3.js (SVG-based) |
 | Styling | Tailwind CSS + shadcn/ui |
-| VS Code Integration | VS Code Extension API + Webview |
-| Testing | Jest + fast-check (property-based) |
-
----
-
-## Inspiration & References
-
-This project was inspired by [Markmap](https://github.com/markmap/markmap), which was studied as a reference implementation for D3.js rendering patterns, pan/zoom interaction, and SVG export techniques. Inklink's markdown parser, layout algorithms, state management, and file operations are fully custom implementations.
-
----
-
-## Support
-
-If Inklink has saved you time or helped you think more clearly, consider buying me a coffee. It keeps the project alive and motivates continued development.
-
-[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/christianh5)
+| VS Code | Extension API + Webview |
+| Testing | Jest + fast-check |
 
 ---
 
@@ -346,9 +214,10 @@ MIT — see [LICENSE](./LICENSE) for details.
 
 ---
 
-## Acknowledgments
+## Support
 
-- [Markmap](https://github.com/markmap/markmap) — For D3.js rendering patterns and inspiration
-- [D3.js](https://d3js.org/) — For SVG visualization
-- [shadcn/ui](https://ui.shadcn.com/) — For component patterns
-- [InfoWorld](https://www.infoworld.com/article/4146579/markdown-is-now-a-first-class-coding-language-deal-with-it.html) — For articulating what the developer community already knows: Markdown is a first-class language, and the tools should treat it that way
+If Inklink has saved you time, consider [buying me a coffee](https://buymeacoffee.com/christianh5).
+
+---
+
+**Inklink** — *Visualize your thinking. Navigate your knowledge. All in Markdown.*

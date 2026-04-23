@@ -7,4 +7,3 @@
 export * from './web-storage-adapter';
 export * from './web-file-system-adapter';
 export * from './d3-renderer-v2';
-export * from './d3-renderer-lite-v2';

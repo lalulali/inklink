@@ -50,6 +50,26 @@ function activate(context) {
         }
     });
     context.subscriptions.push(disposable);
+    let insertExampleDisposable = vscode.commands.registerCommand('inklink.insertVisualizationExample', async () => {
+        const activeEditor = vscode.window.activeTextEditor;
+        if (!activeEditor) {
+            vscode.window.showErrorMessage('No active editor found. Please open a markdown file first.');
+            return;
+        }
+        try {
+            const examplePath = vscode.Uri.joinPath(context.extensionUri, 'assets', 'visualization-example.md');
+            const data = await vscode.workspace.fs.readFile(examplePath);
+            const content = new TextDecoder().decode(data);
+            await activeEditor.edit(editBuilder => {
+                editBuilder.insert(activeEditor.selection.active, content);
+            });
+            vscode.window.showInformationMessage('Inklink Visualization Example inserted!');
+        }
+        catch (err) {
+            vscode.window.showErrorMessage(`Failed to load visualization example: ${err}`);
+        }
+    });
+    context.subscriptions.push(insertExampleDisposable);
     if (vscode.window.registerWebviewPanelSerializer) {
         vscode.window.registerWebviewPanelSerializer('inklinkMap', {
             async deserializeWebviewPanel(webviewPanel, state) {
@@ -225,6 +245,10 @@ class InklinkPanel {
                 case 'loadPreferences': {
                     const prefs = this._context.globalState.get('preferences');
                     this._respond(message.id, prefs || {}, 'storageResponse');
+                    return;
+                }
+                case 'insertVisualizationExample': {
+                    vscode.commands.executeCommand('inklink.insertVisualizationExample');
                     return;
                 }
             }

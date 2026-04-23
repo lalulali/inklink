@@ -1324,11 +1324,11 @@ export class D3Renderer implements RendererAdapter {
           .attr('dy', (line, i) => {
             if (i === 0) {
               // Position first line so the entire text block is centered at textOffset
-              const dy = -totalTextHeight / 2 + lineHeights[0] * 0.7;
+              const dy = -totalTextHeight / 2 + lineHeights[0] * 0.78;
               return `${dy / fontSize}em`;
             } else {
               // Space from previous baseline using actual line heights
-              const dy = lineHeights[i - 1] * 0.3 + lineHeights[i] * 0.7;
+              const dy = lineHeights[i - 1] * 0.22 + lineHeights[i] * 0.78;
               return `${dy / fontSize}em`;
             }
           })

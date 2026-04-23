@@ -4,79 +4,136 @@ All notable changes to the "inklink" extension will be documented in this file.
 
 ## [0.2.0] - 2026-04-12
 ### **The "Navigate Your Knowledge" Update**
-This version transforms Inklink into a professional-grade navigational tool for complex documents, introducing advanced camera logic and strict layout physics.
 
-- **Advanced Layout Physics**: Version 0.2.0 features **Balance Mode 2.0** and **Panning Constraints**, ensuring perfect parity and workspace orientation.
-- **HTML Table Excellence**: Full-fidelity rendering for standard HTML `<table>` structures alongside GFM tables.
-- **Adaptive Mobile UI**: A desktop-class experience on mobile with precision touch navigation and adaptive overlays.
-- **Performance**: Throttled, lag-free synchronization for extremely large files (1000+ nodes).
-- **Precision Navigation**: Global Fly-Over and Intelligent Auto-Focus in the Minimap v2.
-- **Smart Parsing Fidelity**: Inklink now intelligently differentiates between formatting indentation (ignored for HTML tags like `<li>`) and functional indentation (strictly preserved inside code blocks).
-- **Structural Optimization**: Standalone structural tags like `<ul>` and `<ol>` no longer create phantom vertical gaps, ensuring your lists are tightly integrated and perfectly aligned.
-- **Pro Recovery Center**: The session restoration dialog now features full keyboard navigation (`Arrows` to pick, `Enter` to restore, `Esc` to close) and automatically focuses your latest activity for a friction-free workflow.
+This version transforms Inklink into a professional-grade navigational tool for complex documents.
 
-### 📊 Interactive Tables
-Structured data is no longer hidden in text. Inklink identifies both **GFM Markdown Tables** and **Standard HTML Tables** and renders them as interactive integrated nodes.
-- **HTML & GFM Support**: Full fidelity rendering for both markdown pipe-syntax and standard `<table>`, `<thead>`, `<tbody>`, `<th>`, and `<td>` tags.
-- **Column Synchronization**: Table columns are automatically distributed across the node width with robust overflow handling.
-- **Visual Consistency**: Tables adhere to the "Stitch" design language with tonal-relief row highlighting and consistent alignment.
-- **Multi-line Support**: Cells wrap automatically and handle multi-line content (via `<br>` or `\n`), ensuring complex data remains readable.
+#### Navigation & Layout
+- **Lighthouse Minimap v2** with intelligent auto-focus that maintains high-resolution "Neighborhood" view around your viewport
+- **Power Zoom (The Fly-Over)** — drag the viewport rectangle to smoothly zoom out to global overview and dive back into detail
+- **Strict Balance Layout** with height-aware distribution algorithm ensuring perfect parity between left and right branches
+- **Panning Constraints** with 200px buffer to keep you oriented and prevent getting lost in infinite space
+- **Structural Skeleton** layer in minimap preserves branch context at all zoom levels
+- **Hierarchical Pills** — depth-aware rounded nodes weighted by level for immediate structural orientation
 
-### 📱 Mobile-First Precision
-Inklink 0.2.0 is fully optimized for the modern mobile web, providing a desktop-class experience on any device.
-- **Adaptive Overlays**: Dialogs and panels (Settings, Shortcuts, Recovery) automatically transition to a mobile-optimized, fullscreen-below-toolbar layout on narrow screens.
-- **Precision Touch Navigation**: Full support for multi-touch panning and zooming on both the main canvas and the navigation minimap.
-- **Touch-Aware Event Filters**: Intelligent input detection that distinguishes between pan, zoom, and node selection gestures for a seamless tactile experience.
-- **Persistent Header UI**: Integrated integrated close controls and standard headers across all mobile overlays for consistent navigation.
+#### Performance
+- Throttled, lag-free synchronization for extremely large files (1000+ nodes)
+- Zero-jitter rendering with refactored measurement engine for 1:1 editing precision
+- Smart parsing that differentiates between formatting indentation (HTML tags) and functional indentation (code blocks)
 
-### 🖼️ Interactive Multimedia
-Inklink turns your visual assets into first-class citizens on the mind map.
-- **Aspect-Aware Image Thumbnails**: Full support for **Markdown Images** (`![alt](url)`) rendered as professional thumbnails directly on nodes.
-- **Precision Lightbox**: High-fidelity fullscreen viewing with center-zoom animations and backdrop-blur foundations.
-- **Linked Integration**: Images wrapped in links (`[![alt](img)](link)`) now feature functional "Open Link" handlers within the lightbox.
+#### Interactive Tables
+- Full support for both **GFM Markdown Tables** and **Standard HTML Tables**
+- Automatic column distribution with robust overflow handling
+- Multi-line cell support with proper wrapping
+- Tonal-relief row highlighting following the Stitch design language
 
-### 📝 Document Block Excellence
-Note blocks are now more robust, consistent, and visually balanced.
-- **Interactive Code & Quote Blocks**: Real-time expansion with toggle "pills" that persist across live edits.
-- **Indentation Fidelity**: Faithful rendering of complex technical structures (tabs, spaces, `\n`) using `white-space: pre`.
-- **Perfectly Balanced Padding**: Standardized 9px margins on all sides for blocks, ensuring content is visually centered.
+#### Interactive Multimedia
+- **Markdown Images** rendered as aspect-aware thumbnails directly on nodes
+- **Fullscreen Lightbox** with center-zoom animations and backdrop-blur effects
+- **Linked Image Integration** — open original URLs from lightbox view
+- Strict parsing with `!` requirement for accurate image vs link differentiation
 
-### 🔗 Intelligence & Refinement
-The connection between your text and the visual map is now more precise than ever.
-- **Zero-Jitter Synchronization**: Eliminated all layout "jumping" and shifts by refactoring the measurement engine for 1:1 editing precision.
-- **Bidirectional Editor ↔ Map Routing**: Intelligent navigation that jumps to the exact source line and highlights it on double-click.
-- **Solarized Neon Theme**: Optimized link legibility specifically tuned for high-saturation colored branches (Magenta, Purple, Blue).
-- **Smart Formatting**: Sub-pixel accurate line wrapping that correctly accounts for Markdown syntax and hidden link labels.
-- **Structural Whitespace Management**: Intelligent removal of phantom lines caused by container tags (`<ul>`, `<ol>`) ensures a dense, informative layout without unnecessary vertical spacing.
+#### Interactive Note Blocks
+- **Code Blocks** and **Quote Blocks** as interactive, expandable elements
+- Collapsed "pills" showing type and line count
+- Expanded view with syntax labeling and italicized quotes
+- State persistence during live markdown edits
+- Intelligent whitespace management collapsing phantom lines from `<ul>` and `<ol>` tags
+
+#### Mobile Excellence
+- Adaptive overlays transitioning to fullscreen-below-toolbar on narrow screens
+- Precision multi-touch panning and zooming on canvas and minimap
+- Touch-aware event filters distinguishing pan, zoom, and selection gestures
+- Persistent header UI across all mobile overlays
+
+#### Recovery Center
+- Full keyboard navigation (`Arrows` to browse, `Enter` to restore, `Esc` to close)
+- Automatic focus on latest activity for instant restoration
+- Individual session preview with double-click restore
+
+#### Visual Refinements
+- **Solarized Monochromatic Theme** — neon link coloring optimized for high-saturation branches
+- Perfectly balanced 9px padding on all interactive blocks
+- Standardized Stitch design system with 6px rounded corners
+- Consistent tonal-relief aesthetic across all UI elements
+
+---
+
+## [0.1.7] - 2026-04-07
+### **Interactive Image Support Update**
+
+- **Markdown Image Rendering** — `![alt](url)` syntax now displays as thumbnails on nodes
+- **Linked Images** — `[![alt](img)](link)` detected and rendered with lightbox integration
+- **Aspect-Aware Scaling** — images preserve original aspect ratio within nodes
+- **Interactive Lightbox** — fullscreen viewing with center-zoom animations
+- **Link Normalization** — external URLs correctly handled as absolute links
+- **Seamless Node Flow** — nodes auto-expand vertically to accommodate images
+
+---
+
+## [0.1.6] - 2026-04-09
+### **Zero-Jitter Real-Time Editing**
+
+- **Zero-Jitter Synchronization** — eliminated all layout jumping during live editing
+- **Bidirectional Highlighting** — double-click node highlights exact source line in editor
+- **Smart Formatting** — sub-pixel accurate line wrapping accounting for Markdown syntax
+- **Indentation Fidelity** — faithful rendering of complex structures using `white-space: pre`
+- **Solarized Neon Theme** — optimized link legibility for Magenta, Purple, and Blue branches
+
+---
 
 ## [0.1.5] - 2026-04-02
-- Solid Flat Design: Replaced all `backdrop-blur` effects and transparent backgrounds with a solid, high-contrast design system across all side-sheet overlays
-- Brand Consistency: Updated Marketplace and Open VSX buttons in Settings to use official brand colors (#007ACC and #5D2F92)
-- Corrected button styling for non-transparent backgrounds across all Settings dialogs
-- Redesigned Keyboard Shortcuts reference with a high-density, condensed layout and clearer grouping
-- Consolidated application maintenance settings into a unified "Maintenance Center"
-- Fixed hover feedback and pointer cursors on interactive scrollbar elements
-- Fixed a bug causing the cursor to be invisible when double-clicking a node
-- Resolved highlight glitching by preventing recursive cursor selection events
-- Improved editor focus performance during node navigation
+### **Design System & Bug Fixes**
+
+- **Solid Flat Design** — replaced all `backdrop-blur` effects with solid, high-contrast backgrounds
+- **Brand Consistency** — updated Marketplace (#007ACC) and Open VSX (#5D2F92) buttons to official colors
+- **Keyboard Shortcuts Reference** — redesigned with high-density, condensed layout
+- **Maintenance Center** — consolidated application settings into unified panel
+- **Fixed** invisible cursor when double-clicking nodes
+- **Fixed** highlight glitching from recursive cursor selection events
+- **Fixed** hover feedback and pointer cursors on interactive scrollbar elements
+- **Improved** editor focus performance during node navigation
+
+---
 
 ## [0.1.4] - 2026-04-02
-- Improved visual consistency: mind map connectors now maintain their vibrant light-mode colors in dark mode
-- Double-click node to highlight its source line in the VS Code editor
+### **Dark Mode & Navigation**
+
+- Connectors maintain vibrant light-mode colors in dark mode for visual consistency
+- Double-click node to highlight its source line in VS Code editor
 - Simplified link styling by removing redundant CSS overrides
+- Recovery Center improvements for session restoration
+
+---
 
 ## [0.1.3] - 2026-04-02
+### **Untitled Documents & Real-Time Sync**
+
 - Fixed support for unsaved (dirty) and untitled Markdown documents
 - Implemented real-time synchronization between editor and mindmap (preview while typing)
 - Fixed Inklink icon visibility in editor title bar for untitled files
 
+---
+
 ## [0.1.2] - 2026-04-01
+### **Visual Polish**
+
 - Updated dark mode branch colors for better visibility
+- Updated minimap background to #1E1E1E for improved node visibility
+- Enhanced marketplace integration with proper repository URLs
+
+---
 
 ## [0.1.1] - 2026-04-01
-- Updated VS Code Marketplace and Open VSX repository URLs
+### **Marketplace Integration**
 
-## [0.1.0] - Initial Release
+- Updated VS Code Marketplace and Open VSX repository URLs
+- Finalized extension packaging with license and build updates
+
+---
+
+## [0.1.0] - 2026-04-01
+### **Initial Release**
+
 - Real-time Markdown-to-mind-map rendering
 - Bidirectional editor ↔ map navigation
 - Three layout directions (LTR, RTL, two-sided)

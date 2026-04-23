@@ -56,6 +56,13 @@ export function KeyboardHandler() {
         return;
       }
 
+      // File: New Document - Cmd/Ctrl + N
+      if (isMod && key === 'n') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('inklink-file-new'));
+        return;
+      }
+
       // File: Save / Open Editor (VS Code) - Cmd/Ctrl + S
       if (isMod && key === 's') {
         const factory = PlatformFactory.getInstance();
@@ -71,17 +78,24 @@ export function KeyboardHandler() {
       }
 
       // File: Open - Cmd/Ctrl + O
-      if (isMod && key === 'o') {
+      if (isMod && !isShift && key === 'o') {
         const factory = PlatformFactory.getInstance();
         const isVsCode = factory.getPlatform() === PlatformType.VSCode;
-        
+
         if (isVsCode) {
             // Let VS Code handle native Open
             return;
         }
-        
+
         e.preventDefault();
         window.dispatchEvent(new CustomEvent('inklink-file-open'));
+        return;
+      }
+
+      // File: Open from Browser (Local Storage) - Cmd/Ctrl + Shift + O
+      if (isMod && isShift && key === 'o') {
+        e.preventDefault();
+        globalState.setState({ isRecoveryDialogOpen: true });
         return;
       }
 

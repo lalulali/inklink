@@ -626,8 +626,23 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 			// Independent logic for external markdown sync
 			const isFromMe = nextState.markdown === lastSentMarkdownRef.current;
 			if (!isFromMe) {
-				const currentDoc = (editorRef.current as any)?.view?.state.doc.toString();
+				// Prevent any pending debounce from overriding the external change
+				if (debounceTimerRef.current) {
+					clearTimeout(debounceTimerRef.current);
+					debounceTimerRef.current = null;
+				}
+
+				const currentDoc = (editorRef.current as any)?.view?.state.doc.toString() ?? '';
 				if (nextState.markdown !== currentDoc) {
+					// Directly update CodeMirror view for instant visual feedback,
+					// bypassing the React render → useEffect cycle
+					if (editorRef.current?.view) {
+						const view = editorRef.current.view;
+						view.dispatch({
+							changes: { from: 0, to: view.state.doc.length, insert: nextState.markdown },
+							userEvent: 'input.external',
+						});
+					}
 					setValue(nextState.markdown);
 					lastSentMarkdownRef.current = nextState.markdown;
 				}
@@ -734,7 +749,12 @@ export function MarkdownEditor({ onClose }: { onClose?: () => void }) {
 						.trim().length === 0;
 
 				if (effectivelyEmpty) {
-					globalState.setState({ markdown: val, tree: null, isDirty: true });
+					const s = globalState.getState();
+					globalState.setState({
+						markdown: val,
+						tree: null,
+						isDirty: s.currentFile !== null,
+					});
 					wasMultiRootRef.current = false;
 					return;
 				}
