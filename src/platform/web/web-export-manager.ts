@@ -1,6 +1,6 @@
 /**
  * Feature: Web Export Manager
- * Purpose: Handles application of export logic for various formats (HTML, PNG)
+ * Purpose: Handles application of export logic for various formats (HTML, PNG, SVG)
  * Style: High-fidelity standalone experience using core app logic
  */
 
@@ -8,28 +8,22 @@ import { TreeNode } from '@/core/types';
 import { imageDimensionStore } from '@/core/utils/image-store';
 
 export class WebExportManager {
-  /**
-   * Fetches Google Fonts CSS, downloads the actual font files, and embeds them
-   * as base64 data URLs. This makes the exported SVG fully self-contained —
-   * text renders with the correct font metrics in any viewer, offline or online.
-   * Caches the result to avoid repeated network requests.
-   */
+  // ── Font Loading ──────────────────────────────────────────────────
+
   private static _interFontDataUrl: string | null = null;
   private static _interFontPromise: Promise<string> | null = null;
 
-  private async getInterFontDataUrl(): Promise<string> {
+  private async loadInterFontAsBase64(): Promise<string> {
     if (WebExportManager._interFontDataUrl) return WebExportManager._interFontDataUrl;
     if (WebExportManager._interFontPromise) return WebExportManager._interFontPromise;
 
     WebExportManager._interFontPromise = (async () => {
       try {
-        // Step 1: Fetch Google Fonts CSS to get the actual font file URLs
         const cssUrl = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
         const cssResponse = await fetch(cssUrl);
         if (!cssResponse.ok) throw new Error('Failed to fetch Google Fonts CSS');
         let cssText = await cssResponse.text();
 
-        // Step 2: Extract all .woff2 font URLs from the CSS
         const urlRegex = /url\(['"]?([^)]+\.woff2)['"]?\)/g;
         const fontUrls = new Set<string>();
         let match;
@@ -37,7 +31,6 @@ export class WebExportManager {
           fontUrls.add(match[1]);
         }
 
-        // Step 3: Download each font file and replace its URL with base64 data
         for (const fontUrl of fontUrls) {
           const fontResponse = await fetch(fontUrl);
           if (!fontResponse.ok) continue;
@@ -47,14 +40,12 @@ export class WebExportManager {
             reader.onloadend = () => resolve(reader.result as string);
             reader.readAsDataURL(blob);
           });
-          // Replace the external URL with inline base64 data
           cssText = cssText.replace(fontUrl, base64);
         }
 
         WebExportManager._interFontDataUrl = cssText;
         return WebExportManager._interFontDataUrl;
       } catch {
-        // Fallback: return empty string, rely on system fonts
         WebExportManager._interFontDataUrl = '';
         return '';
       }
@@ -63,177 +54,207 @@ export class WebExportManager {
     return WebExportManager._interFontPromise;
   }
 
-  /**
-   * Helper to prepare an SVG clone with embedded CSS and correct viewBox.
-   * Ensures culled (off-screen) nodes are included in the bounding box.
-   * Embeds the Inter font as base64 data so the SVG is fully self-contained.
-   */
+  // ── SVG Preparation ───────────────────────────────────────────────
+
   public async prepareSVG(svgElement: SVGSVGElement): Promise<SVGSVGElement> {
     const clone = svgElement.cloneNode(true) as SVGSVGElement;
 
-    // Phase 2 visibility culling sets display:none / visibility:hidden on off-screen nodes.
-    // We must strip those styles so getBBox() includes the entire mind map.
-    clone.querySelectorAll('[style*="display: none"], [style*="visibility: hidden"]').forEach((el) => {
-      if (el instanceof SVGElement) {
-        el.style.display = '';
-        el.style.visibility = 'visible';
-      }
-    });
+    this.restoreHiddenNodes(clone);
+    this.makeAllNodesVisible(clone);
+    this.embedStylesAndFonts(clone);
+    this.ensureTextAboveOverlays(clone);
 
-    // Ensure all nodes are fully opaque — entering nodes may still have opacity:0 from D3 transitions.
+    const bbox = await this.measureContentBoundingBox(clone);
+
+    this.applyViewport(clone, bbox);
+    this.repositionCollapsibleIndicators(clone);
+
+    return clone;
+  }
+
+  private restoreHiddenNodes(clone: SVGSVGElement): void {
+    // Only restore visibility on collapsed node groups, NOT on tspan/text elements
+    // which intentionally use visibility:hidden to hide --- divider text.
+    clone.querySelectorAll<SVGGElement>('g.node[style*="display: none"], g.node[style*="visibility: hidden"]').forEach((el) => {
+      el.style.display = '';
+      el.style.visibility = 'visible';
+    });
+  }
+
+  private makeAllNodesVisible(clone: SVGSVGElement): void {
     clone.querySelectorAll('.node').forEach((el) => {
       if (el instanceof SVGElement) {
         el.setAttribute('opacity', '1');
         el.style.opacity = '1';
       }
     });
+    // Ensure image containers are visible
+    clone.querySelectorAll('g.image-container').forEach((el) => {
+      if (el instanceof SVGGElement) {
+        el.setAttribute('opacity', '1');
+        el.style.opacity = '1';
+      }
+    });
+    // Ensure actual image elements are visible
+    clone.querySelectorAll('image').forEach((el) => {
+      if (el instanceof SVGImageElement) {
+        el.setAttribute('opacity', '1');
+        el.style.opacity = '1';
+      }
+    });
+  }
 
-    // Use a curated SVG-only stylesheet instead of embedding ALL document CSS.
-    // Full document CSS (Tailwind preflight, Radix UI, utility classes) can interfere
-    // with SVG text rendering when the file is opened as a standalone document.
-    // Only rules that the exported SVG actually needs are included.
+  private async embedStylesAndFonts(clone: SVGSVGElement): Promise<void> {
     const svgStyles = `
       .node text { pointer-events: none; user-select: none; }
       .collapsible-indicator { cursor: pointer; }
     `;
 
-    // Embed Inter font as base64 data URL so the SVG is fully self-contained.
-    // This ensures text renders with the correct font metrics in any SVG viewer.
-    const interFont = await this.getInterFontDataUrl();
+    const interFont = await this.loadInterFontAsBase64();
     const styleElement = document.createElementNS('http://www.w3.org/2000/svg', 'style');
     styleElement.textContent = `${interFont}\n${svgStyles}`;
     clone.prepend(styleElement);
+  }
 
-    // Fix: move collapsible indicators slightly outward so they never overlap node text
-    clone.querySelectorAll('circle.collapsible-indicator').forEach((circle) => {
-      const cx = parseFloat(circle.getAttribute('cx') || '0');
-      const cy = parseFloat(circle.getAttribute('cy') || '0');
-      if (Math.abs(cx) > 0.1) {
-        circle.setAttribute('cx', (cx > 0 ? cx + 6 : cx - 6).toString());
-      } else if (Math.abs(cy) > 0.1) {
-        circle.setAttribute('cy', (cy > 0 ? cy + 6 : cy - 6).toString());
-      }
-    });
-
-    // Fix: ensure main text paints above indicators and other overlays
+  private ensureTextAboveOverlays(clone: SVGSVGElement): void {
     clone.querySelectorAll('g.node').forEach((nodeGroup) => {
       const textEl = nodeGroup.querySelector(':scope > text');
       if (textEl) {
         nodeGroup.appendChild(textEl);
       }
     });
+  }
 
-    // Temporarily mount clone off-screen so getBBox() and text measurement work correctly.
-    // Use a large container with overflow:visible so the browser does not clip
-    // any part of the mind map while measuring.
-    const offScreenContainer = document.createElement('div');
-    offScreenContainer.style.cssText = 'position:absolute;left:-99999px;top:-99999px;width:20000px;height:20000px;overflow:visible;visibility:hidden;';
-    offScreenContainer.appendChild(clone);
-    document.body.appendChild(offScreenContainer);
+  private async measureContentBoundingBox(clone: SVGSVGElement): Promise<DOMRect> {
+    const container = this.mountOffScreen(clone);
 
-    let bbox: DOMRect;
     try {
-      // Give the clone an explicit large viewport before measuring so that
-      // percentage-sized children (e.g. the background rect) do not collapse.
       clone.setAttribute('width', '20000');
       clone.setAttribute('height', '20000');
 
       const mainG = clone.querySelector('.mindmap-content') || clone.querySelector('g');
       mainG?.removeAttribute('transform');
 
-      // Force reflow so the browser lays out the clone and loads the embedded font
-      void offScreenContainer.offsetHeight;
-      // Wait for the embedded @font-face to finish loading before measuring text
+      clone.querySelectorAll('rect.canvas-bg').forEach((el) => el.remove());
+
+      void container.offsetHeight;
       await document.fonts.ready;
 
-      // Re-measure text widths using the browser's SVG text renderer.
-      // Canvas measureText() can produce slightly different widths than SVG rendering,
-      // especially for long text. This ensures each node rect fits its actual text.
-      const PADDING_X = 12 * 0.75; // 9px — matches renderer config.padding.x
-      clone.querySelectorAll<SVGGElement>('g.node').forEach((nodeGroup) => {
-        const rect = nodeGroup.querySelector<SVGRectElement>('rect.node-bg');
-        const text = nodeGroup.querySelector<SVGTextElement>('text');
-        if (!rect || !text) return;
+      this.refitNodeRectsToText(clone);
 
-        const rectWidth = parseFloat(rect.getAttribute('width') || '0');
-        if (rectWidth <= 0) return;
-
-        // Measure the widest tspan line using the browser's SVG text layout
-        let maxLineTextWidth = 0;
-        text.querySelectorAll<SVGTSpanElement>('tspan.line').forEach((tspan) => {
-          const w = tspan.getComputedTextLength();
-          if (w > maxLineTextWidth) maxLineTextWidth = w;
-        });
-
-        // Skip if measurement failed (font not loaded yet)
-        if (maxLineTextWidth <= 0) return;
-
-        const requiredWidth = maxLineTextWidth + PADDING_X * 2;
-        if (requiredWidth > rectWidth + 1) {
-          // Expand the rect and its clipPath to fit the actual text
-          const extra = requiredWidth - rectWidth;
-          rect.setAttribute('width', requiredWidth.toString());
-
-          // Update the corresponding clipPath rect
-          const nodeId = nodeGroup.getAttribute('data-id');
-          if (nodeId) {
-            const clipRect = clone.querySelector<SVGRectElement>(`#clip-${nodeId} rect`);
-            if (clipRect) {
-              const clipW = parseFloat(clipRect.getAttribute('width') || '0');
-              clipRect.setAttribute('width', (clipW + extra).toString());
-            }
-          }
-        }
-      });
-
-      bbox = clone.getBBox();
-    } catch (e) {
-      // Fallback: if getBBox() fails, compute a conservative bbox from all node transforms.
-      bbox = this.computeFallbackBBox(clone);
+      return this.computeNodeBBox(clone);
+    } catch {
+      return { x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0 } as DOMRect;
     } finally {
-      document.body.removeChild(offScreenContainer);
+      document.body.removeChild(container);
     }
-
-    const padding = 100;
-    clone.setAttribute('width', (bbox.width + padding * 2).toString());
-    clone.setAttribute('height', (bbox.height + padding * 2).toString());
-    clone.setAttribute(
-      'viewBox',
-      `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`
-    );
-    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-
-    return clone;
   }
 
-  /**
-   * Fallback bounding-box calculation used when getBBox() throws.
-   * Walks all .node groups, reads their translate() transforms, and unions
-   * those points with a generous node-size estimate.
-   */
-  private computeFallbackBBox(clone: SVGSVGElement): DOMRect {
+  private mountOffScreen(clone: SVGSVGElement): HTMLDivElement {
+    const container = document.createElement('div');
+    container.style.cssText = 'position:absolute;left:-99999px;top:-99999px;width:20000px;height:20000px;overflow:visible;visibility:hidden;';
+    container.appendChild(clone);
+    document.body.appendChild(container);
+    return container;
+  }
+
+  private refitNodeRectsToText(clone: SVGSVGElement): void {
+    const PADDING_X = 9;
+
+    clone.querySelectorAll<SVGGElement>('g.node').forEach((nodeGroup) => {
+      const rect = nodeGroup.querySelector<SVGRectElement>('rect.node-bg');
+      const text = nodeGroup.querySelector<SVGTextElement>('text');
+      if (!rect) return;
+
+      const rectWidth = parseFloat(rect.getAttribute('width') || '0');
+      if (rectWidth <= 0) return;
+
+      // Measure actual rendered text width
+      let maxLineTextWidth = 0;
+      if (text) {
+        text.querySelectorAll<SVGTSpanElement>('tspan.line').forEach((lineTspan) => {
+          // Skip hidden divider lines (--- *** ___)
+          if (lineTspan.style.visibility === 'hidden') return;
+          const segments = lineTspan.querySelectorAll<SVGTSpanElement>('tspan.segment');
+          if (segments.length > 0) {
+            let lineWidth = 0;
+            segments.forEach((seg) => { lineWidth += seg.getComputedTextLength(); });
+            if (lineWidth > maxLineTextWidth) maxLineTextWidth = lineWidth;
+          } else {
+            const w = lineTspan.getComputedTextLength();
+            if (w > maxLineTextWidth) maxLineTextWidth = w;
+          }
+        });
+      }
+
+      // Also measure the image width so we never shrink the rect below it
+      let imageWidth = 0;
+      const imgEl = nodeGroup.querySelector<SVGImageElement>('g.image-container image');
+      if (imgEl) {
+        const iw = parseFloat(imgEl.getAttribute('width') || '0');
+        if (iw > 0) imageWidth = iw + PADDING_X * 2;
+      }
+
+      // Required width = max(text, image). Never shrink below either.
+      const requiredWidth = Math.max(maxLineTextWidth > 0 ? maxLineTextWidth + PADDING_X * 2 : 0, imageWidth, rectWidth);
+      if (Math.abs(requiredWidth - rectWidth) < 1) return;
+
+      rect.setAttribute('width', requiredWidth.toString());
+
+      const rectX = parseFloat(rect.getAttribute('x') || '0');
+      if (Math.abs(rectX + rectWidth) < 1) {
+        rect.setAttribute('x', (-requiredWidth).toString());
+      } else if (Math.abs(rectX + rectWidth / 2) < 1) {
+        rect.setAttribute('x', (-requiredWidth / 2).toString());
+      }
+
+      const nodeId = nodeGroup.getAttribute('data-id');
+      if (nodeId) {
+        const clipRect = clone.querySelector<SVGRectElement>(`#clip-${nodeId} rect`);
+        if (clipRect) {
+          clipRect.setAttribute('width', requiredWidth.toString());
+          const clipX = parseFloat(clipRect.getAttribute('x') || '0');
+          if (Math.abs(clipX + rectWidth) < 1) {
+            clipRect.setAttribute('x', (-requiredWidth).toString());
+          } else if (Math.abs(clipX + rectWidth / 2) < 1) {
+            clipRect.setAttribute('x', (-requiredWidth / 2).toString());
+          }
+        }
+      }
+    });
+  }
+
+  private computeNodeBBox(clone: SVGSVGElement): DOMRect {
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
     let maxY = -Infinity;
 
-    const nodes = clone.querySelectorAll('g.node');
-    nodes.forEach((node) => {
+    clone.querySelectorAll<SVGGElement>('g.node').forEach((node) => {
       const transform = node.getAttribute('transform') || '';
       const match = transform.match(/translate\(([^,]+)[,\s]+([^)]+)\)/);
-      const x = match ? parseFloat(match[1]) : 0;
-      const y = match ? parseFloat(match[2]) : 0;
-      const w = parseFloat(node.getAttribute('data-width') || '200');
-      const h = parseFloat(node.getAttribute('data-height') || '60');
+      const cx = match ? parseFloat(match[1]) : 0;
+      const cy = match ? parseFloat(match[2]) : 0;
 
-      minX = Math.min(minX, x - w / 2);
-      maxX = Math.max(maxX, x + w / 2);
-      minY = Math.min(minY, y - h / 2);
-      maxY = Math.max(maxY, y + h / 2);
+      const rect = node.querySelector<SVGRectElement>('rect.node-bg');
+      const w = rect ? parseFloat(rect.getAttribute('width') || '0') : 0;
+      const h = rect ? parseFloat(rect.getAttribute('height') || '0') : 0;
+
+      const rx = rect ? parseFloat(rect.getAttribute('x') || '0') : -w / 2;
+      const ry = rect ? parseFloat(rect.getAttribute('y') || '0') : -h / 2;
+
+      const left = cx + rx;
+      const top = cy + ry;
+      const right = left + w;
+      const bottom = top + h;
+
+      minX = Math.min(minX, left);
+      maxX = Math.max(maxX, right);
+      minY = Math.min(minY, top);
+      maxY = Math.max(maxY, bottom);
     });
 
     if (!Number.isFinite(minX)) {
-      // No nodes found — return a zero rect at the origin.
       return { x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0 } as DOMRect;
     }
 
@@ -249,9 +270,342 @@ export class WebExportManager {
     } as DOMRect;
   }
 
-  /**
-   * Export to high-fidelity standalone HTML
-   */
+  private applyViewport(clone: SVGSVGElement, bbox: DOMRect): void {
+    const padding = 100;
+    clone.setAttribute('width', (bbox.width + padding * 2).toString());
+    clone.setAttribute('height', (bbox.height + padding * 2).toString());
+    clone.setAttribute(
+      'viewBox',
+      `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`
+    );
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  }
+
+  private repositionCollapsibleIndicators(clone: SVGSVGElement): void {
+    clone.querySelectorAll('g.node').forEach((nodeGroup) => {
+      const rect = nodeGroup.querySelector<SVGRectElement>('rect.node-bg');
+      const indicator = nodeGroup.querySelector<SVGCircleElement>('circle.collapsible-indicator');
+      if (!rect || !indicator) return;
+
+      const rectWidth = parseFloat(rect.getAttribute('width') || '0');
+      const rectX = parseFloat(rect.getAttribute('x') || '0');
+      const icx = parseFloat(indicator.getAttribute('cx') || '0');
+      const icy = parseFloat(indicator.getAttribute('cy') || '0');
+
+      if (Math.abs(icx) > 0.1 || Math.abs(icy) > 0.1) {
+        if (Math.abs(icx) > 0.1) {
+          // Place circle AT the edge of the (possibly resized) rect — half in, half out (r=6 handles the split)
+          if (Math.abs(rectX + rectWidth) < 1) {
+            // Left-side node: left edge is at -rectWidth
+            indicator.setAttribute('cx', (-rectWidth).toString());
+          } else if (Math.abs(rectX + rectWidth / 2) < 1) {
+            // Root/centered node: edges at ±rectWidth/2
+            indicator.setAttribute('cx', (icx > 0 ? rectWidth / 2 : -rectWidth / 2).toString());
+          } else {
+            // Right-side node: right edge is at +rectWidth
+            indicator.setAttribute('cx', rectWidth.toString());
+          }
+        } else if (Math.abs(icy) > 0.1) {
+          const rectY = parseFloat(rect.getAttribute('y') || '0');
+          const rectHeight = parseFloat(rect.getAttribute('height') || '0');
+          // Place circle AT the top/bottom edge — half in, half out
+          if (Math.abs(rectY + rectHeight) < 1) {
+            indicator.setAttribute('cy', (-rectHeight).toString());
+          } else if (Math.abs(rectY + rectHeight / 2) < 1) {
+            indicator.setAttribute('cy', (icy > 0 ? rectHeight / 2 : -rectHeight / 2).toString());
+          } else {
+            indicator.setAttribute('cy', rectHeight.toString());
+          }
+        }
+      }
+    });
+  }
+
+  // ── Image Inlining ────────────────────────────────────────────────
+
+  public async inlineSVGImages(clone: SVGSVGElement): Promise<void> {
+    const images = clone.querySelectorAll('image');
+    const tasks: Promise<void>[] = [];
+
+    images.forEach((img) => {
+      const href = img.getAttribute('href') || img.getAttribute('xlink:href');
+      if (!href || href.startsWith('data:')) return;
+
+      tasks.push(
+        this.imageToDataURL(href).then((dataURL) => {
+          if (dataURL) {
+            img.setAttribute('href', dataURL);
+            const xlinkHref = img.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
+            if (xlinkHref) {
+              img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', dataURL);
+            }
+          }
+        })
+      );
+    });
+
+    await Promise.all(tasks);
+  }
+
+  // ── PNG Export ────────────────────────────────────────────────────
+
+  public async exportToPNG(
+    svgElement: SVGSVGElement,
+    background: 'transparent' | 'white' | 'dark'
+  ): Promise<Blob> {
+    const MAX_CANVAS_DIM = 16384;
+    const MAX_CANVAS_AREA = MAX_CANVAS_DIM * MAX_CANVAS_DIM;
+    const idealScale = 3.0;
+    const padding = 100;
+
+    const clone = this.prepareCloneForMeasurement(svgElement);
+    const bbox = this.getContentBoundingBox(clone);
+
+    if (bbox.width === 0 || bbox.height === 0) {
+      throw new Error('Nothing to export — the mind map appears empty');
+    }
+
+    const { canvas, ctx, scaleFactor } = this.setupCanvas(bbox, padding, idealScale, MAX_CANVAS_DIM, MAX_CANVAS_AREA);
+
+    await this.prepareCloneForRendering(clone, bbox, padding);
+
+    const svgString = this.serializeSVG(clone);
+    return this.renderSVGToCanvas(svgString, canvas, ctx, scaleFactor, background);
+  }
+
+  private prepareCloneForMeasurement(svgElement: SVGSVGElement): SVGSVGElement {
+    const clone = svgElement.cloneNode(true) as SVGSVGElement;
+
+    clone.querySelectorAll('[style*="display: none"], [style*="visibility: hidden"]').forEach((el) => {
+      if (el instanceof SVGElement) {
+        el.style.display = '';
+        el.style.visibility = 'visible';
+      }
+    });
+
+    return clone;
+  }
+
+  private getContentBoundingBox(clone: SVGSVGElement): DOMRect {
+    const container = document.createElement('div');
+    container.style.cssText = 'position:absolute;left:-99999px;top:-99999px;width:0;height:0;overflow:hidden;visibility:hidden;';
+    container.appendChild(clone);
+    document.body.appendChild(container);
+
+    let bbox: DOMRect;
+    try {
+      const mainG = clone.querySelector('g');
+      mainG?.removeAttribute('transform');
+      bbox = clone.getBBox();
+    } finally {
+      document.body.removeChild(container);
+    }
+
+    return bbox;
+  }
+
+  private setupCanvas(
+    bbox: DOMRect,
+    padding: number,
+    idealScale: number,
+    maxDim: number,
+    maxArea: number
+  ): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D | null; scaleFactor: number } {
+    const contentWidth = bbox.width + padding * 2;
+    const contentHeight = bbox.height + padding * 2;
+
+    const maxScaleByDim = Math.min(maxDim / contentWidth, maxDim / contentHeight);
+    const maxScaleByArea = Math.sqrt(maxArea / (contentWidth * contentHeight));
+    const scaleFactor = Math.min(idealScale, maxScaleByDim, maxScaleByArea);
+
+    const canvasWidth = Math.max(1, Math.round(contentWidth * scaleFactor));
+    const canvasHeight = Math.max(1, Math.round(contentHeight * scaleFactor));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+    }
+
+    return { canvas, ctx, scaleFactor };
+  }
+
+  private async prepareCloneForRendering(
+    clone: SVGSVGElement,
+    bbox: DOMRect,
+    padding: number
+  ): Promise<void> {
+    clone.querySelectorAll('path').forEach((p) => {
+      p.setAttribute('fill', 'none');
+      if (p instanceof SVGPathElement) {
+        p.style.fill = 'none';
+      }
+    });
+
+    clone.querySelectorAll('rect').forEach((r) => {
+      r.setAttribute('stroke', 'none');
+      r.setAttribute('stroke-width', '0');
+      if (r instanceof SVGRectElement) {
+        r.style.stroke = 'none';
+        r.style.strokeWidth = '0';
+      }
+    });
+
+    await this.inlineSVGImages(clone);
+    this.embedDocumentStyles(clone);
+
+    const cloneG = clone.querySelector('g');
+    cloneG?.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
+    clone.setAttribute('width', (bbox.width + padding * 2).toString());
+    clone.setAttribute('height', (bbox.height + padding * 2).toString());
+    clone.removeAttribute('viewBox');
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  }
+
+  private embedDocumentStyles(clone: SVGSVGElement): void {
+    const styles = Array.from(document.styleSheets)
+      .map((sheet) => {
+        try {
+          return Array.from(sheet.cssRules)
+            .map((r) => r.cssText)
+            .join('');
+        } catch {
+          return '';
+        }
+      })
+      .join('\n');
+
+    const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    styleEl.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+      ${styles}
+    `;
+    clone.prepend(styleEl);
+  }
+
+  private serializeSVG(clone: SVGSVGElement): string {
+    return new XMLSerializer().serializeToString(clone).replace(/&nbsp;/g, '&#160;');
+  }
+
+  private renderSVGToCanvas(
+    svgString: string,
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D | null,
+    scaleFactor: number,
+    background: 'transparent' | 'white' | 'dark'
+  ): Promise<Blob> {
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const svgUrl = URL.createObjectURL(svgBlob);
+
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      const timeoutMs = 30000;
+      let timedOut = false;
+
+      const timer = setTimeout(() => {
+        timedOut = true;
+        URL.revokeObjectURL(svgUrl);
+        reject(new Error(`PNG export timed out after ${timeoutMs / 1000}s — map may be too large`));
+      }, timeoutMs);
+
+      img.onload = () => {
+        if (timedOut) return;
+        clearTimeout(timer);
+        URL.revokeObjectURL(svgUrl);
+
+        if (!ctx) return reject(new Error('Canvas context unavailable'));
+
+        if (background !== 'transparent') {
+          ctx.fillStyle = background === 'dark' ? '#1e1e1e' : '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        ctx.save();
+        ctx.scale(scaleFactor, scaleFactor);
+        ctx.drawImage(img, 0, 0);
+        ctx.restore();
+
+        canvas.toBlob((blob) => {
+          if (!blob || blob.size === 0) {
+            return reject(new Error('PNG export produced an empty file — map may be too large for browser canvas'));
+          }
+          resolve(blob);
+        }, 'image/png', 1.0);
+      };
+
+      img.onerror = () => {
+        if (timedOut) return;
+        clearTimeout(timer);
+        URL.revokeObjectURL(svgUrl);
+        this.renderFallback(svgString, canvas, ctx, scaleFactor, background, resolve, reject);
+      };
+
+      img.src = svgUrl;
+    });
+  }
+
+  private renderFallback(
+    svgString: string,
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D | null,
+    scaleFactor: number,
+    background: 'transparent' | 'white' | 'dark',
+    resolve: (blob: Blob) => void,
+    reject: (error: Error) => void
+  ): void {
+    const svgLen = svgString.length;
+    if (svgLen > 2_000_000) {
+      return reject(
+        new Error(
+          `Map is too large to export as PNG (${svgLen} chars). Try exporting fewer nodes or use SVG format.`
+        )
+      );
+    }
+
+    const unicodeSvg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+    const fallbackImg = new Image();
+    const timeoutMs = 30000;
+
+    const fbTimer = setTimeout(() => {
+      reject(new Error('PNG export fallback timed out — map may be too large'));
+    }, timeoutMs);
+
+    fallbackImg.onload = () => {
+      clearTimeout(fbTimer);
+      if (!ctx) return reject(new Error('Canvas context unavailable'));
+
+      if (background !== 'transparent') {
+        ctx.fillStyle = background === 'dark' ? '#1e1e1e' : '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      ctx.save();
+      ctx.scale(scaleFactor, scaleFactor);
+      ctx.drawImage(fallbackImg, 0, 0);
+      ctx.restore();
+
+      canvas.toBlob((blob) => {
+        if (!blob || blob.size === 0) {
+          return reject(new Error('PNG export fallback produced an empty file'));
+        }
+        resolve(blob);
+      }, 'image/png', 1.0);
+    };
+
+    fallbackImg.onerror = () => {
+      clearTimeout(fbTimer);
+      reject(new Error('PNG export failed to render — map may be too complex'));
+    };
+
+    fallbackImg.src = unicodeSvg;
+  }
+
+  // ── HTML Export ───────────────────────────────────────────────────
+
   public async exportToHTML(
     root: TreeNode,
     title: string,
@@ -259,10 +613,7 @@ export class WebExportManager {
     layoutDirection: string = 'two-sided'
   ): Promise<string> {
     const exportRoot = this.collapseToDepth(root, 1);
-    // Wait for image dimensions to load BEFORE inlining/serializing.
-    // Collapsed nodes may have images that haven't been measured yet.
     await this.waitForImageDimensions(exportRoot);
-    // Inline all images as base64 data URLs so they work in the standalone HTML file
     await this.inlineTreeImages(exportRoot);
     const jsonTree = JSON.stringify(this.stripCircular(exportRoot));
     const initialTheme = isDarkMode ? 'dark' : 'light';
@@ -373,7 +724,7 @@ const RendererColors = {
     expandedBgDark: '#0f172a', expandedBgLight: '#f8fafc', codeLangDark: '#7dd3fc', codeLangLight: '#0284c7',
     quoteAccentDark: '#818cf8', quoteAccentLight: '#6366f1', quoteTextDark: '#c7d2fe', quoteTextLight: '#4338ca',
     tableAccent: '#10b981', headerBgDark: '#1e293b', headerBgLight: '#e2e8f0',
-    codeTextDark: '#e2e8f0', codeTextLight: '#1e293b', tableHeaderDark: '#f1f5f9', tableHeaderLight: '#1e293b',
+    codeTextDark: '#e2e8f0', codeTextLight: '#1e293b', tableHeaderDark: '#f1f5f9', tableHeaderLight: '#1e1e1e',
     tableCellDark: '#cbd5e1', tableCellLight: '#475569', tableDividerDark: '#334155', tableDividerLight: '#cbd5e1'
   }
 };
@@ -410,7 +761,6 @@ const ColorManager = {
   }
 };
 
-// ── Text Utilities ─────────────────────────────────────────────────
 const BASE_SCALE = LAYOUT_CONFIG.BASE_SCALE;
 
 function getHeadingFontSize(level) {
@@ -460,7 +810,6 @@ function parseMarkdownLine(line) {
     return [{ text: '\u00A0' }];
   }
   
-  // Build regex parts
   var BT = String.fromCharCode(96);
   var p = [];
   p.push(BT + '[^' + BT + ']*' + BT);
@@ -686,7 +1035,6 @@ function wrapText(text, maxWidth, fontSize, fontWeight, measureFn, fontFamily, l
       return;
     }
     
-    // Simple word-by-word wrapping (atomic regex approach doesn't work in template strings)
     const words = line.split(new RegExp('(\\s+)')).filter(Boolean);
     let currentLine = '';
     
@@ -694,17 +1042,12 @@ function wrapText(text, maxWidth, fontSize, fontWeight, measureFn, fontFamily, l
       if (!token) return;
       
       const testLine = currentLine + token;
-      // Strip formatting for measurement - avoid regex escaping issues in template literals
       let measureText = testLine;
-      // Strip links to just the label
       const linkMatch = measureText.match(new RegExp('(!?\\\\[)(.*?)(\\\\](?:\\\\[.*?\\\\])?\\\\([^)]*\\\\))'));
       if (linkMatch) measureText = linkMatch[2];
-      // Strip formatting markers - use String.fromCharCode to avoid template literal escaping issues
       var BS = String.fromCharCode(92);
       measureText = measureText.replace(new RegExp(BS+'\\*'+BS+'\\*'+BS+'\\*', 'g'), '').replace(new RegExp(BS+'\\*'+BS+'\\*', 'g'), '').replace(new RegExp(BS+'\\*', 'g'), '').replace(new RegExp('~~', 'g'), '').replace(new RegExp('==', 'g'), '').replace(new RegExp(BS+'\\^', 'g'), '').replace(new RegExp('~', 'g'), '').replace(new RegExp(BS+'\\$', 'g'), '');
-      // Strip checkboxes
       measureText = measureText.replace(new RegExp(BS+'[[ xX]'+BS+']'), '☑ ');
-      // Strip HTML tags
       measureText = measureText.replace(new RegExp('<[^>]+>', 'g'), '');
 
       const testWidth = measureFn(measureText, font);
@@ -778,7 +1121,6 @@ function renderMathToUnicode(latex) {
   return result;
 }
 
-// ── State ─────────────────────────────────────────────────────────
 const treeData = ${jsonTree};
 let isDark = ${isDarkMode};
 const svg = d3.select("#canvas").append("svg").attr("width", "100%").attr("height", "100%");
@@ -818,8 +1160,6 @@ svg.call(zoom).style('cursor', 'grab')
 const measureCtx = document.createElement('canvas').getContext('2d');
 const posMap = new Map();
 let isVertical = false;
-
-// ── Measurement ────────────────────────────────────────────────────
 
 function measureNode(node) {
   const depth = node.depth || 0;
@@ -883,28 +1223,31 @@ function measureNode(node) {
   node.fontWeight = fontWeight;
   node.lineHeight = lineHeight;
 
-  // Images
   if (node.image) {
     const img = node.image;
     const imgConfig = LAYOUT_CONFIG.IMAGE;
-    const w = img.width || 0, h = img.height || 0;
-    let scale = 1;
-    if (w > 0 && h > 0) {
-      const ratioW = imgConfig.MAX_WIDTH / w, ratioH = imgConfig.MAX_HEIGHT / h;
-      if (w > imgConfig.MAX_WIDTH || h > imgConfig.MAX_HEIGHT) scale = Math.min(ratioW, ratioH);
-      img.thumbWidth = w * scale; img.thumbHeight = h * scale;
-    } else {
-      img.thumbWidth = 40; img.thumbHeight = 30; img.failed = true;
+    // Use pre-computed thumb dimensions from the serialized renderer data when available.
+    // Only recompute from raw width/height if they aren't already set.
+    if (!img.thumbWidth || !img.thumbHeight) {
+      const w = img.width || 0, h = img.height || 0;
+      let scale = 1;
+      if (w > 0 && h > 0) {
+        const ratioW = imgConfig.MAX_WIDTH / w, ratioH = imgConfig.MAX_HEIGHT / h;
+        if (w > imgConfig.MAX_WIDTH || h > imgConfig.MAX_HEIGHT) scale = Math.min(ratioW, ratioH);
+        img.thumbWidth = w * scale; img.thumbHeight = h * scale;
+      } else {
+        img.thumbWidth = 40; img.thumbHeight = 30; img.failed = true;
+      }
     }
     const thumbH = img.thumbHeight || 0, thumbW = img.thumbWidth || 0;
     node.height += thumbH;
     const codeBlocks = node.codeBlocks || [], quoteBlocks = node.quoteBlocks || [], tableBlocks = node.tableBlocks || [];
     const hasNoteBlocks = codeBlocks.length > 0 || quoteBlocks.length > 0 || tableBlocks.length > 0;
     if (thumbH > 0 && (hasText || hasNoteBlocks)) node.height += imgConfig.PADDING;
-    if (thumbW > maxWidth) { maxWidth = thumbW; node.width = maxWidth + PADDING * 2; }
+    // Track image width — final node.width is resolved after all phases.
+    if (thumbW > maxWidth) maxWidth = thumbW;
   }
 
-  // Note blocks
   const NB = LAYOUT_CONFIG.NOTE_BLOCK;
   const codeBlocks = node.codeBlocks || [];
   const quoteBlocks = node.quoteBlocks || [];
@@ -983,11 +1326,12 @@ function measureNode(node) {
         node.height += NB.CODE_HEADER_HEIGHT + vPad + lines.length * lineH + vPad;
       }
     });
-    if (maxNoteWidth > maxWidth) { maxWidth = maxNoteWidth; node.width = maxWidth + PADDING * 2; }
+    if (maxNoteWidth > maxWidth) maxWidth = maxNoteWidth;
   }
+  // Final: node width = widest of (text, image, note blocks) + padding on both sides.
+  node.width = maxWidth + PADDING * 2;
 }
 
-// ── Layout ─────────────────────────────────────────────────────────
 function flattenTree(node) {
   const nodes = [];
   const traverse = n => { nodes.push(n); if (!n.collapsed && n.children) n.children.forEach(traverse); };
@@ -1080,7 +1424,6 @@ function calculateLayout(root) {
   }
 }
 
-// ── Rendering ──────────────────────────────────────────────────────
 function render() {
   calculateLayout(treeData);
   const nodes = flattenTree(treeData);
@@ -1248,7 +1591,6 @@ function renderNodes(nodes) {
         return (t === '---' || t === '***' || t === '___') ? 'hidden' : 'visible';
       });
 
-    // HR dividers
     const nodeG = d3.select(this.parentNode);
     const dividersData = displayLines.map((l, i) => ({ line: l.trim(), i })).filter(d => d.line === '---' || d.line === '***' || d.line === '___');
     const dividers = nodeG.selectAll("line.hr-divider").data(dividersData, d => d.line + "-" + d.i);
@@ -1268,7 +1610,6 @@ function renderNodes(nodes) {
           .attr("stroke-dasharray", (dInfo.line === '***' || dInfo.line === '___') ? '3,3' : 'none');
       });
 
-    // Rich text segments
     tspanUpdate.each(function(line) {
       const tspan = d3.select(this);
       const segments = lineSegments.get(line) || parseMarkdownLine(line);
@@ -1314,7 +1655,6 @@ function renderNodes(nodes) {
   .attr("font-weight", d => getNoteBlockFontWeight(d.depth || 0))
   .attr("fill", d => isDark ? (d.depth === 0 ? RendererColors.node.rootTextDark : 'white') : 'white');
 
-  // Images
   update.each(function(d) {
     const image = d.image;
     const container = d3.select(this).select("g.image-container");
@@ -1338,7 +1678,6 @@ function renderNodes(nodes) {
     errEnter.append("text").attr("x", imgW/2).attr("y", imgH/2).attr("text-anchor", "middle").attr("dominant-baseline", "central").attr("fill", "#ef4444").style("font-size", "10px").style("font-weight", "bold").text("404");
   });
 
-  // Clip path
   update.select("clipPath rect")
     .attr("width", d => d.width || 0).attr("height", d => d.height || 0)
     .attr("x", function(d) {
@@ -1349,7 +1688,6 @@ function renderNodes(nodes) {
     })
     .attr("y", d => -(d.height || 0)/2);
 
-  // Node background
   update.select("rect.node-bg")
     .attr("rx", 6).attr("ry", 6)
     .attr("width", d => d.width || 0).attr("height", d => d.height || 0)
@@ -1365,7 +1703,6 @@ function renderNodes(nodes) {
     .style("stroke", "none")
     .attr("stroke-width", 0);
 
-  // Collapsible indicators
   const indicator = update.selectAll("circle.collapsible-indicator")
     .data(d => d.children && d.children.length > 0 ? [d] : [], d => d.id);
   indicator.exit().remove();
@@ -1405,7 +1742,6 @@ function renderNodes(nodes) {
       return d.depth === 0 ? RendererColors.node.rootFillLight : d.color || RendererColors.node.branchFallbackLight;
     });
 
-  // Note blocks
   update.each(function(d) { renderNoteBlocks(d3.select(this), d); });
 }
 
@@ -1444,7 +1780,6 @@ function renderNoteBlocks(nodeGroup, d) {
   const blockSel = blocksGroup.selectAll("g.note-block").data(allBlocks, b => b.id);
   blockSel.exit().remove();
 
-  // Pre-calculate positions
   let currentY = blockY;
   const blockPositions = new Map();
   const innerW = width - PADDING * 2;
@@ -1511,7 +1846,6 @@ function renderNoteBlocks(nodeGroup, d) {
       bgUpdate.attr("width", innerW).attr("height", expandedH).attr("fill", isExpanded ? expandedBg : pillBg)
         .style("cursor", "pointer").on("click", (e) => { e.stopPropagation(); block.ref.expanded = !isExpanded; updateBlocks(); });
 
-      // Pill
       const pillData = !isExpanded ? [block] : [];
       const pill = d3.select(this).selectAll("g.pill-content").data(pillData);
       pill.exit().remove();
@@ -1528,7 +1862,6 @@ function renderNoteBlocks(nodeGroup, d) {
       pillUpdate.select("text.count")
         .text(block.type === 'table' ? (block.ref.rows?.length||0) + ' row' + ((block.ref.rows?.length||0) !== 1 ? 's' : '') : ((block.type === 'code' ? block.ref.code : block.ref.text || '').split(String.fromCharCode(10)).length) + ' line' + ((block.type === 'code' ? block.ref.code : block.ref.text || '').split(String.fromCharCode(10)).length !== 1 ? 's' : ''));
 
-      // Header
       const headerData = isExpanded ? [block] : [];
       const header = d3.select(this).selectAll("g.block-header").data(headerData);
       header.exit().remove();
@@ -1548,7 +1881,6 @@ function renderNoteBlocks(nodeGroup, d) {
         .attr("fill", block.type === 'table' ? RendererColors.noteBlock.tableAccent : (block.type === 'code' ? codeLang : quoteAccent))
         .text(block.type === 'code' ? (block.ref.language || 'code') : block.type);
 
-      // Content (code/quote)
       if (isExpanded && block.type !== 'table') {
         const lineH = block.type === 'code' ? NB.CODE_LINE_HEIGHT : NB.QUOTE_LINE_HEIGHT;
         const bff = block.type === 'code' ? NB.MONO_FONT.replace(new RegExp("'", 'g'),"") : 'Inter, sans-serif';
@@ -1577,7 +1909,6 @@ function renderNoteBlocks(nodeGroup, d) {
         d3.select(this).selectAll("text.block-content").remove();
       }
 
-      // Table
       if (isExpanded && block.type === 'table') {
         const table = d3.select(this).selectAll("g.table-content").data([block]);
         table.exit().remove();
@@ -1684,7 +2015,6 @@ function renderNoteBlocks(nodeGroup, d) {
               .attr("stroke", isDark ? RendererColors.noteBlock.tableDividerDark : RendererColors.noteBlock.tableDividerLight)
               .attr("stroke-width", 1).style("stroke-dasharray", "2,2").attr("opacity", 0.5);
           });
-          // Sync background rect height to actual rendered table height
           bgUpdate.attr("height", runningY + NB.TABLE_V_PADDING);
         });
       } else {
@@ -1693,7 +2023,6 @@ function renderNoteBlocks(nodeGroup, d) {
     });
 }
 
-// ── Interactions ───────────────────────────────────────────────────
 function toggleNode(d) { d.collapsed = !d.collapsed; updateBlocks(); }
 function updateBlocks() { render(); }
 function expandAll() { (function ex(n) { n.collapsed = false; n.children?.forEach(ex); })(treeData); render(); }
@@ -1736,7 +2065,6 @@ async function exportPNG() {
   const contentW = bb.width + padding * 2;
   const contentH = bb.height + padding * 2;
 
-  // Clamp scale so the canvas stays within browser limits (16384px / ~268M pixels)
   const maxScaleByDim = Math.min(MAX_CANVAS_DIM / contentW, MAX_CANVAS_DIM / contentH);
   const maxScaleByArea = Math.sqrt(MAX_CANVAS_AREA / (contentW * contentH));
   const scale = Math.min(idealScale, maxScaleByDim, maxScaleByArea);
@@ -1757,7 +2085,6 @@ async function exportPNG() {
   clone.insertBefore(styleEl, clone.firstChild);
   clone.querySelectorAll("path").forEach(p => p.style.fill = "none");
 
-  // Inline any remaining external image references so they render in the canvas
   const imageTasks = [];
   clone.querySelectorAll("image").forEach((img) => {
     const href = img.getAttribute("href") || img.getAttribute("xlink:href");
@@ -1782,7 +2109,6 @@ async function exportPNG() {
   clone.setAttribute("height", contentH);
   clone.removeAttribute("viewBox");
 
-  // Ensure fonts are loaded before drawing so text renders correctly
   await document.fonts.ready;
 
   const svgStr = new XMLSerializer().serializeToString(clone).replace(/&nbsp;/g, '&#160;');
@@ -1822,7 +2148,6 @@ async function exportPNG() {
   img.src = url;
 }
 
-// ── Init ───────────────────────────────────────────────────────────
 document.fonts.ready.then(() => {
   render();
   setTimeout(fitView, 150);
@@ -1831,6 +2156,8 @@ document.fonts.ready.then(() => {
 </body>
 </html>`;
   }
+
+  // ── Helper Methods ────────────────────────────────────────────────
 
   private collapseToDepth(node: TreeNode, maxDepth: number): TreeNode {
     const clone: TreeNode = {
@@ -1897,10 +2224,6 @@ document.fonts.ready.then(() => {
     };
   }
 
-  /**
-   * Walks the tree and replaces every node's image URL with an inline base64 data URL.
-   * This ensures images render correctly in the standalone HTML export.
-   */
   private async inlineTreeImages(node: TreeNode): Promise<void> {
     const img = node.metadata?.image;
     if (img && img.url && !img.url.startsWith('data:')) {
@@ -1916,11 +2239,6 @@ document.fonts.ready.then(() => {
     }
   }
 
-  /**
-   * Walks the tree, triggers image dimension loading for every image URL,
-   * and waits until all dimensions are loaded (or failed).
-   * This ensures exported HTML/SVG has correct image sizes.
-   */
   public async waitForImageDimensions(node: TreeNode): Promise<void> {
     const nodesWithImages: TreeNode[] = [];
     const walk = (n: TreeNode) => {
@@ -1933,8 +2251,6 @@ document.fonts.ready.then(() => {
 
     console.log(`[Export] Waiting for ${nodesWithImages.length} image(s) to load dimensions...`);
 
-    // Load dimensions for every image URL, bypassing imageDimensionStore
-    // which may silently fail for CORS-blocked URLs.
     const tasks = nodesWithImages.map(async (n) => {
       const img = n.metadata!.image!;
       if (!img.url || img.url.startsWith('data:') || (img.width && img.height)) return;
@@ -1954,7 +2270,6 @@ document.fonts.ready.then(() => {
           (img as any).failed = false;
         }
       } catch {
-        // Retry without crossOrigin — some servers don't support CORS at all
         try {
           const image = new Image();
           await new Promise<void>((resolve, reject) => {
@@ -1969,7 +2284,6 @@ document.fonts.ready.then(() => {
             (img as any).failed = false;
           }
         } catch {
-          // Image truly unavailable — mark as failed
           (img as any).failed = true;
         }
       }
@@ -1977,23 +2291,16 @@ document.fonts.ready.then(() => {
 
     await Promise.all(tasks);
 
-    // Log results
     nodesWithImages.forEach(n => {
       const img = n.metadata!.image!;
       console.log(`[Export] Image ${img.url?.substring(0, 60)}: w=${img.width} h=${img.height} failed=${(img as any).failed}`);
     });
   }
 
-  /**
-   * Convert an image URL to a data URL by drawing it onto a temporary canvas.
-   * Handles cross-origin images by fetching as blob first.
-   */
   public async imageToDataURL(url: string): Promise<string | null> {
-    // Already inlined — nothing to do
     if (url.startsWith('data:')) return url;
 
     try {
-      // For blob URLs (same-origin) or any fetchable URL, try fetching first
       const absoluteUrl = new URL(url, window.location.href).href;
       const response = await fetch(absoluteUrl);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -2004,8 +2311,7 @@ document.fonts.ready.then(() => {
         reader.onerror = () => resolve(null);
         reader.readAsDataURL(blob);
       });
-    } catch (fetchErr) {
-      // Fallback: load via Image + canvas (handles CORS-blocked images if server allows)
+    } catch {
       try {
         const img = new Image();
         img.crossOrigin = 'anonymous';
@@ -2023,238 +2329,9 @@ document.fonts.ready.then(() => {
         ctx.drawImage(img, 0, 0);
         return canvas.toDataURL('image/png');
       } catch {
-        console.error(`[Export] Failed to inline image: ${url}`, fetchErr);
+        console.error(`[Export] Failed to inline image: ${url}`);
         return null;
       }
     }
-  }
-
-  /**
-   * Inlines all <image> elements in the cloned SVG by converting their
-   * external URLs to data URLs.
-   */
-  public async inlineSVGImages(clone: SVGSVGElement): Promise<void> {
-    const images = clone.querySelectorAll('image');
-    const tasks: Promise<void>[] = [];
-
-    images.forEach((img) => {
-      const href = img.getAttribute('href') || img.getAttribute('xlink:href');
-      if (!href || href.startsWith('data:')) return;
-
-      tasks.push(
-        this.imageToDataURL(href).then((dataURL) => {
-          if (dataURL) {
-            img.setAttribute('href', dataURL);
-            const xlinkHref = img.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
-            if (xlinkHref) {
-              img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', dataURL);
-            }
-          }
-        })
-      );
-    });
-
-    await Promise.all(tasks);
-  }
-
-  /**
-   * Export to PNG with full content measurement
-   */
-  public async exportToPNG(
-    svgElement: SVGSVGElement,
-    background: 'transparent' | 'white' | 'dark'
-  ): Promise<Blob> {
-    const MAX_CANVAS_DIM = 16384;
-    const MAX_CANVAS_AREA = MAX_CANVAS_DIM * MAX_CANVAS_DIM;
-    const idealScale = 3.0;
-    const padding = 100;
-
-    // ── 1. Create a fully-visible clone for measurement ──────────────────────
-    // Phase 2 visibility culling sets display:none / visibility:hidden on off-screen nodes.
-    // We must strip those styles AND attach the clone to the DOM before getBBox().
-    const clone = svgElement.cloneNode(true) as SVGSVGElement;
-    clone.querySelectorAll('[style*="display: none"], [style*="visibility: hidden"]').forEach((el) => {
-      if (el instanceof SVGElement) {
-        el.style.display = '';
-        el.style.visibility = 'visible';
-      }
-    });
-
-    // Temporarily mount clone off-screen so getBBox() works correctly
-    const offScreenContainer = document.createElement('div');
-    offScreenContainer.style.cssText = 'position:absolute;left:-99999px;top:-99999px;width:0;height:0;overflow:hidden;visibility:hidden;';
-    offScreenContainer.appendChild(clone);
-    document.body.appendChild(offScreenContainer);
-
-    let bbox: DOMRect;
-    try {
-      const mainG = clone.querySelector('g');
-      mainG?.removeAttribute('transform');
-      bbox = clone.getBBox();
-    } finally {
-      document.body.removeChild(offScreenContainer);
-    }
-
-    if (bbox.width === 0 || bbox.height === 0) {
-      throw new Error('Nothing to export — the mind map appears empty');
-    }
-
-    const contentWidth = bbox.width + padding * 2;
-    const contentHeight = bbox.height + padding * 2;
-
-    // ── 2. Compute safe scale factor ─────────────────────────────────────────
-    // Let the math (dimension + area limits) find the highest safe scale automatically.
-    // Do NOT cap based on node count — that causes pixelation on large maps.
-    const maxScaleByDim = Math.min(MAX_CANVAS_DIM / contentWidth, MAX_CANVAS_DIM / contentHeight);
-    const maxScaleByArea = Math.sqrt(MAX_CANVAS_AREA / (contentWidth * contentHeight));
-    let scaleFactor = Math.min(idealScale, maxScaleByDim, maxScaleByArea);
-
-    const finalCanvasWidth = Math.max(1, Math.round(contentWidth * scaleFactor));
-    const finalCanvasHeight = Math.max(1, Math.round(contentHeight * scaleFactor));
-
-    const canvas = document.createElement('canvas');
-    canvas.width = finalCanvasWidth;
-    canvas.height = finalCanvasHeight;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-    }
-
-    // ── 3. Prepare clone for serialization ───────────────────────────────────
-    clone.querySelectorAll('path').forEach((p) => {
-      p.setAttribute('fill', 'none');
-      if (p instanceof SVGPathElement) {
-        p.style.fill = 'none';
-      }
-    });
-
-    clone.querySelectorAll('rect').forEach((r) => {
-      r.setAttribute('stroke', 'none');
-      r.setAttribute('stroke-width', '0');
-      if (r instanceof SVGRectElement) {
-        r.style.stroke = 'none';
-        r.style.strokeWidth = '0';
-      }
-    });
-
-    await this.inlineSVGImages(clone);
-
-    const styles = Array.from(document.styleSheets)
-      .map((sheet) => {
-        try {
-          return Array.from(sheet.cssRules)
-            .map((r) => r.cssText)
-            .join('');
-        } catch (e) {
-          return '';
-        }
-      })
-      .join('\n');
-    const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
-    styleEl.textContent = `
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        ${styles}
-      `;
-    clone.prepend(styleEl);
-
-    const cloneG = clone.querySelector('g');
-    cloneG?.setAttribute('transform', `translate(${-bbox.x + padding}, ${-bbox.y + padding})`);
-    clone.setAttribute('width', contentWidth.toString());
-    clone.setAttribute('height', contentHeight.toString());
-    clone.removeAttribute('viewBox');
-    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-
-    const svgString = new XMLSerializer().serializeToString(clone).replace(/&nbsp;/g, '&#160;');
-    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-    const svgUrl = URL.createObjectURL(svgBlob);
-
-    // ── 4. Render SVG to canvas ──────────────────────────────────────────────
-    return new Promise((res, rej) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      const timeoutMs = 30000; // 30s timeout for all exports (large SVGs take time to parse)
-      let timedOut = false;
-
-      const timer = setTimeout(() => {
-        timedOut = true;
-        URL.revokeObjectURL(svgUrl);
-        rej(new Error(`PNG export timed out after ${timeoutMs / 1000}s — map may be too large`));
-      }, timeoutMs);
-
-      img.onload = () => {
-        if (timedOut) return;
-        clearTimeout(timer);
-        URL.revokeObjectURL(svgUrl);
-        if (!ctx) return rej(new Error('Canvas ctx null'));
-
-        if (background !== 'transparent') {
-          ctx.fillStyle = background === 'dark' ? '#1e1e1e' : '#ffffff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-
-        ctx.save();
-        ctx.scale(scaleFactor, scaleFactor);
-        ctx.drawImage(img, 0, 0);
-        ctx.restore();
-
-        canvas.toBlob((b) => {
-          if (!b || b.size === 0) {
-            return rej(new Error('PNG export produced an empty file — map may be too large for browser canvas'));
-          }
-          res(b);
-        }, 'image/png', 1.0);
-      };
-
-      img.onerror = () => {
-        if (timedOut) return;
-        clearTimeout(timer);
-        URL.revokeObjectURL(svgUrl);
-
-        // Fallback: try encoding the SVG string directly as a data URL
-        // For very large SVGs, encodeURIComponent may exceed URL length limits.
-        // As a last resort, we create a smaller preview.
-        const svgLen = svgString.length;
-        if (svgLen > 2_000_000) {
-          return rej(
-            new Error(
-              `Map is too large to export as PNG (${svgLen} chars). Try exporting fewer nodes or use SVG format.`
-            )
-          );
-        }
-
-        const unicodeSvg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
-        const fallbackImg = new Image();
-        const fbTimer = setTimeout(() => {
-          rej(new Error('PNG export fallback timed out — map may be too large'));
-        }, timeoutMs);
-
-        fallbackImg.onload = () => {
-          clearTimeout(fbTimer);
-          if (!ctx) return rej(new Error('Canvas ctx null'));
-          if (background !== 'transparent') {
-            ctx.fillStyle = background === 'dark' ? '#1e1e1e' : '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-          }
-          ctx.save();
-          ctx.scale(scaleFactor, scaleFactor);
-          ctx.drawImage(fallbackImg, 0, 0);
-          ctx.restore();
-          canvas.toBlob((b) => {
-            if (!b || b.size === 0) {
-              return rej(new Error('PNG export fallback produced an empty file'));
-            }
-            res(b);
-          }, 'image/png', 1.0);
-        };
-        fallbackImg.onerror = () => {
-          clearTimeout(fbTimer);
-          rej(new Error('PNG export failed to render — map may be too complex'));
-        };
-        fallbackImg.src = unicodeSvg;
-      };
-
-      img.src = svgUrl;
-    });
   }
 }

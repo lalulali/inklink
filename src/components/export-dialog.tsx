@@ -249,7 +249,7 @@ export function ExportDialog() {
                 <p className="text-[11px] text-muted-foreground">High resolution pixels</p>
               </div>
               {format === 'png' && (
-                <div className="absolute top-2 right-2 text-primary">
+                <div className="absolute top-2 right-2 text-primary animate-in zoom-in duration-300">
                   <Check className="w-4 h-4 stroke-[3]" />
                 </div>
               )}
@@ -281,7 +281,7 @@ export function ExportDialog() {
                 <p className="text-[11px] text-muted-foreground">Scalable, searchable</p>
               </div>
               {format === 'svg' && (
-                <div className="absolute top-2 right-2 text-primary">
+                <div className="absolute top-2 right-2 text-primary animate-in zoom-in duration-300">
                   <Check className="w-4 h-4 stroke-[3]" />
                 </div>
               )}
@@ -313,7 +313,7 @@ export function ExportDialog() {
                 <p className="text-[11px] text-muted-foreground">Standalone mind map</p>
               </div>
               {format === 'html' && (
-                <div className="absolute top-2 right-2 text-primary">
+                <div className="absolute top-2 right-2 text-primary animate-in zoom-in duration-300">
                   <Check className="w-4 h-4 stroke-[3]" />
                 </div>
               )}
@@ -367,8 +367,24 @@ export function ExportDialog() {
             </div>
           )}
 
+          {format === 'svg' && (
+            <div className="p-4 bg-muted/40 rounded-xl border border-dashed border-border flex gap-4 items-center animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                <FileCode className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-primary">
+                  Vector Excellence
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Lossless scaling for high-resolution printing and professional design editing.
+                </p>
+              </div>
+            </div>
+          )}
+
           {format === 'html' && (
-            <div className="p-4 bg-muted/40 rounded-xl border border-dashed border-border flex gap-4 items-center">
+            <div className="p-4 bg-muted/40 rounded-xl border border-dashed border-border flex gap-4 items-center animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
                 <Settings2 className="w-5 h-5" />
               </div>

@@ -47,7 +47,7 @@
     "commands": [
       {
         "command": "inklink.open",
-        "title": "Open Mindmap",
+        "title": "Open Inklink",
         "category": "Inklink",
         "icon": {
           "light": "assets/icon-light.svg",
@@ -59,6 +59,21 @@
         "title": "Insert Visualization Example",
         "category": "Inklink",
         "icon": "$(zap)"
+      },
+      {
+        "command": "inklink.setLayoutTwoSided",
+        "title": "Set Layout: Two-Sided",
+        "category": "Inklink"
+      },
+      {
+        "command": "inklink.setLayoutLeftToRight",
+        "title": "Set Layout: Left to Right",
+        "category": "Inklink"
+      },
+      {
+        "command": "inklink.setLayoutRightToLeft",
+        "title": "Set Layout: Right to Left",
+        "category": "Inklink"
       }
     ],
     "keybindings": [
@@ -75,9 +90,11 @@
           "command": "inklink.open",
           "group": "navigation",
           "when": "editorLangId == markdown"
-        },
+        }
+      ],
+      "editor/context": [
         {
-          "command": "inklink.insertVisualizationExample",
+          "command": "inklink.open",
           "group": "navigation",
           "when": "editorLangId == markdown"
         }

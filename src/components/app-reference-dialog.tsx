@@ -17,9 +17,11 @@ import {
 import { globalState } from '@/core/state/state-manager';
 import { Command, Keyboard, X as XIcon } from 'lucide-react';
 import { PlatformFactory, PlatformType } from '@/platform';
+import { getModKey } from '@/lib/utils';
 
 export function AppReferenceDialog() {
   const [isOpen, setIsOpen] = React.useState(false);
+  const modKey = React.useMemo(() => getModKey(), []);
 
   React.useEffect(() => {
     return globalState.subscribe(s => {
@@ -43,7 +45,7 @@ export function AppReferenceDialog() {
             <div className="flex items-center gap-1 sm:gap-1.5 translate-y-[1px]">
               {s.key.split('+').map((k, j) => (
                 <kbd key={`${title}-${s.label}-${k}-${j}`} className="min-w-[22px] sm:min-w-[26px] h-5 sm:h-6 px-1.5 sm:px-2 flex items-center justify-center rounded-md sm:rounded-lg border border-border/60 bg-muted/30 font-mono text-[8px] sm:text-[9px] font-black shadow-[0_1px_1px_rgba(0,0,0,0.1)] group-hover:border-primary/40 group-hover:bg-primary/5 transition-all duration-200">
-                  {k === 'Cmd' ? (navigator.platform.includes('Mac') ? '⌘' : 'Ctrl') : k}
+                  {k === 'Cmd' ? (modKey === 'Cmd' ? '⌘' : 'Ctrl') : k}
                 </kbd>
               ))}
             </div>

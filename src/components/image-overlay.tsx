@@ -67,10 +67,10 @@ export function ImageOverlay() {
 	return (
 		<Dialog open={isVisible} onOpenChange={(open) => !open && close()}>
 			<DialogPortal>
-				<DialogOverlay className="top-14" />
+				<DialogOverlay className="top-[var(--toolbar-height,3.5rem)]" />
 				<DialogPrimitive.Content
 					className={cn(
-						"fixed top-14 left-0 right-0 bottom-0 z-[101] w-screen h-[calc(100vh-3.5rem)]",
+						"fixed top-[var(--toolbar-height,3.5rem)] left-0 right-0 bottom-0 z-[101] w-screen h-[calc(100vh-var(--toolbar-height,3.5rem))]",
 						"bg-black/95 outline-none overflow-hidden",
 						"data-[state=open]:animate-in data-[state=closed]:animate-out",
 						"data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",

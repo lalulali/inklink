@@ -24,6 +24,7 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 215 16% 28%;
     --radius: 0.5rem;
+    --toolbar-height: 3.5rem;
   }
 
   .dark {

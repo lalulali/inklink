@@ -5,40 +5,112 @@ import * as fs from 'fs';
 export function activate(context: vscode.ExtensionContext) {
     console.log('Congratulations, your extension "inklink" is now active!');
 
-    let disposable = vscode.commands.registerCommand('inklink.open', (uri?: vscode.Uri) => {
-        const targetUri = uri || vscode.window.activeTextEditor?.document.uri;
+    let disposable = vscode.commands.registerCommand('inklink.open', async (uri?: vscode.Uri) => {
+        let targetUri = uri || vscode.window.activeTextEditor?.document.uri;
+        
+        if (!targetUri) {
+            // No file selected, create a new untitled markdown file
+            try {
+                const newDoc = await vscode.workspace.openTextDocument({ 
+                    language: 'markdown', 
+                    content: '# New Mindmap\n\n' 
+                });
+                await vscode.window.showTextDocument(newDoc, vscode.ViewColumn.One);
+                targetUri = newDoc.uri;
+            } catch (err) {
+                vscode.window.showErrorMessage(`Failed to create new markdown file: ${err}`);
+                return;
+            }
+        }
+
         if (targetUri) {
             InklinkPanel.createOrShow(context.extensionUri, targetUri, context);
-        } else {
-            vscode.window.showErrorMessage('No file selected.');
         }
     });
 
     context.subscriptions.push(disposable);
     
-    let insertExampleDisposable = vscode.commands.registerCommand('inklink.insertVisualizationExample', async () => {
-        const activeEditor = vscode.window.activeTextEditor;
-        if (!activeEditor) {
-            vscode.window.showErrorMessage('No active editor found. Please open a markdown file first.');
-            return;
+    let insertExampleDisposable = vscode.commands.registerCommand('inklink.insertVisualizationExample', async (uri?: vscode.Uri) => {
+        let activeEditor = vscode.window.activeTextEditor;
+        
+        // If triggered from a webview panel, try to find the editor for that panel's file
+        if (uri) {
+            const visibleEditor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === uri.toString());
+            if (visibleEditor) {
+                activeEditor = visibleEditor;
+            }
         }
-
+        
         try {
             const examplePath = vscode.Uri.joinPath(context.extensionUri, 'assets', 'visualization-example.md');
             const data = await vscode.workspace.fs.readFile(examplePath);
             const content = new TextDecoder().decode(data);
 
-            await activeEditor.edit(editBuilder => {
-                editBuilder.insert(activeEditor.selection.active, content);
+            if (!activeEditor) {
+                // If no active editor, create a new untitled markdown file with the example
+                const newDoc = await vscode.workspace.openTextDocument({ 
+                    language: 'markdown', 
+                    content: content 
+                });
+                activeEditor = await vscode.window.showTextDocument(newDoc, vscode.ViewColumn.One);
+                
+                // Automatically open the mindmap for the new file
+                InklinkPanel.createOrShow(context.extensionUri, newDoc.uri, context);
+                
+                vscode.window.showInformationMessage('Inklink Visualization Example opened in a new file!');
+                return;
+            }
+
+            const editor = activeEditor;
+            // Ensure the editor is visible and focused
+            await vscode.window.showTextDocument(editor.document, editor.viewColumn);
+
+            await editor.edit(editBuilder => {
+                // If the editor is empty, just insert at the beginning. Otherwise insert at cursor.
+                const position = editor.document.getText().length === 0 
+                    ? new vscode.Position(0, 0) 
+                    : editor.selection.active;
+                editBuilder.insert(position, content);
             });
+            
+            // Automatically open/show the mindmap for the current file
+            InklinkPanel.createOrShow(context.extensionUri, editor.document.uri, context);
             
             vscode.window.showInformationMessage('Inklink Visualization Example inserted!');
         } catch (err) {
-            vscode.window.showErrorMessage(`Failed to load visualization example: ${err}`);
+            vscode.window.showErrorMessage(`Failed to handle visualization example: ${err}`);
         }
     });
 
     context.subscriptions.push(insertExampleDisposable);
+    
+    // LAYOUT COMMANDS
+    const layoutCommands = [
+        { id: 'inklink.setLayoutTwoSided', direction: 'two-sided' },
+        { id: 'inklink.setLayoutLeftToRight', direction: 'left-to-right' },
+        { id: 'inklink.setLayoutRightToLeft', direction: 'right-to-left' }
+    ];
+
+    layoutCommands.forEach(cmd => {
+        context.subscriptions.push(vscode.commands.registerCommand(cmd.id, async (uri?: vscode.Uri) => {
+            // Priority 1: Use URI if passed (e.g. from context menu)
+            // Priority 2: Use active editor's URI
+            // Priority 3: Fallback to getActivePanel for backwards compatibility
+            let targetUri = uri || vscode.window.activeTextEditor?.document.uri;
+            
+            if (targetUri && (vscode.window.activeTextEditor?.document.languageId === 'markdown' || targetUri.path.endsWith('.md'))) {
+                const panel = InklinkPanel.createOrShow(context.extensionUri, targetUri, context);
+                panel.setLayout(cmd.direction);
+            } else {
+                const activePanel = InklinkPanel.getActivePanel();
+                if (activePanel) {
+                    activePanel.setLayout(cmd.direction);
+                } else {
+                    vscode.window.showInformationMessage('Open a Markdown file to change its Inklink layout.');
+                }
+            }
+        }));
+    });
 
     if (vscode.window.registerWebviewPanelSerializer) {
         vscode.window.registerWebviewPanelSerializer('inklinkMap', {
@@ -49,6 +121,13 @@ export function activate(context: vscode.ExtensionContext) {
             }
         });
     }
+
+    // Automatically open Inklink when a Markdown file is opened
+    context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(doc => {
+        if (doc.languageId === 'markdown') {
+            InklinkPanel.createOrShow(context.extensionUri, doc.uri, context);
+        }
+    }));
 }
 
 export function deactivate() {}
@@ -61,16 +140,36 @@ class InklinkPanel {
     private readonly _context: vscode.ExtensionContext;
     private _disposables: vscode.Disposable[] = [];
     private _revealDecoration: vscode.TextEditorDecorationType | undefined;
-    private _isProgrammaticReveal: boolean = false;
+    private _isReady = false;
+    private _pendingLayout: string | undefined;
     private _programmaticRevealTimeout: any;
+    public static getActivePanel(): InklinkPanel | undefined {
+        for (const panel of InklinkPanel._panels.values()) {
+            if (panel._panel.active) {
+                return panel;
+            }
+        }
+        return undefined;
+    }
 
-    public static createOrShow(extensionUri: vscode.Uri, fileUri: vscode.Uri, context: vscode.ExtensionContext) {
+    public setLayout(direction: string) {
+        if (this._isReady) {
+            this._panel.webview.postMessage({
+                command: 'setLayout',
+                direction: direction
+            });
+        } else {
+            this._pendingLayout = direction;
+        }
+    }
+
+    public static createOrShow(extensionUri: vscode.Uri, fileUri: vscode.Uri, context: vscode.ExtensionContext): InklinkPanel {
         const fileUriString = fileUri.toString();
         const existingPanel = InklinkPanel._panels.get(fileUriString);
 
         if (existingPanel) {
-            existingPanel._panel.reveal(vscode.ViewColumn.Beside);
-            return;
+            existingPanel._panel.reveal(vscode.ViewColumn.Beside, true);
+            return existingPanel;
         }
 
         const fileName = fileUri.scheme === 'untitled' ? 'Untitled' : path.basename(fileUri.fsPath);
@@ -92,6 +191,7 @@ class InklinkPanel {
 
         const inklinkPanel = new InklinkPanel(panel, extensionUri, fileUri, context);
         InklinkPanel._panels.set(fileUriString, inklinkPanel);
+        return inklinkPanel;
     }
 
     public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, fileUri: vscode.Uri, context: vscode.ExtensionContext) {
@@ -180,7 +280,12 @@ class InklinkPanel {
                         return;
                     }
                     case 'ready':
+                        this._isReady = true;
                         this._sendInitialContent();
+                        if (this._pendingLayout) {
+                            this.setLayout(this._pendingLayout);
+                            this._pendingLayout = undefined;
+                        }
                         return;
                     case 'openLink': {
                         if (message.url.startsWith('http://') || message.url.startsWith('https://') || message.url.startsWith('mailto:')) {
@@ -242,7 +347,7 @@ class InklinkPanel {
                         return;
                     }
                     case 'insertVisualizationExample': {
-                        vscode.commands.executeCommand('inklink.insertVisualizationExample');
+                        vscode.commands.executeCommand('inklink.insertVisualizationExample', this._fileUri);
                         return;
                     }
                 }

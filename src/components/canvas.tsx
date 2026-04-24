@@ -15,7 +15,7 @@ import { LayoutFactory } from '@/core/layout/layout-factory';
 import { useTheme } from 'next-themes';
 import { useWebPlatform } from '@/platform/web/web-platform-context';
 import { useFileDrop } from '@/hooks/use-file-drop';
-import { cn } from '@/lib/utils';
+import { cn, getModKey } from '@/lib/utils';
 import { Zap as ZapIcon, BookOpen, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -32,6 +32,7 @@ export function Canvas() {
   const { resolvedTheme } = useTheme();
   const internalTransform = useRef(state.transform);
   const lastFocusTime = useRef(0);
+  const modKey = React.useMemo(() => getModKey(), []);
 
   const { autoSave } = useWebPlatform();
 
@@ -532,7 +533,7 @@ export function Canvas() {
             <div className="mt-10 flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">
               <div className="flex items-center gap-1.5">
                 <Keyboard className="w-3 h-3" />
-                <span>Cmd+O to Open</span>
+                <span>{modKey}+O to Open</span>
               </div>
               <div className="h-1 w-1 rounded-full bg-border" />
             </div>

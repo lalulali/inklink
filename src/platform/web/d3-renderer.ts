@@ -11,6 +11,7 @@ import { ViewportCuller } from './viewport-culler';
 import { ColorManager, RendererColors } from '@/core/theme/color-manager';
 import { LAYOUT_CONFIG } from '@/core/layout/layout-config';
 import { imageDimensionStore } from '@/core/utils/image-store';
+import { LRUCache } from '@/core/utils/lru-cache';
 import {
   wrapText,
   getNoteBlockFontSize,
@@ -41,7 +42,16 @@ export class D3Renderer implements RendererAdapter {
   private isDarkMode: boolean = false;
   private measureCtx: CanvasRenderingContext2D | null = null;
 
-  private measureCache: Map<string, { contentKey: string; width: number; height: number; displayLines?: string[]; textHeight?: number; hasText?: boolean }> = new Map();
+  private measureCache = new LRUCache<string, {
+    contentKey: string;
+    width: number;
+    height: number;
+    displayLines?: string[];
+    textHeight?: number;
+    hasText?: boolean;
+    imageThumbWidth?: number;
+    imageThumbHeight?: number;
+  }>(2000);
 
   private _isHidden: boolean = false;
   private _skipAnimations: boolean = false;
@@ -49,6 +59,8 @@ export class D3Renderer implements RendererAdapter {
   private _pendingRenderArgs: { root: TreeNode; positions: Map<string, Position>; isDarkMode: boolean } | null = null;
   private _imageStoreUnsubscribe: (() => void) | null = null;
   private _visibilityHandler: (() => void) | null = null;
+  private _cullingDirty: boolean = false;
+  private _imageHrefCache = new WeakMap<SVGImageElement, string>();
 
   public onTransform?: (transform: Transform) => void;
 
@@ -166,22 +178,16 @@ export class D3Renderer implements RendererAdapter {
           });
         }
 
-        // Feature: Viewport Culling Update
-        // Re-render to update culled nodes if we have enough nodes to justify it
-        if (this.lastRoot && ((this.lastRoot as any)._allNodesCount || 0) > 30) {
-          const now = Date.now();
-          if (now - this.lastCullingUpdate > 200) { // 200ms throttle for smoothness
-            this.lastCullingUpdate = now;
-            this._skipAnimations = true;
-            this.render(this.lastRoot, this.lastPositions!, this.isDarkMode);
-          }
-        }
+        // Phase 1 Optimization: Defer culling to zoom.end
+        // Pan/zoom only updates the transform matrix — zero DOM manipulation during drag
+        this._cullingDirty = true;
       })
       .on('end', () => {
         this.svg?.style('cursor', 'grab');
         this._skipAnimations = false;
-        // Final render on end to ensure all visible nodes are present
-        if (this.lastRoot && this.lastPositions) {
+        // Phase 1 Optimization: Only re-render if culling state is dirty
+        if (this._cullingDirty && this.lastRoot && this.lastPositions) {
+          this._cullingDirty = false;
           this.render(this.lastRoot, this.lastPositions, this.isDarkMode);
         }
       });
@@ -190,8 +196,8 @@ export class D3Renderer implements RendererAdapter {
     this.svg.call(this.zoom)
       .style('cursor', 'grab')
       .on('click', () => {
-         // Clear selection if clicking canvas background
-         if (this.nodeClickCallback) this.nodeClickCallback('');
+        // Clear selection if clicking canvas background
+        if (this.nodeClickCallback) this.nodeClickCallback('');
       })
       // CRITICAL FIX: Add a click distance threshold to prevent micro-movements (common during lag)
       // from being interpreted as a pan start, which suppresses the local click event.
@@ -267,6 +273,16 @@ export class D3Renderer implements RendererAdapter {
       }
     };
     document.addEventListener('visibilitychange', this._visibilityHandler);
+
+    // Clear measurement cache once fonts are ready so text widths are accurate.
+    // Canvas measureText() may use a fallback font if called before Inter loads,
+    // causing node rects to be too narrow. Busting the cache forces re-measurement.
+    document.fonts.ready.then(() => {
+      this.measureCache.clear();
+      if (this.lastRoot && this.lastPositions) {
+        this.render(this.lastRoot, this.lastPositions, this.isDarkMode);
+      }
+    });
   }
 
   /**
@@ -352,7 +368,7 @@ export class D3Renderer implements RendererAdapter {
         if (pos) {
           const w = (node as any).metadata?.width || 100;
           const h = (node as any).metadata?.height || 40;
-          
+
           // More precise bound calculation based on side
           if (this.isVertical) {
             minX = Math.min(minX, pos.x - w / 2);
@@ -376,9 +392,9 @@ export class D3Renderer implements RendererAdapter {
           }
         }
       });
-      
+
       const view = this.getViewportBounds();
-      
+
       // Calculate effective extent: map bounds + buffer, but at least viewport size
       // to ensure small maps can still be panned/centered freely.
       const extMinX = Math.min(minX - LAYOUT_CONFIG.PANNING.BUFFER_X, -view.width / 2);
@@ -403,12 +419,14 @@ export class D3Renderer implements RendererAdapter {
     // Measure all nodes (cache skips unchanged nodes)
     allNodes.forEach(node => this.measureNode(node));
 
-    // Viewport culling: only render nodes within the current viewport
-    let nodesToRender = allNodes;
+    // Phase 2: Visibility-based culling
+    // Calculate which nodes are visible, but pass ALL nodes to render functions
+    // Off-screen nodes will be hidden via CSS visibility instead of DOM removal
+    const visibleIds = new Set<string>();
     if (this.svg && allNodes.length > 30) {
       const t = d3.zoomTransform(this.svg.node() as SVGSVGElement);
       const bounds = this.getViewportBounds();
-      const visibleIds = this.culler.getVisibleNodes(
+      const culled = this.culler.getVisibleNodes(
         root,
         positions,
         { x: t.x, y: t.y, scale: t.k },
@@ -416,15 +434,18 @@ export class D3Renderer implements RendererAdapter {
         bounds.height
       );
       // Always include root and direct children for stability
-      nodesToRender = allNodes.filter(n => visibleIds.has(n.id) || n.depth <= 1);
+      allNodes.forEach(n => {
+        if (culled.has(n.id) || n.depth <= 1) visibleIds.add(n.id);
+      });
+    } else {
+      // Small tree: everything visible
+      allNodes.forEach(n => visibleIds.add(n.id));
     }
 
-    // Links are visible if target is visible
     const allLinks = this.getLinks(allNodes);
-    const linksToRender = allLinks;
 
-    this.renderLinks(linksToRender, positions);
-    this.renderNodes(nodesToRender, positions);
+    this.renderLinks(allLinks, positions, visibleIds);
+    this.renderNodes(allNodes, positions, visibleIds);
   }
 
   /**
@@ -472,24 +493,11 @@ export class D3Renderer implements RendererAdapter {
     if (cached && cached.contentKey === contentKey) {
       node.metadata.width = cached.width;
       node.metadata.height = cached.height;
-      // Even on cache hit, re-populate thumbWidth/thumbHeight on the (possibly fresh) image object
-      if (node.metadata.image) {
-        const image = node.metadata.image;
-        const imgConfig = LAYOUT_CONFIG.IMAGE;
-        const dims = imageDimensionStore.getDimensions(image.url);
-        const w = dims?.width || 0;
-        const h = dims?.height || 0;
-        if (w > 0 && h > 0) {
-          const ratioW = imgConfig.MAX_WIDTH / w;
-          const ratioH = imgConfig.MAX_HEIGHT / h;
-          const scale = (w > imgConfig.MAX_WIDTH || h > imgConfig.MAX_HEIGHT) ? Math.min(ratioW, ratioH) : 1;
-          image.thumbWidth = w * scale;
-          image.thumbHeight = h * scale;
-        } else {
-          const isActuallyLoading = imageDimensionStore.isLoading(image.url);
-          image.thumbWidth = isActuallyLoading ? 40 : 0;
-          image.thumbHeight = isActuallyLoading ? 30 : 0;
-        }
+      // Phase 3: Fast-path — restore image thumb dimensions from cache
+      // Avoids imageDimensionStore lookups and re-computation on every render
+      if (node.metadata.image && cached.imageThumbWidth !== undefined) {
+        node.metadata.image.thumbWidth = cached.imageThumbWidth;
+        node.metadata.image.thumbHeight = cached.imageThumbHeight;
       }
       return;
     }
@@ -531,7 +539,7 @@ export class D3Renderer implements RendererAdapter {
 
     const hasText = displayContent.length > 0;
     node.metadata.width = maxWidth + (this.config.padding.x * 2);
-    
+
     let totalTextHeight = 0;
     displayLines.forEach(line => {
       const lineSegments = parseMarkdownLine(line);
@@ -631,9 +639,9 @@ export class D3Renderer implements RendererAdapter {
           const getCellLines = (txt: string, maxWidth?: number) => {
             const rawLines = (txt || '').replace(/<br\s*\/?>/gi, '\n').replace(/\\n/g, '\n').replace(/\\t/g, '    ').replace(/\t/g, '    ').split(/\r?\n/);
             if (maxWidth === undefined || maxWidth <= 0) return rawLines;
-            const mFn = (t: string, f: string) => { 
-                if (ctx) { ctx.font = f; return ctx.measureText(t).width; } 
-                return t.length * (NB.TABLE_LINE_HEIGHT * 0.6); 
+            const mFn = (t: string, f: string) => {
+              if (ctx) { ctx.font = f; return ctx.measureText(t).width; }
+              return t.length * (NB.TABLE_LINE_HEIGHT * 0.6);
             };
             return rawLines.flatMap((line: string) => wrapText(line, Math.max(500, maxWidth || 0), NB.TABLE_LINE_HEIGHT, '400', mFn, 'Inter, sans-serif'));
           };
@@ -692,7 +700,7 @@ export class D3Renderer implements RendererAdapter {
           // Code/Quote block height
           const lineH = block.isQuote ? NB.QUOTE_LINE_HEIGHT : NB.CODE_LINE_HEIGHT;
           const blockFontFamily = block.isQuote ? 'Inter, sans-serif' : NB.MONO_FONT.replace(/'/g, "");
-          
+
           // Use same wrapping logic as renderNoteBlocks to ensure height matches
           const wrapW = NB.MAX_WIDTH - (block.isQuote ? 24 : 16);
           const lines = (block.content || '').split(/\r?\n/).flatMap((line: string) =>
@@ -702,7 +710,7 @@ export class D3Renderer implements RendererAdapter {
           // Calculate note block lines width
           const fontRef = `${lineH}px ${blockFontFamily}`;
           if (ctx) ctx.font = fontRef;
-          
+
           lines.forEach(line => {
             let lineWidth = 0;
             if (ctx) {
@@ -725,15 +733,81 @@ export class D3Renderer implements RendererAdapter {
       }
     }
 
+    // Phase 5: Cache block heights on block refs for renderNoteBlocks fast-path
+    // This avoids re-computing heights in renderNoteBlocks on every render
+    if (allNoteBlocks.length > 0) {
+      allNoteBlocks.forEach((block, idx) => {
+        let cachedHeight: number;
+        if (!block.expanded) {
+          cachedHeight = NB.PILL_HEIGHT;
+        } else if (block.isTable) {
+          let totalTableHeight = NB.PILL_HEIGHT + (NB.TABLE_V_PADDING * 2) + 4;
+          const colCount = Math.max(block.headers?.length || 0, ...(block.rows?.map(r => r.length) || [0]));
+          if (colCount > 0 && block.headers?.length) {
+            let maxLinesInHeader = 1;
+            block.headers.forEach((h, i) => {
+              const lines = (h || '').replace(/<br\s*\/?>/gi, '\n').replace(/\\n/g, '\n').split(/\r?\n/);
+              maxLinesInHeader = Math.max(maxLinesInHeader, lines.length);
+            });
+            totalTableHeight += NB.TABLE_HEADER_HEIGHT + (maxLinesInHeader - 1) * NB.TABLE_LINE_HEIGHT;
+          }
+          block.rows?.forEach(row => {
+            let maxLinesInRow = 1;
+            row.forEach((cell) => {
+              const lines = (cell || '').replace(/<br\s*\/?>/gi, '\n').replace(/\\n/g, '\n').split(/\r?\n/);
+              maxLinesInRow = Math.max(maxLinesInRow, lines.length);
+            });
+            totalTableHeight += NB.TABLE_ROW_HEIGHT + (maxLinesInRow - 1) * NB.TABLE_LINE_HEIGHT;
+          });
+          cachedHeight = totalTableHeight;
+        } else {
+          const lineH = block.isQuote ? NB.QUOTE_LINE_HEIGHT : NB.CODE_LINE_HEIGHT;
+          const blockFontFamily = block.isQuote ? 'Inter, sans-serif' : NB.MONO_FONT.replace(/'/g, "");
+          const wrapW = NB.MAX_WIDTH - (block.isQuote ? 24 : 16);
+          const lines = (block.content || '').split(/\r?\n/).flatMap((line: string) =>
+            this.wrapText(line, wrapW, lineH, 'normal', blockFontFamily)
+          );
+          const vPad = block.isQuote ? NB.QUOTE_V_PADDING : NB.CODE_V_PADDING;
+          cachedHeight = NB.CODE_HEADER_HEIGHT + vPad + (lines.length * lineH) + vPad;
+        }
+        // Store on the original block ref so renderNoteBlocks can read it
+        const sourceBlock = block.isTable
+          ? tableBlocks[idx - codeBlocks.length - quoteBlocks.length]
+          : block.isQuote
+            ? quoteBlocks[idx - codeBlocks.length]
+            : codeBlocks[idx];
+        if (sourceBlock) {
+          (sourceBlock as any)._cachedExpandedHeight = cachedHeight;
+        }
+      });
+    }
+
     // Store result in cache (including render data for renderNodes reuse)
-    this.measureCache.set(node.id, {
+    const cacheEntry: {
+      contentKey: string;
+      width: number;
+      height: number;
+      displayLines?: string[];
+      textHeight?: number;
+      hasText?: boolean;
+      imageThumbWidth?: number;
+      imageThumbHeight?: number;
+    } = {
       contentKey,
       width: node.metadata.width,
       height: node.metadata.height,
       displayLines,
       textHeight: totalTextHeight,
       hasText,
-    });
+    };
+
+    // Phase 3: Cache image thumb dimensions for fast-path restoration
+    if (node.metadata.image) {
+      cacheEntry.imageThumbWidth = node.metadata.image.thumbWidth;
+      cacheEntry.imageThumbHeight = node.metadata.image.thumbHeight;
+    }
+
+    this.measureCache.set(node.id, cacheEntry);
   }
 
   /**
@@ -802,7 +876,9 @@ export class D3Renderer implements RendererAdapter {
    * Export to SVG string
    */
   exportToSVG(): string {
-    return this.svg?.node()?.outerHTML || '';
+    const markup = this.svg?.node()?.outerHTML || '';
+    // Fix: &nbsp; is invalid in standalone XML/SVG files
+    return markup.replace(/&nbsp;/g, '&#160;');
   }
 
   /**
@@ -851,7 +927,7 @@ export class D3Renderer implements RendererAdapter {
         }
         return null;
       };
-      
+
       const nodeData = findNode(this.lastRoot);
       if (nodeData) {
         const w = (nodeData as any).metadata?.width || 0;
@@ -1055,7 +1131,7 @@ export class D3Renderer implements RendererAdapter {
   /**
    * Render nodes using D3 data join
    */
-  private renderNodes(nodes: TreeNode[], positions: Map<string, Position>): void {
+  private renderNodes(nodes: TreeNode[], positions: Map<string, Position>, visibleIds: Set<string>): void {
     if (!this.g) return;
     const thisRenderer = this;
     const layer = this.g.select('g.nodes-layer');
@@ -1063,7 +1139,7 @@ export class D3Renderer implements RendererAdapter {
     const nodeGroups = layer.selectAll<SVGGElement, TreeNode>('g.node')
       .data(nodes, (d) => d.id);
 
-    // EXIT: fly to the nearest visible ancestor
+    // EXIT: fly to the nearest visible ancestor (only for actual tree removals, not culling)
     nodeGroups.exit()
       .transition()
       .duration(this.config.animationDuration)
@@ -1164,14 +1240,23 @@ export class D3Renderer implements RendererAdapter {
     // UPDATE
     const update = enter.merge(nodeGroups);
 
+    // Phase 2: Visibility-based culling — hide off-screen nodes instead of DOM removal
+    update
+      .style('visibility', (d) => visibleIds.has(d.id) ? 'visible' : 'hidden')
+      .style('display', (d) => visibleIds.has(d.id) ? null : 'none');
+
     update.attr('data-id', (d) => d.id)
-      .on('click', (event, d) => {
-        event.stopPropagation();
-        this.nodeClickCallback(d.id);
+      .on('click', function (event: any, d?: any) {
+        const e = (event && event.stopPropagation) ? event : (d3 as any).event;
+        const data = (event && event.stopPropagation) ? d : event;
+        if (e) e.stopPropagation();
+        if (data) thisRenderer.nodeClickCallback(data.id);
       })
-      .on('dblclick', (event, d) => {
-        event.stopPropagation();
-        this.nodeDoubleClickCallback(d.id);
+      .on('dblclick', function (event: any, d?: any) {
+        const e = (event && event.stopPropagation) ? event : (d3 as any).event;
+        const data = (event && event.stopPropagation) ? d : event;
+        if (e) e.stopPropagation();
+        if (data) thisRenderer.nodeDoubleClickCallback(data.id);
       })
       .on('focus', (_, d) => {
         this.nodeClickCallback(d.id);
@@ -1429,7 +1514,7 @@ export class D3Renderer implements RendererAdapter {
                   seg.style('font-size', `${fontSize * 1.1}px`);
                 }
               }
-              
+
               if (s.highlight || s.keyboard) {
                 const seg = d3.select(this);
                 if (s.highlight) {
@@ -1461,12 +1546,14 @@ export class D3Renderer implements RendererAdapter {
               }
             })
             .style('cursor', s => (s.link || s.details) ? 'pointer' : 'default')
-            .on('click', (event, s) => {
-              if (s.link) {
-                event.stopPropagation();
-                thisRenderer.nodeLinkClickCallback(s.link);
-              } else if (s.details) {
-                event.stopPropagation();
+            .on('click', function (event: any, s?: any) {
+              const e = (event && event.stopPropagation) ? event : (d3 as any).event;
+              const data = (event && event.stopPropagation) ? s : event;
+              if (data && data.link) {
+                if (e) e.stopPropagation();
+                thisRenderer.nodeLinkClickCallback(data.link);
+              } else if (data && data.details) {
+                if (e) e.stopPropagation();
                 // Simple toggle for details if we had a state, for now just a click feedback
               }
             });
@@ -1517,13 +1604,24 @@ export class D3Renderer implements RendererAdapter {
           .attr('opacity', 1)
           .attr('transform', `translate(${rectX + (width - imgW) / 2}, ${-height / 2 + thisRenderer.config.padding.y})`);
 
-        const img = container.select<SVGImageElement>('image')
+        const imgEl = container.select<SVGImageElement>('image');
+        const imgNode = imgEl.node();
+        const targetHref = (image as any).failed ? '' : image.url;
+
+        // Phase 4: Only set href if URL changed — prevents re-fetching and flicker
+        if (imgNode && thisRenderer._imageHrefCache.get(imgNode) !== targetHref) {
+          thisRenderer._imageHrefCache.set(imgNode, targetHref);
+          imgEl.attr('href', targetHref);
+        }
+
+        imgEl
           .attr('width', imgW)
           .attr('height', imgH)
-          .attr('href', (image as any).failed ? '' : image.url)
           .attr('opacity', (image as any).failed ? 0 : 1)
-          .on('click', (event) => {
-            event.stopPropagation();
+          .on('click', function (event: any) {
+            // Support both D3 v6+ (event as first arg) and D3 v2-v5 (data as first arg, event via d3.event)
+            const e = (event && event.stopPropagation) ? event : (d3 as any).event;
+            if (e) e.stopPropagation();
             thisRenderer.nodeImageClickCallback(image.url, image.alt, image.link);
           });
 
@@ -1772,13 +1870,13 @@ export class D3Renderer implements RendererAdapter {
     // Y start: rect top + padding + text height
     const rectTop = -height / 2;
     let blockY = rectTop + this.config.padding.y + textBlockH;
-    
+
     // Consistent gap logic: if anything is above the note blocks, we need a PILL_GAP.
     // This matches the measurement logic in measureNode.
     if (hasText || d.metadata.image) {
       blockY += NB.PILL_GAP;
     }
-    
+
     if (d.metadata.image) {
       blockY += (d.metadata.image.thumbHeight || 0) + LAYOUT_CONFIG.IMAGE.PADDING;
     }
@@ -1860,7 +1958,11 @@ export class D3Renderer implements RendererAdapter {
 
       // Calculate dimensions
       let expandedH = NB.PILL_HEIGHT;
-      if (isExpanded) {
+      // Phase 5: Use cached height from measureNode if available
+      const cachedBlockHeight = (block.ref as any)._cachedExpandedHeight;
+      if (cachedBlockHeight !== undefined) {
+        expandedH = cachedBlockHeight;
+      } else if (isExpanded) {
         if (type === 'table') {
           let totalTableHeight = NB.TABLE_HEADER_HEIGHT + (NB.TABLE_V_PADDING * 2);
           const colWidths = block.ref.colWidths || [];
@@ -2062,7 +2164,7 @@ export class D3Renderer implements RendererAdapter {
 
       tableUpdate.each(function (b) {
         const g = d3.select(this);
-        
+
         // Stabilize table rendering to prevent flickering during unrelated node updates
         const tableContentKey = `${b.ref.headers?.join('|')}-${b.ref.rows?.map(r => r.join('|')).join('||')}`;
         const tableKey = `${b.id}-${tableContentKey}-${b.ref.expanded}-${innerW}`;
@@ -2083,12 +2185,12 @@ export class D3Renderer implements RendererAdapter {
         const getCellLinesRaw = (txt: string, mw?: number) => {
           const raw = (txt || '').replace(/<br\s*\/?>/gi, '\n').replace(/\\n/g, '\n').replace(/\\t/g, '    ').replace(/\t/g, '    ').split(/\r?\n/);
           if (mw === undefined) return raw;
-          const mFn = (t: string, f: string) => { 
-            if (thisRenderer.measureCtx) { 
-              thisRenderer.measureCtx.font = f; 
-              return thisRenderer.measureCtx.measureText(t).width; 
-            } 
-            return t.length * (NB.TABLE_LINE_HEIGHT * 0.6); 
+          const mFn = (t: string, f: string) => {
+            if (thisRenderer.measureCtx) {
+              thisRenderer.measureCtx.font = f;
+              return thisRenderer.measureCtx.measureText(t).width;
+            }
+            return t.length * (NB.TABLE_LINE_HEIGHT * 0.6);
           };
           return raw.flatMap(l => wrapText(l, Math.max(500, mw || 0), NB.TABLE_LINE_HEIGHT, 'normal', mFn, 'Inter, sans-serif'));
         };
@@ -2147,7 +2249,7 @@ export class D3Renderer implements RendererAdapter {
               let textX = currentX + 30; // 30px left padding
               if (align === 'center') textX = currentX + cw / 2;
               else if (align === 'right') textX = currentX + cw - 30; // 30px right padding
-              
+
               const lineY = cellStartY + li * NB.TABLE_LINE_HEIGHT;
               const textElement = cellG.append('text')
                 .attr('x', textX)
@@ -2256,7 +2358,7 @@ export class D3Renderer implements RendererAdapter {
   /**
    * Render curved links between nodes
    */
-  private renderLinks(links: any[], positions: Map<string, Position>): void {
+  private renderLinks(links: any[], positions: Map<string, Position>, visibleIds: Set<string>): void {
     if (!this.g) return;
     const layer = this.g.select('g.links-layer');
 
@@ -2426,6 +2528,11 @@ export class D3Renderer implements RendererAdapter {
 
     // ── Apply transition to all links (enter + update) ───────────────────────
     const update = enter.merge(linkPaths);
+
+    // Phase 2: Visibility-based culling — hide links to off-screen nodes
+    update
+      .style('visibility', (d) => (visibleIds.has(d.source.id) && visibleIds.has(d.target.id)) ? 'visible' : 'hidden')
+      .style('display', (d) => (visibleIds.has(d.source.id) && visibleIds.has(d.target.id)) ? null : 'none');
 
     update.transition()
       .duration(this.config.animationDuration)

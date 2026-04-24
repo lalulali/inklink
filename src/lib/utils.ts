@@ -32,3 +32,13 @@ export function normalizeUrl(url: string | null): string {
   // Default to https for external-looking links without protocol
   return `https://${url}`;
 }
+
+/**
+ * Returns the platform-appropriate modifier key name
+ * @returns 'Cmd' for Mac, 'Ctrl' for others
+ */
+export function getModKey(): string {
+  if (typeof navigator === 'undefined') return 'Ctrl';
+  const platform = (navigator as any).userAgentData?.platform || navigator.platform || 'unknown';
+  return /Mac|iPhone|iPod|iPad/i.test(platform) ? 'Cmd' : 'Ctrl';
+}

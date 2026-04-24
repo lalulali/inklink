@@ -71,8 +71,8 @@ Share your visual structure:
 
 1. Open any `.md` file in VS Code
 2. Click the **Inklink icon** in the editor title bar, **or**
-3. Right-click the file → **Open Mindmap**, **or**
-4. Command Palette (`Cmd+Shift+P`) → **Inklink: Open Mindmap**
+3. Right-click the file → **Open Inklink**, **or**
+4. Command Palette (`Cmd+Shift+P`) → **Inklink: Open Inklink**
 
 The mind map appears in a side panel. Write on the left. Think on the right.
 

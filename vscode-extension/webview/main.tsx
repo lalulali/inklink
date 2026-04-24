@@ -26,6 +26,8 @@ import './index.css';
 
 import { getVsCodeApi } from '@platform/vscode';
 
+import { ImageOverlay } from '@/components/image-overlay';
+
 /**
  * VS Code Webview Entry Component
  * Reuses core Inklink components but connects to the extension host
@@ -44,8 +46,14 @@ const App = () => {
             switch (message.command) {
                 case 'setContent': {
                     const parser = createMarkdownParser();
-                    const tree = parser.parse(message.content);
-                    ColorManager.assignBranchColors(tree);
+                    let tree = null;
+                    try {
+                        tree = parser.parse(message.content);
+                        ColorManager.assignBranchColors(tree);
+                    } catch (e) {
+                        // If empty, tree remains null which triggers the empty state UI
+                        console.log('Inklink: Content is empty or invalid, showing empty state');
+                    }
 
                     globalState.setState({ 
                         markdown: message.content,
@@ -59,6 +67,10 @@ const App = () => {
 
                     // Save state for VS Code to restore after restart
                     vscode.setState({ fileUri: message.fileUri });
+                    break;
+                }
+                case 'setLayout': {
+                    globalState.setState({ layoutDirection: message.direction as any });
                     break;
                 }
                 case 'focusLine': {
@@ -130,6 +142,7 @@ const App = () => {
                     <AppReferenceDialog />
                     <ExportDialog />
                     <SettingsDialog />
+                    <ImageOverlay />
                 </main>
             </WebPlatformProvider>
         </ThemeProvider>

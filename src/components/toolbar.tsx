@@ -16,6 +16,7 @@ import { ToggleAllVisibilityCommand } from "@/core/state/commands/toggle-all-vis
 import { createMarkdownParser } from "@/core/parser/markdown-parser";
 import { ColorManager } from "@/core/theme/color-manager";
 import { Button } from "@/components/ui/button";
+import { getModKey } from "@/lib/utils";
 import {
 	FolderOpen as FolderOpenIcon,
 	Save as SaveIcon,
@@ -129,11 +130,13 @@ export function Toolbar({
 	editorVisible: boolean;
 }) {
 	const { factory, autoSave: autoSaveMgr, commands } = useWebPlatform();
+	const modKey = React.useMemo(() => getModKey(), []);
 	const isVsCode = factory.getPlatform() === PlatformType.VSCode;
 	const { showSuccess, showError, showInfo } = useNotification();
 	const [state, setState] = React.useState(globalState.getState());
 	const [isMobile, setIsMobile] = React.useState(false);
 	const [isNarrow, setIsNarrow] = React.useState(false);
+	const isTablet = isMobile && !isNarrow;
 	const [canUndo, setCanUndo] = React.useState(false);
 	const [canRedo, setCanRedo] = React.useState(false);
 
@@ -436,7 +439,7 @@ export function Toolbar({
 
 	return (
 		<div
-			className="flex h-14 w-full items-center gap-2 border-b bg-background px-4 overflow-x-auto no-scrollbar relative z-[60]"
+			className="flex h-14 w-full items-center gap-2 border-b bg-background px-4 overflow-x-auto no-scrollbar relative z-[70]"
 			id="inklink-toolbar"
 		>
 			<TooltipProvider delayDuration={isMobile ? 999999 : 400}>
@@ -506,7 +509,7 @@ export function Toolbar({
 										<FilePlusIcon className="h-4 w-4" />
 									</Button>
 								</TooltipTrigger>
-								<TooltipContent>New Document (Cmd+N)</TooltipContent>
+								<TooltipContent>New Document ({modKey}+N)</TooltipContent>
 							</Tooltip>
 
 							<DropdownMenu>
@@ -518,11 +521,11 @@ export function Toolbar({
 											</Button>
 										</DropdownMenuTrigger>
 									</TooltipTrigger>
-									<TooltipContent>Open File (Cmd+O)</TooltipContent>
+									<TooltipContent>Open File</TooltipContent>
 								</Tooltip>
 								<DropdownMenuContent
 									align="start"
-									className="w-56 border-border bg-background"
+									className="w-56 border-border bg-background z-[100]"
 								>
 									<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
 										Source Selection
@@ -532,7 +535,7 @@ export function Toolbar({
 										className="gap-2 cursor-pointer"
 									>
 										<FolderOpenIcon className="h-4 w-4" />
-										<span>From Computer...</span>
+										<span>From Computer ({modKey}+O)</span>
 									</DropdownMenuItem>
 									<DropdownMenuItem
 										onClick={() =>
@@ -541,7 +544,7 @@ export function Toolbar({
 										className="gap-2 cursor-pointer"
 									>
 										<HistoryIcon className="h-4 w-4" />
-													<span>From Local Storage... (Cmd+Shift+O)</span>
+													<span>From Local Storage ({modKey}+Shift+O)</span>
 									</DropdownMenuItem>
 								</DropdownMenuContent>
 							</DropdownMenu>
@@ -557,7 +560,7 @@ export function Toolbar({
 										<SaveIcon className="h-4 w-4" />
 									</Button>
 								</TooltipTrigger>
-								<TooltipContent>Save (Cmd+S)</TooltipContent>
+								<TooltipContent>Save ({modKey}+S)</TooltipContent>
 							</Tooltip>
 						</>
 					)}
@@ -576,7 +579,7 @@ export function Toolbar({
 									<DownloadIcon className="h-4 w-4" />
 								</Button>
 							</TooltipTrigger>
-							<TooltipContent>Export Mind Map...</TooltipContent>
+							<TooltipContent>Export Mind Map ({modKey}+E)</TooltipContent>
 						</Tooltip>
 					)}
 				</div>
@@ -596,7 +599,7 @@ export function Toolbar({
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
-							Undo {canUndo ? "(Cmd+Z)" : "(No actions to undo)"}
+							Undo {canUndo ? `(${modKey}+Z)` : "(No actions to undo)"}
 						</TooltipContent>
 					</Tooltip>
 					<Tooltip>
@@ -612,26 +615,53 @@ export function Toolbar({
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
-							Redo {canRedo ? "(Cmd+Shift+Z)" : "(No actions to redo)"}
+							Redo {canRedo ? `(${modKey}+Shift+Z)` : "(No actions to redo)"}
 						</TooltipContent>
 					</Tooltip>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8"
-								onClick={handleFind}
+					<DropdownMenu>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<DropdownMenuTrigger asChild>
+									<Button variant="ghost" size="icon" className="h-8 w-8">
+										<SearchIcon className="h-4 w-4" />
+									</Button>
+								</DropdownMenuTrigger>
+							</TooltipTrigger>
+							<TooltipContent>Find</TooltipContent>
+						</Tooltip>
+						<DropdownMenuContent
+							align="start"
+							className="w-56 border-border bg-background z-[100]"
+						>
+							<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+								Search Scope
+							</div>
+							<DropdownMenuItem
+								onClick={() =>
+									window.dispatchEvent(new CustomEvent("inklink-toggle-search"))
+								}
+								className="gap-2 cursor-pointer"
 							>
-								<SearchIcon className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Find (Cmd+F)</TooltipContent>
-					</Tooltip>
+								<MapIcon className="h-4 w-4" />
+								<span>Find in Mind Map ({modKey}+F)</span>
+							</DropdownMenuItem>
+							{!isVsCode && (
+								<DropdownMenuItem
+									onClick={() =>
+										window.dispatchEvent(new CustomEvent("inklink-editor-search"))
+									}
+									className="gap-2 cursor-pointer"
+								>
+									<FileTextIcon className="h-4 w-4" />
+									<span>Find in Editor ({modKey}+Shift+F)</span>
+								</DropdownMenuItem>
+							)}
+						</DropdownMenuContent>
+					</DropdownMenu>
 				</div>
 
-				{/* Section 3: Layout */}
-				<div className="hidden md:flex shrink-0 items-center gap-1 border-r pr-2 px-1">
+				{/* Section 3: Layout — visible at desktop always; also at tablet when in VSCode */}
+				<div className={`${isVsCode && isTablet ? 'flex' : 'hidden md:flex'} shrink-0 items-center gap-1 border-r pr-2 px-1`}>
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
@@ -647,7 +677,7 @@ export function Toolbar({
 								<LTRLayoutIcon className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Left to Right</TooltipContent>
+						<TooltipContent>Left to Right ({modKey}+←)</TooltipContent>
 					</Tooltip>
 					<Tooltip>
 						<TooltipTrigger asChild>
@@ -662,7 +692,7 @@ export function Toolbar({
 								<TwoSidedLayoutIcon className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Balance</TooltipContent>
+						<TooltipContent>Balance ({modKey}+↑/↓)</TooltipContent>
 					</Tooltip>
 					<Tooltip>
 						<TooltipTrigger asChild>
@@ -679,7 +709,7 @@ export function Toolbar({
 								<RTLLayoutIcon className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Right to Left</TooltipContent>
+						<TooltipContent>Right to Left ({modKey}+→)</TooltipContent>
 					</Tooltip>
 				</div>
 
@@ -738,7 +768,7 @@ export function Toolbar({
 								<MoreHorizontalIcon className="h-4 w-4" />
 							</Button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-52">
+						<DropdownMenuContent align="end" className="w-52 max-h-[80vh] overflow-y-auto sleek-scrollbar z-[100]">
 								<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
 									File & History
 								</div>
@@ -748,23 +778,41 @@ export function Toolbar({
 								</DropdownMenuItem>
 								<DropdownMenuItem onClick={handleOpen}>
 									<FolderOpenIcon className="h-4 w-4 mr-2" />
-									From Computer...
+									From Computer 
 								</DropdownMenuItem>
 								<DropdownMenuItem onClick={() => globalState.setState({ isRecoveryDialogOpen: true })}>
 									<HistoryIcon className="h-4 w-4 mr-2" />
-									From Local Storage... (Cmd+Shift+O)
+									From Local Storage ({modKey}+Shift+O)
 								</DropdownMenuItem>
 								<DropdownMenuItem onClick={handleSave}>
 									<SaveIcon className="h-4 w-4 mr-2" />
-									Save Map
+									Save Map ({modKey}+S)
 								</DropdownMenuItem>
 								<DropdownMenuItem onClick={() => globalState.setState({ isExportDialogOpen: true })}>
 									<DownloadIcon className="h-4 w-4 mr-2" />
-									Export Map...
+									Export Map ({modKey}+E)
 								</DropdownMenuItem>
+							<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-2 border-t">
+								Search
+							</div>
+							<DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent("inklink-toggle-search"))}>
+								<MapIcon className="h-4 w-4 mr-2" />
+								Find in Mind Map
+							</DropdownMenuItem>
+							{!isVsCode && (
+								<DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent("inklink-editor-search"))}>
+									<FileTextIcon className="h-4 w-4 mr-2" />
+									Find in Editor
+								</DropdownMenuItem>
+							)}
+							{/* Layout section: hidden in More menu when VSCode tablet already shows it inline */}
+							{!(isVsCode && isTablet) && (
 							<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-2 border-t">
 								Layout
 							</div>
+							)}
+							{!(isVsCode && isTablet) && (
+							<>
 							<DropdownMenuItem
 								onClick={() => handleLayoutChange("left-to-right")}
 							>
@@ -781,6 +829,8 @@ export function Toolbar({
 								<RTLLayoutIcon className="h-4 w-4 mr-2" />
 								Right to Left
 							</DropdownMenuItem>
+							</>
+							)}
 							<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-2 border-t">
 								View
 							</div>
