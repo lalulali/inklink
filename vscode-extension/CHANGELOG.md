@@ -2,6 +2,12 @@
 
 All notable changes to the "inklink" extension will be documented in this file.
 
+## [0.2.1] - 2026-04-25
+
+### Manual Invocation & Documentation
+
+- **Disabled Auto-Open** — Inklink no longer opens automatically when a Markdown file is opened. This prevents unwanted tab clutter; opening is now an explicit user action via the toolbar icon, context menu, or command palette.
+
 ## [0.2.0] - 2026-04-12
 
 **The "Navigate Your Knowledge" Update**

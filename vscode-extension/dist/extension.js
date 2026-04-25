@@ -118,12 +118,12 @@ function activate(context) {
             }
         });
     }
-    // Automatically open Inklink when a Markdown file is opened
-    context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(doc => {
-        if (doc.languageId === 'markdown') {
-            InklinkPanel.createOrShow(context.extensionUri, doc.uri, context);
-        }
-    }));
+    // // Automatically open Inklink when a Markdown file is opened
+    // context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(doc => {
+    //     if (doc.languageId === 'markdown') {
+    //         InklinkPanel.createOrShow(context.extensionUri, doc.uri, context);
+    //     }
+    // }));
 }
 function deactivate() { }
 class InklinkPanel {

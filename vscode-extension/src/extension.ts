@@ -7,13 +7,13 @@ export function activate(context: vscode.ExtensionContext) {
 
     let disposable = vscode.commands.registerCommand('inklink.open', async (uri?: vscode.Uri) => {
         let targetUri = uri || vscode.window.activeTextEditor?.document.uri;
-        
+
         if (!targetUri) {
             // No file selected, create a new untitled markdown file
             try {
-                const newDoc = await vscode.workspace.openTextDocument({ 
-                    language: 'markdown', 
-                    content: '# New Mindmap\n\n' 
+                const newDoc = await vscode.workspace.openTextDocument({
+                    language: 'markdown',
+                    content: '# New Mindmap\n\n'
                 });
                 await vscode.window.showTextDocument(newDoc, vscode.ViewColumn.One);
                 targetUri = newDoc.uri;
@@ -29,7 +29,7 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     context.subscriptions.push(disposable);
-    
+
     let tryExampleDisposable = vscode.commands.registerCommand('inklink.tryExample', async () => {
         try {
             const examplePath = vscode.Uri.joinPath(context.extensionUri, 'assets', 'visualization-example.md');
@@ -37,15 +37,15 @@ export function activate(context: vscode.ExtensionContext) {
             const content = new TextDecoder().decode(data);
 
             // Always create a new untitled markdown file with the example
-            const newDoc = await vscode.workspace.openTextDocument({ 
-                language: 'markdown', 
-                content: content 
+            const newDoc = await vscode.workspace.openTextDocument({
+                language: 'markdown',
+                content: content
             });
             await vscode.window.showTextDocument(newDoc, vscode.ViewColumn.One);
-            
+
             // Automatically open the mindmap for the new file
             InklinkPanel.createOrShow(context.extensionUri, newDoc.uri, context);
-            
+
             vscode.window.showInformationMessage('Inklink Visualization Example opened in a new tab!');
         } catch (err) {
             vscode.window.showErrorMessage(`Failed to handle visualization example: ${err}`);
@@ -53,7 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     context.subscriptions.push(tryExampleDisposable);
-    
+
     // LAYOUT COMMANDS
     const layoutCommands = [
         { id: 'inklink.setLayoutTwoSided', direction: 'two-sided' },
@@ -67,7 +67,7 @@ export function activate(context: vscode.ExtensionContext) {
             // Priority 2: Use active editor's URI
             // Priority 3: Fallback to getActivePanel for backwards compatibility
             let targetUri = uri || vscode.window.activeTextEditor?.document.uri;
-            
+
             if (targetUri && (vscode.window.activeTextEditor?.document.languageId === 'markdown' || targetUri.path.endsWith('.md'))) {
                 const panel = InklinkPanel.createOrShow(context.extensionUri, targetUri, context);
                 panel.setLayout(cmd.direction);
@@ -92,15 +92,15 @@ export function activate(context: vscode.ExtensionContext) {
         });
     }
 
-    // Automatically open Inklink when a Markdown file is opened
-    context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(doc => {
-        if (doc.languageId === 'markdown') {
-            InklinkPanel.createOrShow(context.extensionUri, doc.uri, context);
-        }
-    }));
+    // // Automatically open Inklink when a Markdown file is opened
+    // context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(doc => {
+    //     if (doc.languageId === 'markdown') {
+    //         InklinkPanel.createOrShow(context.extensionUri, doc.uri, context);
+    //     }
+    // }));
 }
 
-export function deactivate() {}
+export function deactivate() { }
 
 class InklinkPanel {
     private static readonly _panels = new Map<string, InklinkPanel>();
@@ -195,7 +195,7 @@ class InklinkPanel {
 
                         // Performance: Find if editor is already visible
                         let editor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === uriStr);
-                        
+
                         if (!editor || editor.viewColumn !== vscode.ViewColumn.One) {
                             editor = await vscode.window.showTextDocument(this._fileUri, {
                                 viewColumn: vscode.ViewColumn.One,
@@ -272,9 +272,9 @@ class InklinkPanel {
                                 try {
                                     const doc = await vscode.workspace.openTextDocument(targetUri);
                                     // Open in the first column (original editing area), NOT the webview's column
-                                    await vscode.window.showTextDocument(doc, { 
-                                        viewColumn: vscode.ViewColumn.One, 
-                                        preserveFocus: false 
+                                    await vscode.window.showTextDocument(doc, {
+                                        viewColumn: vscode.ViewColumn.One,
+                                        preserveFocus: false
                                     });
                                 } catch {
                                     vscode.env.openExternal(targetUri);
@@ -291,7 +291,7 @@ class InklinkPanel {
                     case 'saveFile':
                         await this._handleSaveFile(message);
                         return;
-                    
+
                     // STORAGE COMMANDS
                     case 'saveAutoSave':
                         await this._handleSaveAutoSave(message);
@@ -443,7 +443,7 @@ class InklinkPanel {
             const document = await vscode.workspace.openTextDocument(this._fileUri);
             const content = document.getText();
             const fileName = this._fileUri.scheme === 'untitled' ? 'Untitled' : path.basename(this._fileUri.fsPath);
-            
+
             this._panel.webview.postMessage({
                 command: 'setContent',
                 content: content,
