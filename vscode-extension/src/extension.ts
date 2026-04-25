@@ -82,6 +82,21 @@ export function activate(context: vscode.ExtensionContext) {
         }));
     });
 
+    // TOGGLE SETTINGS COMMANDS
+    context.subscriptions.push(vscode.commands.registerCommand('inklink.toggleAutoOpen', async () => {
+        const config = vscode.workspace.getConfiguration('inklink');
+        const currentValue = config.get<boolean>('autoOpen', false);
+        await config.update('autoOpen', !currentValue, vscode.ConfigurationTarget.Global);
+        vscode.window.showInformationMessage(`Inklink: Auto-Open is now ${!currentValue ? 'Enabled' : 'Disabled'}`);
+    }));
+
+    context.subscriptions.push(vscode.commands.registerCommand('inklink.toggleAutoClose', async () => {
+        const config = vscode.workspace.getConfiguration('inklink');
+        const currentValue = config.get<boolean>('autoClose', true);
+        await config.update('autoClose', !currentValue, vscode.ConfigurationTarget.Global);
+        vscode.window.showInformationMessage(`Inklink: Auto-Close is now ${!currentValue ? 'Enabled' : 'Disabled'}`);
+    }));
+
     if (vscode.window.registerWebviewPanelSerializer) {
         vscode.window.registerWebviewPanelSerializer('inklinkMap', {
             async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: any) {

@@ -74,6 +74,16 @@
         "command": "inklink.setLayoutRightToLeft",
         "title": "Set Layout: Right to Left",
         "category": "Inklink"
+      },
+      {
+        "command": "inklink.toggleAutoOpen",
+        "title": "Toggle Auto-Open Mindmap",
+        "category": "Inklink"
+      },
+      {
+        "command": "inklink.toggleAutoClose",
+        "title": "Toggle Auto-Close Mindmap",
+        "category": "Inklink"
       }
     ],
     "keybindings": [

@@ -108,6 +108,21 @@ Every heading and list item becomes a visual node with the full structure visibl
 
 ---
 
+## Settings & Customization (VS Code)
+
+Control your workflow with these settings and commands:
+
+| Setting | Default | Description |
+|---|---|---|
+| `inklink.autoOpen` | `false` | Automatically open the mind map when a Markdown file is opened. |
+| `inklink.autoClose` | `true` | Automatically close the mind map when the corresponding file is closed. |
+
+**Command Palette Toggles:**
+- `Inklink: Toggle Auto-Open Mindmap`
+- `Inklink: Toggle Auto-Close Mindmap`
+
+---
+
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
