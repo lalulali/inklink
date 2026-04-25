@@ -8,6 +8,7 @@ import { globalState } from '@/core/state/state-manager';
 import { createMarkdownParser } from '@/core/parser/markdown-parser';
 import { ColorManager } from '@/core/theme/color-manager';
 import { useNotification } from '@/platform/web/web-notification-manager';
+import { generateId } from '@/lib/utils';
 
 export function useFileDrop(autoSave?: any) {
   const { showSuccess, showError, showInfo } = useNotification();
@@ -78,7 +79,7 @@ export function useFileDrop(autoSave?: any) {
         const parser = createMarkdownParser();
         const tree = parser.parse(content);
         ColorManager.assignBranchColors(tree);
-        const autoSaveId = existingRecord?.id || crypto.randomUUID();
+        const autoSaveId = existingRecord?.id || generateId();
 
         globalState.setState({
           markdown: content,

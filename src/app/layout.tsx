@@ -41,7 +41,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>
+      <body suppressHydrationWarning>
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-4CC7T1YRXC"
           strategy="afterInteractive"

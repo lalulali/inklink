@@ -32,7 +32,7 @@ export function Canvas() {
   const { resolvedTheme } = useTheme();
   const internalTransform = useRef(state.transform);
   const lastFocusTime = useRef(0);
-  const modKey = React.useMemo(() => getModKey(), []);
+  const [modKey, setModKey] = React.useState('Ctrl');
 
   const { autoSave } = useWebPlatform();
 
@@ -40,6 +40,7 @@ export function Canvas() {
 
   // Subscribe to changes
   useEffect(() => {
+    setModKey(getModKey());
     return globalState.subscribe((s) => setState(s));
   }, []);
 
@@ -506,7 +507,7 @@ export function Canvas() {
                   if (factory.getPlatform() === PlatformType.VSCode) {
                     const vscodeApi = getVsCodeApi();
                     if (vscodeApi) {
-                      vscodeApi.postMessage({ command: 'insertVisualizationExample' });
+                      vscodeApi.postMessage({ command: 'tryExample' });
                       return;
                     }
                   }

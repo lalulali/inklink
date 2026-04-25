@@ -15,6 +15,7 @@ import type {
   UserPreferences,
 } from './interfaces';
 import { getRandomFunWord } from '../constants/branding';
+import { generateId } from '@/lib/utils';
 
 /**
  * Complete application state
@@ -142,7 +143,7 @@ export function createInitialState(): ApplicationState {
     isSettingsDialogOpen: false,
     recoveryRecord: null,
     isRecoveryDialogOpen: false,
-    autoSaveId: typeof crypto !== 'undefined' ? crypto.randomUUID() : null,
+    autoSaveId: generateId(),
     editorCanUndo: false,
     editorCanRedo: false,
     isResizing: false,

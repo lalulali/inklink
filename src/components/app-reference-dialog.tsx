@@ -21,9 +21,10 @@ import { getModKey } from '@/lib/utils';
 
 export function AppReferenceDialog() {
   const [isOpen, setIsOpen] = React.useState(false);
-  const modKey = React.useMemo(() => getModKey(), []);
+  const [modKey, setModKey] = React.useState('Ctrl');
 
   React.useEffect(() => {
+    setModKey(getModKey());
     return globalState.subscribe(s => {
       if (s.isHelpDialogOpen !== isOpen) {
         setIsOpen(!!s.isHelpDialogOpen);

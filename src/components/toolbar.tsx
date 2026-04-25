@@ -16,7 +16,7 @@ import { ToggleAllVisibilityCommand } from "@/core/state/commands/toggle-all-vis
 import { createMarkdownParser } from "@/core/parser/markdown-parser";
 import { ColorManager } from "@/core/theme/color-manager";
 import { Button } from "@/components/ui/button";
-import { getModKey } from "@/lib/utils";
+import { cn, getModKey, generateId } from "@/lib/utils";
 import {
 	FolderOpen as FolderOpenIcon,
 	Save as SaveIcon,
@@ -130,7 +130,7 @@ export function Toolbar({
 	editorVisible: boolean;
 }) {
 	const { factory, autoSave: autoSaveMgr, commands } = useWebPlatform();
-	const modKey = React.useMemo(() => getModKey(), []);
+	const [modKey, setModKey] = React.useState("Ctrl");
 	const isVsCode = factory.getPlatform() === PlatformType.VSCode;
 	const { showSuccess, showError, showInfo } = useNotification();
 	const [state, setState] = React.useState(globalState.getState());
@@ -141,6 +141,7 @@ export function Toolbar({
 	const [canRedo, setCanRedo] = React.useState(false);
 
 	React.useEffect(() => {
+		setModKey(getModKey());
 		return globalState.subscribe((s) => setState(s));
 	}, []);
 
@@ -217,7 +218,7 @@ export function Toolbar({
 			// Ensure colors are assigned to the new tree structure
 			ColorManager.assignBranchColors(tree);
 
-			const autoSaveId = existingRecord?.id || crypto.randomUUID();
+			const autoSaveId = existingRecord?.id || generateId();
 			globalState.setState({
 				markdown: finalContent,
 				tree,
@@ -304,7 +305,7 @@ export function Toolbar({
 			if (!response.ok) throw new Error('Failed to fetch example file');
 			const content = await response.text();
 
-			const newAutoSaveId = crypto.randomUUID();
+			const newAutoSaveId = generateId();
 			globalState.setState({
 				markdown: content,
 				tree: null,
@@ -342,7 +343,7 @@ export function Toolbar({
 	}, [autoSaveMgr, editorVisible, onToggleEditor, showInfo, showSuccess, showError]);
 
 	const handleNewDocument = React.useCallback(async () => {
-		const newAutoSaveId = crypto.randomUUID();
+		const newAutoSaveId = generateId();
 		globalState.setState({
 			markdown: '',
 			tree: null,
@@ -450,6 +451,8 @@ export function Toolbar({
 							xmlns="http://www.w3.org/2000/svg"
 							viewBox="0 0 1024 1024"
 							className="h-5 w-5"
+							width="20"
+							height="20"
 							fill="currentColor"
 							role="img"
 							aria-label="Inklink Logo"

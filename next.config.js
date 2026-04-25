@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  crossOrigin: 'anonymous',
+  allowedDevOrigins: ['192.168.18.52'],
   // Turbopack is default in Next 16
   turbopack: {
     root: '.',

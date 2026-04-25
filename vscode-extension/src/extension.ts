@@ -30,59 +30,29 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(disposable);
     
-    let insertExampleDisposable = vscode.commands.registerCommand('inklink.insertVisualizationExample', async (uri?: vscode.Uri) => {
-        let activeEditor = vscode.window.activeTextEditor;
-        
-        // If triggered from a webview panel, try to find the editor for that panel's file
-        if (uri) {
-            const visibleEditor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === uri.toString());
-            if (visibleEditor) {
-                activeEditor = visibleEditor;
-            }
-        }
-        
+    let tryExampleDisposable = vscode.commands.registerCommand('inklink.tryExample', async () => {
         try {
             const examplePath = vscode.Uri.joinPath(context.extensionUri, 'assets', 'visualization-example.md');
             const data = await vscode.workspace.fs.readFile(examplePath);
             const content = new TextDecoder().decode(data);
 
-            if (!activeEditor) {
-                // If no active editor, create a new untitled markdown file with the example
-                const newDoc = await vscode.workspace.openTextDocument({ 
-                    language: 'markdown', 
-                    content: content 
-                });
-                activeEditor = await vscode.window.showTextDocument(newDoc, vscode.ViewColumn.One);
-                
-                // Automatically open the mindmap for the new file
-                InklinkPanel.createOrShow(context.extensionUri, newDoc.uri, context);
-                
-                vscode.window.showInformationMessage('Inklink Visualization Example opened in a new file!');
-                return;
-            }
-
-            const editor = activeEditor;
-            // Ensure the editor is visible and focused
-            await vscode.window.showTextDocument(editor.document, editor.viewColumn);
-
-            await editor.edit(editBuilder => {
-                // If the editor is empty, just insert at the beginning. Otherwise insert at cursor.
-                const position = editor.document.getText().length === 0 
-                    ? new vscode.Position(0, 0) 
-                    : editor.selection.active;
-                editBuilder.insert(position, content);
+            // Always create a new untitled markdown file with the example
+            const newDoc = await vscode.workspace.openTextDocument({ 
+                language: 'markdown', 
+                content: content 
             });
+            await vscode.window.showTextDocument(newDoc, vscode.ViewColumn.One);
             
-            // Automatically open/show the mindmap for the current file
-            InklinkPanel.createOrShow(context.extensionUri, editor.document.uri, context);
+            // Automatically open the mindmap for the new file
+            InklinkPanel.createOrShow(context.extensionUri, newDoc.uri, context);
             
-            vscode.window.showInformationMessage('Inklink Visualization Example inserted!');
+            vscode.window.showInformationMessage('Inklink Visualization Example opened in a new tab!');
         } catch (err) {
             vscode.window.showErrorMessage(`Failed to handle visualization example: ${err}`);
         }
     });
 
-    context.subscriptions.push(insertExampleDisposable);
+    context.subscriptions.push(tryExampleDisposable);
     
     // LAYOUT COMMANDS
     const layoutCommands = [
@@ -143,6 +113,7 @@ class InklinkPanel {
     private _isReady = false;
     private _pendingLayout: string | undefined;
     private _programmaticRevealTimeout: any;
+    private _isProgrammaticReveal = false;
     public static getActivePanel(): InklinkPanel | undefined {
         for (const panel of InklinkPanel._panels.values()) {
             if (panel._panel.active) {
@@ -346,8 +317,8 @@ class InklinkPanel {
                         this._respond(message.id, prefs || {}, 'storageResponse');
                         return;
                     }
-                    case 'insertVisualizationExample': {
-                        vscode.commands.executeCommand('inklink.insertVisualizationExample', this._fileUri);
+                    case 'tryExample': {
+                        vscode.commands.executeCommand('inklink.tryExample');
                         return;
                     }
                 }

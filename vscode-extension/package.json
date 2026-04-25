@@ -55,8 +55,8 @@
         }
       },
       {
-        "command": "inklink.insertVisualizationExample",
-        "title": "Insert Visualization Example",
+        "command": "inklink.tryExample",
+        "title": "Try Visualization Example",
         "category": "Inklink",
         "icon": "$(zap)"
       },
