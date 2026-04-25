@@ -92,12 +92,23 @@ export function activate(context: vscode.ExtensionContext) {
         });
     }
 
-    // // Automatically open Inklink when a Markdown file is opened
-    // context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(doc => {
-    //     if (doc.languageId === 'markdown') {
-    //         InklinkPanel.createOrShow(context.extensionUri, doc.uri, context);
-    //     }
-    // }));
+    // Automatically open Inklink when a Markdown file is opened (if setting enabled)
+    context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(doc => {
+        const config = vscode.workspace.getConfiguration('inklink');
+        const autoOpen = config.get<boolean>('autoOpen', false);
+        if (autoOpen && doc.languageId === 'markdown') {
+            InklinkPanel.createOrShow(context.extensionUri, doc.uri, context);
+        }
+    }));
+
+    // Automatically close Inklink when a Markdown file is closed (if setting enabled)
+    context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(doc => {
+        const config = vscode.workspace.getConfiguration('inklink');
+        const autoClose = config.get<boolean>('autoClose', true);
+        if (autoClose) {
+            InklinkPanel.disposeByUri(doc.uri);
+        }
+    }));
 }
 
 export function deactivate() { }
@@ -163,6 +174,14 @@ class InklinkPanel {
         const inklinkPanel = new InklinkPanel(panel, extensionUri, fileUri, context);
         InklinkPanel._panels.set(fileUriString, inklinkPanel);
         return inklinkPanel;
+    }
+
+    public static disposeByUri(fileUri: vscode.Uri) {
+        const fileUriString = fileUri.toString();
+        const existingPanel = InklinkPanel._panels.get(fileUriString);
+        if (existingPanel) {
+            existingPanel.dispose();
+        }
     }
 
     public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, fileUri: vscode.Uri, context: vscode.ExtensionContext) {

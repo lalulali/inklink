@@ -6,7 +6,10 @@ All notable changes to the "inklink" extension will be documented in this file.
 
 ### Manual Invocation & Documentation
 
-- **Disabled Auto-Open** — Inklink no longer opens automatically when a Markdown file is opened. This prevents unwanted tab clutter; opening is now an explicit user action via the toolbar icon, context menu, or command palette.
+- **Configurable Auto-Open/Close** — Added new VS Code settings `inklink.autoOpen` (default: false) and `inklink.autoClose` (default: true). Users can now fully control when the mind map appears and disappears.
+- **Interactive Layout Gallery** — Added high-resolution screenshot galleries to the documentation showcasing Two-Sided, Left-to-Right, and Right-to-Left layouts.
+- **Enhanced Visual Documentation** — Synchronized screenshot paths with actual file casing and improved image resolution in the README.
+- **Fixed Typo** — Corrected "Right-to-Light" to "Right-to-Left" in layout documentation.
 
 ## [0.2.0] - 2026-04-12
 

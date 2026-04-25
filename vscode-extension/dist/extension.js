@@ -118,12 +118,22 @@ function activate(context) {
             }
         });
     }
-    // // Automatically open Inklink when a Markdown file is opened
-    // context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(doc => {
-    //     if (doc.languageId === 'markdown') {
-    //         InklinkPanel.createOrShow(context.extensionUri, doc.uri, context);
-    //     }
-    // }));
+    // Automatically open Inklink when a Markdown file is opened (if setting enabled)
+    context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(doc => {
+        const config = vscode.workspace.getConfiguration('inklink');
+        const autoOpen = config.get('autoOpen', false);
+        if (autoOpen && doc.languageId === 'markdown') {
+            InklinkPanel.createOrShow(context.extensionUri, doc.uri, context);
+        }
+    }));
+    // Automatically close Inklink when a Markdown file is closed (if setting enabled)
+    context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(doc => {
+        const config = vscode.workspace.getConfiguration('inklink');
+        const autoClose = config.get('autoClose', true);
+        if (autoClose) {
+            InklinkPanel.disposeByUri(doc.uri);
+        }
+    }));
 }
 function deactivate() { }
 class InklinkPanel {
@@ -177,6 +187,13 @@ class InklinkPanel {
         const inklinkPanel = new InklinkPanel(panel, extensionUri, fileUri, context);
         InklinkPanel._panels.set(fileUriString, inklinkPanel);
         return inklinkPanel;
+    }
+    static disposeByUri(fileUri) {
+        const fileUriString = fileUri.toString();
+        const existingPanel = InklinkPanel._panels.get(fileUriString);
+        if (existingPanel) {
+            existingPanel.dispose();
+        }
     }
     static revive(panel, extensionUri, fileUri, context) {
         const fileUriString = fileUri.toString();

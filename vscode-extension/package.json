@@ -106,6 +106,21 @@
           "when": "resourceExtname == .md"
         }
       ]
+    },
+    "configuration": {
+      "title": "Inklink",
+      "properties": {
+        "inklink.autoOpen": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically open the Inklink mind map when a Markdown file is opened."
+        },
+        "inklink.autoClose": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically close the Inklink mind map when the corresponding Markdown file is closed."
+        }
+      }
     }
   },
   "scripts": {
