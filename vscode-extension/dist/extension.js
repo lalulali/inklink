@@ -72,7 +72,6 @@ function activate(context) {
                 language: 'markdown',
                 content: content
             });
-            await vscode.window.showTextDocument(newDoc, vscode.ViewColumn.One);
             // Automatically open the mindmap for the new file
             InklinkPanel.createOrShow(context.extensionUri, newDoc.uri, context);
             vscode.window.showInformationMessage('Inklink Visualization Example opened in a new tab!');

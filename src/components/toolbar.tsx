@@ -329,12 +329,8 @@ export function Toolbar({
 				editorCanUndo: false,
 				editorCanRedo: false,
 			});
+			// Ensure hashes are synchronized so the manager knows the starting state
 			autoSaveMgr.synchronizeHashes(content);
-
-			// Ensure editor is visible to show the result
-			if (!editorVisible) {
-				onToggleEditor();
-			}
 
 			showSuccess("Example visualization loaded!", "The showcase markdown has been loaded into the editor.");
 		} catch (err) {
@@ -398,6 +394,12 @@ export function Toolbar({
 		}
 	}, [onToggleEditor]);
 
+	const autoHideEditor = React.useCallback(() => {
+		if (editorVisible && isMobile) {
+			onToggleEditor();
+		}
+	}, [editorVisible, isMobile, onToggleEditor]);
+
 	const handleUndo = () => {
 		const s = globalState.getState();
 		if (s.editorCanUndo) {
@@ -421,11 +423,13 @@ export function Toolbar({
 		if (document.activeElement instanceof HTMLElement) {
 			document.activeElement.blur();
 		}
+		autoHideEditor();
 	};
 
 	const handleToggleAllVisibility = (collapsed: boolean) => {
 		commands.execute(new ToggleAllVisibilityCommand(collapsed, globalState));
 		showSuccess(`${collapsed ? "Collapsed" : "Expanded"} all nodes`);
+		autoHideEditor();
 	};
 
 	const handleFind = () => {
@@ -435,6 +439,7 @@ export function Toolbar({
 			window.dispatchEvent(new CustomEvent("inklink-editor-search"));
 		} else {
 			window.dispatchEvent(new CustomEvent("inklink-toggle-search"));
+			autoHideEditor();
 		}
 	};
 
@@ -640,9 +645,10 @@ export function Toolbar({
 								Search Scope
 							</div>
 							<DropdownMenuItem
-								onClick={() =>
-									window.dispatchEvent(new CustomEvent("inklink-toggle-search"))
-								}
+								onClick={() => {
+									window.dispatchEvent(new CustomEvent("inklink-toggle-search"));
+									autoHideEditor();
+								}}
 								className="gap-2 cursor-pointer"
 							>
 								<MapIcon className="h-4 w-4" />
@@ -798,12 +804,18 @@ export function Toolbar({
 							<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-2 border-t">
 								Search
 							</div>
-							<DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent("inklink-toggle-search"))}>
+							<DropdownMenuItem onClick={() => {
+								window.dispatchEvent(new CustomEvent("inklink-toggle-search"));
+								autoHideEditor();
+							}}>
 								<MapIcon className="h-4 w-4 mr-2" />
-								Find in Mind Map
+								<span>Find in Mind Map</span>
 							</DropdownMenuItem>
 							{!isVsCode && (
-								<DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent("inklink-editor-search"))}>
+								<DropdownMenuItem onClick={() => {
+									if (!editorVisible) onToggleEditor();
+									window.dispatchEvent(new CustomEvent("inklink-editor-search"));
+								}}>
 									<FileTextIcon className="h-4 w-4 mr-2" />
 									Find in Editor
 								</DropdownMenuItem>
@@ -852,6 +864,12 @@ export function Toolbar({
 							>
 								<MaximizeIcon className="h-4 w-4 mr-2" />
 								Expand All
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={() => handleToggleAllVisibility(true)}
+							>
+								<MinimizeIcon className="h-4 w-4 mr-2" />
+								Collapse All
 							</DropdownMenuItem>
 							<div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-2 border-t">
 								App Actions

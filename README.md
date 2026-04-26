@@ -34,7 +34,7 @@ Just open your `.md` file and see your document's structure come alive. Headings
 
 **Write on the left. Think on the right.**
 
-![Web Interface](public/screenshots/Web.png)
+![Web Interface](./public/screenshots/Web.png)
 
 ---
 
@@ -76,7 +76,7 @@ Choose balanced (two-sided), left-to-right, or right-to-left layouts. All with p
 
 | Balance | Left-to-Right | Right-to-Left |
 |---|---|---|
-| ![Balance](public/screenshots/Balance.jpg) | ![Left-to-Right](public/screenshots/Left-to-right.jpg) | ![Right-to-Left](public/screenshots/Right-to-left.jpg) |
+| ![Balance](./public/screenshots/Balance.jpg) | ![Left-to-Right](./public/screenshots/Left-to-right.jpg) | ![Right-to-Left](./public/screenshots/Right-to-left.jpg) |
 
 ### Professional Minimap
 Navigate massive documents without getting lost. The minimap keeps your "neighborhood" in focus even with 1000+ nodes.
@@ -103,7 +103,7 @@ Color-coded branches that look great in both light and dark modes. VS Code integ
 
 Inklink lives inside your editor. No tab switching. No context loss. Just your code and your mind map, side by side.
 
-![VS Code Extension](public/screenshots/VS%20Code.png)
+![VS Code Extension](./public/screenshots/VS%20Code.png)
 
 The extension is designed to feel native:
 - Compact toolbar optimized for IDE real estate

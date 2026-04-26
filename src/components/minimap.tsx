@@ -114,9 +114,13 @@ export function Minimap() {
   }, []);
 
   useEffect(() => {
-    if (!svgRef.current || !state.tree) return;
-    
+    if (!svgRef.current) return;
     const svg = d3.select(svgRef.current);
+
+    if (!state.tree) {
+      svg.selectAll('*').remove();
+      return;
+    }
     const { width: mWidth, height: mHeight } = containerRef.current?.getBoundingClientRect() || { width: 192, height: 128 };
     
     const nodes: any[] = [];

@@ -28,7 +28,7 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
 
 const toastVariants = cva(
-  'group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full',
+  'group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:translate-y-[var(--radix-toast-swipe-move-y)] data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=end]:translate-y-[var(--radix-toast-swipe-end-y)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full',
   {
     variants: {
       variant: {
@@ -49,10 +49,68 @@ const Toast = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Root>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> & VariantProps<typeof toastVariants>
 >(({ className, variant, ...props }, ref) => {
+  const [offset, setOffset] = React.useState({ x: 0, y: 0 });
+  const [isSwiping, setIsSwiping] = React.useState(false);
+  const [dismissDirection, setDismissDirection] = React.useState<'left' | 'right' | null>(null);
+  const startPos = React.useRef<{ x: number; y: number } | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    setIsSwiping(true);
+    setDismissDirection(null);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!startPos.current) return;
+    const deltaX = e.touches[0].clientX - startPos.current.x;
+    const deltaY = e.touches[0].clientY - startPos.current.y;
+    
+    // Lock to dominant axis
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      setOffset({ x: deltaX, y: 0 });
+    } else {
+      // Let Radix handle vertical swipe (swipe up)
+      setOffset({ x: 0, y: deltaY });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    if (isMobile && Math.abs(offset.x) > 80) {
+      // Set dismissal direction before closing
+      const direction = offset.x > 0 ? 'right' : 'left';
+      setDismissDirection(direction);
+      // We don't reset offset immediately to avoid a 'jump' before the exit animation
+      props.onOpenChange?.(false);
+      // Let the component unmount or finish its animation
+    } else {
+      setOffset({ x: 0, y: 0 });
+      setIsSwiping(false);
+    }
+    startPos.current = null;
+  };
+
+  const isHorizontalSwipe = isSwiping && Math.abs(offset.x) > Math.abs(offset.y);
+
   return (
     <ToastPrimitives.Root
       ref={ref}
-      className={cn(toastVariants({ variant }), className)}
+      className={cn(
+        toastVariants({ variant }),
+        // Dynamically choose the exit animation to prevent diagonal conflicts
+        !dismissDirection && 'data-[state=closed]:slide-out-to-top-full sm:data-[state=closed]:slide-out-to-right-full',
+        dismissDirection === 'left' && 'data-[state=closed]:slide-out-to-left-full',
+        dismissDirection === 'right' && 'data-[state=closed]:slide-out-to-right-full',
+        className
+      )}
+      style={{
+        transform: isHorizontalSwipe ? `translateX(${offset.x}px)` : undefined,
+        transition: isHorizontalSwipe ? 'none' : undefined,
+        opacity: isHorizontalSwipe ? Math.max(0, 1 - Math.abs(offset.x) / 300) : undefined,
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       {...props}
     />
   );

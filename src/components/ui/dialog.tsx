@@ -21,7 +21,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      'fixed inset-0 z-[50] bg-black/80 data-[state=open]:animate-dialog-fade-in data-[state=closed]:animate-dialog-fade-out',
+      'fixed inset-0 z-[100] bg-black/80 data-[state=open]:animate-dialog-fade-in data-[state=closed]:animate-dialog-fade-out',
       'max-[463px]:top-[56px]',
       className
     )}
@@ -41,7 +41,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-[50%] top-[50%] z-[50] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg data-[state=open]:animate-dialog-fade-in data-[state=closed]:animate-dialog-fade-out sm:rounded-lg',
+        'fixed left-[50%] top-[50%] z-[100] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg data-[state=open]:animate-dialog-fade-in data-[state=closed]:animate-dialog-fade-out sm:rounded-lg',
         'max-[463px]:left-0 max-[463px]:top-[56px] max-[463px]:translate-x-0 max-[463px]:translate-y-0 max-[463px]:max-w-none max-[463px]:max-h-none max-[463px]:h-[calc(100dvh-56px)] max-[463px]:rounded-none max-[463px]:border-none',
         className
       )}

@@ -100,7 +100,6 @@ export function SearchPanel() {
       className={cn(
         "absolute z-40 flex items-center gap-1.5 md:gap-3 rounded-full border bg-background p-1.5 md:p-3 shadow-2xl transition-all duration-300 animate-in slide-in-from-top-2 fade-in",
         "left-4 right-4 top-4 md:left-auto md:right-6 md:top-6",
-        "max-[463px]:left-0 max-[463px]:right-0 max-[463px]:top-0 max-[463px]:h-full max-[463px]:rounded-none max-[463px]:items-start max-[463px]:p-4",
         state.isCanvasSearchOpen ? "scale-100 opacity-100" : "scale-95 opacity-0"
       )}
       id="inklink-search-panel"
@@ -136,7 +135,7 @@ export function SearchPanel() {
       </div>
 
       {/* Result Status Indicator */}
-      <div className="flex items-center justify-center w-auto min-w-[45px] md:w-24 rounded-md bg-muted/30 px-2 py-1 text-[10px] md:text-xs font-bold tracking-tight md:tracking-widest text-muted-foreground transition-all duration-300">
+      <div className="hidden sm:flex items-center justify-center w-auto min-w-[45px] md:w-24 rounded-md bg-muted/30 px-2 py-1 text-[10px] md:text-xs font-bold tracking-tight md:tracking-widest text-muted-foreground transition-all duration-300">
         {state.searchQuery && state.searchResults.length === 0 ? (
           <span className="text-destructive/80 animate-pulse">NO MATCH</span>
         ) : (
@@ -155,7 +154,7 @@ export function SearchPanel() {
           size="sm" 
           pressed={caseSensitive}
           onPressedChange={setCaseSensitive}
-          className="h-9 w-9 rounded-full border-none data-[state=on]:bg-primary/20 data-[state=on]:text-primary hover:bg-muted font-mono text-[11px] font-bold"
+          className="h-7 w-7 sm:h-9 sm:w-9 rounded-full border-none data-[state=on]:bg-primary/20 data-[state=on]:text-primary hover:bg-muted font-mono text-[9px] sm:text-[11px] font-bold"
           title="Match Case"
           aria-label="Match Case"
         >
@@ -166,31 +165,31 @@ export function SearchPanel() {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-9 w-9 rounded-full hover:bg-muted" 
+            className="h-7 w-7 sm:h-9 sm:w-9 rounded-full hover:bg-muted" 
             onClick={() => navigateSearch('prev')}
             disabled={state.searchResults.length <= 1}
           >
-            <ChevronUpIcon className="h-5 w-5" />
+            <ChevronUpIcon className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
           
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-9 w-9 rounded-full hover:bg-muted" 
+            className="h-7 w-7 sm:h-9 sm:w-9 rounded-full hover:bg-muted" 
             onClick={() => navigateSearch('next')}
             disabled={state.searchResults.length <= 1}
           >
-            <ChevronDownIcon className="h-5 w-5" />
+            <ChevronDownIcon className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
         </div>
 
         <Button 
           variant="ghost" 
           size="icon" 
-          className="ml-1 h-9 w-9 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
+          className="ml-1 h-7 w-7 sm:h-9 sm:w-9 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
           onClick={() => globalState.setState({ isCanvasSearchOpen: false })}
         >
-          <XIcon className="h-5 w-5" />
+          <XIcon className="h-4 w-4 sm:h-5 sm:w-5" />
         </Button>
       </div>
     </div>

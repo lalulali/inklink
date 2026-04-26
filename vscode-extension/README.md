@@ -11,7 +11,7 @@ You've got a 300-line spec. You wrote it last week. Now you need to find that on
 
 Inklink instantly visualizes your Markdown as an interactive mind map — in a side panel, next to your code. No tab switching. No context loss. Just your document's structure, at a glance.
 
-![VS Code Extension](../public/screenshots/VS%20Code.png)
+![VS Code Extension](images/VS%20Code.png)
 
 ---
 
@@ -55,7 +55,7 @@ Code blocks and quotes show as interactive pills on nodes. Click to expand. Clic
 
 | Balance | Left-to-Right | Right-to-Left |
 |---|---|---|
-| ![Balance](../public/screenshots/Balance.jpg) | ![Left-to-Right](../public/screenshots/Left-to-right.jpg) | ![Right-to-Left](../public/screenshots/Right-to-left.jpg) |
+| ![Balance](images/Balance.jpg) | ![Left-to-Right](images/Left-to-right.jpg) | ![Right-to-Left](images/Right-to-left.jpg) |
 
 ### 🔭 Smart Minimap
 Navigate huge documents without getting lost. The minimap keeps your current position in focus, even with 1000+ nodes.

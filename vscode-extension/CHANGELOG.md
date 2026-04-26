@@ -2,6 +2,23 @@
 
 All notable changes to the "inklink" extension will be documented in this file.
 
+## [0.2.2] - 2026-04-26
+
+### Mobile UX & Accessibility
+
+- **Swipe-to-Dismiss Notifications** — Swipe notifications left or right to quickly dismiss them on mobile devices with natural, direction-following animations.
+- **Improved UI Layering** — Re-engineered z-index hierarchy ensuring Settings, Shortcuts, and Help dialogs correctly overlay the mobile editor drawer.
+- **Compact Search Interface** — Redesigned the "Find in Mind Map" panel for mobile, removing the fullscreen state and scaling down controls (buttons, icons, and typography) for a more refined, floating feel.
+- **Intelligent Editor Visibility** — The mobile editor drawer now automatically hides when performing canvas-centric actions (layout changes, global expand/collapse) and automatically reveals itself when "Find in Editor" is selected.
+- **Simplified Search Indicators** — Removed results-count clutter from the mobile search panel and editor search bar to maximize usable space.
+- **Restored Mobile Actions** — Fixed a missing "Collapse All" menu item in the mobile "More" toolbar.
+
+### Stability & Refinement
+
+- **Fix Minimap Cleanup** — Corrected an issue where the minimap would retain old data when creating a new document; it now correctly clears its canvas on document reset.
+- **Onboarding Optimization** — Loading examples now focuses the visualization by default instead of the text editor.
+- **Fixed Boolean Attributes** — Resolved a React warning regarding non-boolean attributes in the onboarding guide.
+
 ## [0.2.1] - 2026-04-25
 
 ### Manual Invocation & Documentation

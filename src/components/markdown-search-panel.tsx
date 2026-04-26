@@ -60,6 +60,15 @@ export function MarkdownSearchPanel({ view }: MarkdownSearchPanelProps) {
     
     return () => window.removeEventListener('inklink-focus-editor-search', handleFocus);
   }, [state.isEditorSearchOpen]);
+
+  // Listen for editor search toggle event
+  useEffect(() => {
+    const handleToggle = () => {
+      globalState.setState({ isEditorSearchOpen: true, isEditorReplaceOpen: false });
+    };
+    window.addEventListener('inklink-editor-search', handleToggle);
+    return () => window.removeEventListener('inklink-editor-search', handleToggle);
+  }, []);
   
   // Cleanup search state on unmount
   useEffect(() => {
@@ -358,7 +367,7 @@ export function MarkdownSearchPanel({ view }: MarkdownSearchPanelProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 px-1 md:px-2 text-[10px] text-muted-foreground whitespace-nowrap min-w-fit md:min-w-[70px] justify-center">
+        <div className="hidden md:flex items-center gap-1.5 px-1 md:px-2 text-[10px] text-muted-foreground whitespace-nowrap min-w-fit md:min-w-[70px] justify-center">
             {state.editorSearchResultsCount > 0 ? (
                 <>
                   <span className="md:inline hidden">{state.editorSearchCurrentIndex + 1} of {state.editorSearchResultsCount}</span>

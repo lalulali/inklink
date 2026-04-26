@@ -23,6 +23,7 @@ npm-debug.log*
 # Keep only the production build
 !dist/**
 !assets/**
+!images/**
 !package.json
 !README.md
 !CHANGELOG.md

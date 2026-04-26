@@ -193,7 +193,7 @@ export function LearnBasicsDrawer() {
                   </div>
                   <div>
                     <p className="text-xs font-bold mb-1">Interactive Teleport</p>
-                    <p className="text-[11px] text-muted-foreground leading-normal" font-medium>
+                    <p className="text-[11px] text-muted-foreground leading-normal font-medium">
                       Double-click any node to instantly jump to its exact location in the Markdown editor.
                     </p>
                   </div>

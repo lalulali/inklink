@@ -7,6 +7,7 @@ import {
   ToastTitle,
   ToastViewport,
 } from '@/components/ui/toast';
+import React from 'react';
 
 /**
  * Feature: Toaster Component
@@ -16,9 +17,18 @@ import {
 
 export function Toaster() {
   const { toasts } = useToast();
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    setIsMobile(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   return (
-    <ToastProvider>
+    <ToastProvider swipeDirection={isMobile ? 'up' : 'right'}>
       {toasts.map(function ({ id, title, description, action, ...props }) {
         return (
           <Toast key={id} {...props}>
