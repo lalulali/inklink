@@ -34,7 +34,7 @@ Just open your `.md` file and see your document's structure come alive. Headings
 
 **Write on the left. Think on the right.**
 
-![Web Interface](./public/screenshots/Web.png)
+![Web Interface](./public/screenshots/web.png)
 
 ---
 
